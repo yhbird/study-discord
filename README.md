@@ -51,3 +51,8 @@ discord.py의 최근 fork 버전으로 `py-cord`, `nextcord`를 사용하고 있
 pip install -U py-cord
 python -m discord --version #설치확인
 ```
+
+### discord 봇 실행 (가상환경 active 확인!)
+```bash
+python main.py
+```

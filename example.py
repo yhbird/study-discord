@@ -18,6 +18,7 @@ test_bot = commands.Bot(command_prefix='/', intents=intents)
 async def on_ready():
     print(f'Logged in as {test_bot.user}!')
 
+# 봇 명령어 테스트 "/ping"
 @test_bot.command()
 async def ping(ctx):
     await ctx.send('Pong!')
