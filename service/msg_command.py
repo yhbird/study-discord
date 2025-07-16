@@ -45,7 +45,7 @@ class ImageViewer(View):
 
     async def update_msg(self, interaction: discord.Interaction):
         index = f"{self.current_index + 1}/{len(self.images)}"
-        embed = discord.Embed(title=f"'{self.image_search_keyword}' 검색 결과 에양 ({index})")
+        embed = discord.Embed(title=f"'{self.image_search_keyword}' 이미지 검색 결과 에양 ({index})")
         embed.set_image(url=self.images[self.current_index])
         if interaction.response.is_done():
             await interaction.followup.edit_message(message_id=self.message.id, embed=embed, view=self)
