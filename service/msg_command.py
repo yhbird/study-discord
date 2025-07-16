@@ -2,7 +2,9 @@ import discord
 from discord.ext import commands
 from discord.ui import View, Button
 
-from duckduckgo_search import DDGS
+from ddgs import DDGS
+from ddgs.exceptions import DDGSException
+import time
 import random
 import asyncio
 from service.common import log_command
@@ -89,17 +91,24 @@ async def handle_image(message: discord.Message):
         image_search_keyword: str = message.content[len(command_prefix):]
 
     results = None
-    try:
-        with DDGS() as ddgs:
-            # DDG 이미지 검색
-            results = ddgs.images(keywords=image_search_keyword, max_results=10)
-    except Exception as e:
-        await message.channel.send(f"이미지 검색 중 오류가 발생했어양...")
-        return
+    with DDGS() as ddgs:
+        try:
+            time.sleep(2) # API rate limit 
+            results = ddgs.images(
+                query=image_search_keyword,
+                safesearch="off",
+                num_results=10,
+            )
+        except DDGSException as e:
+            await message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
+            raise Exception(f"Failed to search images: {e}")
+        except Exception as e:
+            await message.channel.send(f"검색 중에 오류가 발생했어양...")
+            raise Exception(f"Unexpected error during image search: {e}")
     
     if not results:
         await message.channel.send("이미지를 찾을 수 없어양!!")
-        return
+        raise Warning(f"No images found keyword: {image_search_keyword}")
     
     image_urls = [r["image"] for r in results if "image" in r]
     view = ImageViewer(images=image_urls, search_keyword=image_search_keyword)
