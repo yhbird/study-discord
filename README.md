@@ -52,7 +52,13 @@ pip install -U py-cord
 python -m discord --version #설치확인
 ```
 
-### discord 봇 실행 (가상환경 active 확인!)
+### discord 봇 직접 실행 및 테스트 (가상환경 active 확인!)
 ```bash
 python main.py
+```
+
+### discord 봇 컨테이너 실행
+```bash
+chmod +x deploy.sh
+bash deploy.sh
 ```
