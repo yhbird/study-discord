@@ -11,11 +11,12 @@ from service.common import log_command
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
-    def __init__(self, images, search_keyword, timeout=600):
+    def __init__(self, images, search_keyword, requester: discord.User, timeout=600):
         super().__init__(timeout=timeout)
         self.images = images
         self.image_search_keyword = search_keyword
         self.current_index = 0
+        self.view_owner: discord.User = requester
         self.message = None
 
         # 버튼 추가
@@ -26,7 +27,12 @@ class ImageViewer(View):
         self.add_item(Button(label="❌", style=discord.ButtonStyle.primary, custom_id="delete"))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        # 버튼 상호작용 실행
+        # 상호작용한 사용자가 뷰의 소유자와 일치하는지 확인
+        if interaction.user != self.view_owner:
+            await interaction.response.send_message("이 기능은 검색한 사람만 사용할 수 있어양!", ephemeral=True)
+            return False
+        
+        # 상호작용한 사용자와 뷰의 소유자가 일치하면 버튼 상호작용 실행
         action = interaction.data["custom_id"]
         if action == "first":
             self.current_index = 0
@@ -52,11 +58,18 @@ class ImageViewer(View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
+    # 10분 후 타임아웃 처리
     async def on_timeout(self):
+        # 모든 버튼 비활성화
         for item in self.children:
             item.disabled = True
+
+        # 메시지가 존재하면 업데이트 (이미 삭제되면 무시)
         if self.message:
-            await self.message.edit(view=self)
+            try:
+                await self.message.edit(view=self)
+            except discord.NotFound:
+                pass
 
 # 샴 따라해 기능 복원
 @log_command
@@ -111,7 +124,8 @@ async def handle_image(message: discord.Message):
         raise Warning(f"No images found keyword: {image_search_keyword}")
     
     image_urls = [r["image"] for r in results if "image" in r]
-    view = ImageViewer(images=image_urls, search_keyword=image_search_keyword)
+    view_owner: discord.User = message.author
+    view = ImageViewer(images=image_urls, search_keyword=image_search_keyword, requester=view_owner)
     index_indicator: str = f"{view.current_index + 1}/{len(view.images)}"
 
     embed = discord.Embed(title=f"'{image_search_keyword}' 이미지 검색 결과 에양 ({index_indicator})")
