@@ -11,7 +11,7 @@ from service.common import log_command
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
-    def __init__(self, images, search_keyword, requester: discord.User, timeout=600):
+    def __init__(self, images: list[dict], search_keyword: str, requester: discord.User, timeout: int = 600):
         super().__init__(timeout=timeout)
         self.images = images
         self.image_search_keyword = search_keyword
@@ -52,7 +52,8 @@ class ImageViewer(View):
     async def update_msg(self, interaction: discord.Interaction):
         index = f"{self.current_index + 1}/{len(self.images)}"
         embed = discord.Embed(title=f"'{self.image_search_keyword}' 이미지 검색 결과 에양 ({index})")
-        embed.set_image(url=self.images[self.current_index])
+        embed.set_image(url=self.images[self.current_index]["image"])
+        embed.description = f"[🔗 원본 보기]({self.images[self.current_index]['url']})"
         if interaction.response.is_done():
             await interaction.followup.edit_message(message_id=self.message.id, embed=embed, view=self)
         else:
@@ -103,7 +104,7 @@ async def handle_image(message: discord.Message):
     if message.content.startswith(command_prefix):
         image_search_keyword: str = message.content[len(command_prefix):]
 
-    results = None
+    results: list[dict] = None
     with DDGS() as ddgs:
         try:
             time.sleep(2) # API rate limit 
@@ -123,13 +124,14 @@ async def handle_image(message: discord.Message):
         await message.channel.send("이미지를 찾을 수 없어양!!")
         raise Warning(f"No images found keyword: {image_search_keyword}")
     
-    image_urls = [r["image"] for r in results if "image" in r]
+    image_results = [r for r in results if "image" in r and "url" in r]
     view_owner: discord.User = message.author
-    view = ImageViewer(images=image_urls, search_keyword=image_search_keyword, requester=view_owner)
+    view = ImageViewer(images=image_results, search_keyword=image_search_keyword, requester=view_owner)
     index_indicator: str = f"{view.current_index + 1}/{len(view.images)}"
 
     embed = discord.Embed(title=f"'{image_search_keyword}' 이미지 검색 결과 에양 ({index_indicator})")
-    embed.set_image(url=view.images[view.current_index])
+    embed.set_image(url=view.images[view.current_index]["image"])
+    embed.description = f"[🔗 원본 보기]({view.images[view.current_index]['url']})"
 
     sent_message = await message.channel.send(embed=embed, view=view)
     view.message = sent_message
