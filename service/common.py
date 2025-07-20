@@ -7,15 +7,18 @@ from pytz import timezone
 
 class kst_formatter(logging.Formatter):
     """Custom formatter to format datetime in KST."""
-    def format_time(self, record, format=None):
+    def format_time(self, record, dtformat=None):
         kst = timezone('Asia/Seoul')
         dt = datetime.fromtimestamp(record.created, tz=kst)
-        return dt.strftime('%Y-%m-%d %H:%M:%S')
+        if dtformat:
+            return dt.strftime(dtformat)
+        else:
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
     
 # Logger configuration
 logger: Logger = logging.getLogger('discord_bot_logger')
 logger.setLevel(logging.INFO)
-formatter = kst_formatter('[%(asctime)s] %(levelname)s : %(message)s')
+formatter = kst_formatter('[%(asctime)s] %(levelname)s : %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
