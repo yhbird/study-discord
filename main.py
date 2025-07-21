@@ -2,7 +2,7 @@ import discord
 import gc
 from discord.ext import commands, tasks
 from config import kst_format_now, get_memory_usage_mb
-from config import BOT_TOKEN_PRD, BOT_TOKEN_DEV, MEMORY_CLEAR_INTERVAL
+from config import BOT_TOKEN_PRD, BOT_TOKEN_DEV, BOT_TOKEN_RUN, MEMORY_CLEAR_INTERVAL
 from service.common import logger
 
 # 디스코드 메세지 관련 명령어
@@ -71,4 +71,5 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
 # 봇 실행!
-bot.run(str(BOT_TOKEN_DEV))
+bot_token = BOT_TOKEN_PRD if BOT_TOKEN_RUN == "prd" else BOT_TOKEN_DEV
+bot.run(str(bot_token))

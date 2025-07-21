@@ -23,6 +23,7 @@ try:
     assert os.getenv('bot_token_dev'), Exception("bot_token not found in env file")
     BOT_TOKEN_PRD: str = os.getenv('bot_token_prd')
     BOT_TOKEN_DEV: str = os.getenv('bot_token_dev')
+    BOT_TOKEN_RUN: str = os.getenv('bot_token_run')
 except Exception as e:
     print(f"Failed loading bot token!!: {e}")
     sys.exit(1)

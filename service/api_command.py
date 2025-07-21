@@ -103,7 +103,7 @@ def get_notice(target_event: str = None) -> list[dict]:
     service_url = f"/maplestory/v1/notice-event"
     request_url = f"{NEXON_API_HOME}{service_url}"
     request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY_TEST,
+        "x-nxopen-api-key": NEXON_API_KEY_LIVE,
     }
     response = requests.get(
         url=request_url,
@@ -145,7 +145,7 @@ def get_notice_details(notice_id: str) -> dict:
     service_url = f"/maplestory/v1/notice-event/detail"
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
     request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY_TEST,
+        "x-nxopen-api-key": NEXON_API_KEY_LIVE,
     }
     response = requests.get(
         url=request_url,
