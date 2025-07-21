@@ -74,7 +74,15 @@ class ImageViewer(View):
 
 # 샴 따라해 기능 복원
 @log_command
-async def handle_repeat(message: discord.Message):
+async def msg_handle_repeat(message: discord.Message):
+    """사용자가 보낸 메세지를 그대로 보내는 기능
+
+    Args:
+        message (discord.Message): "븜 따라해 "로 시작하는 디스코드 메세지
+
+    Raises:
+        Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
+    """
     command_prefix: str = "븜 따라해 "
 
     if message.author.bot:
@@ -95,7 +103,17 @@ async def handle_repeat(message: discord.Message):
 
 # 샴 이미지 기능 복원
 @log_command
-async def handle_image(message: discord.Message):
+async def msg_handle_image(message: discord.Message):
+    """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
+
+    Args:
+        message (discord.Message): "븜 이미지 "로 시작하는 디스코드 메세지
+
+    Raises:
+        Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
+        Exception: 이미지 검색 API 호출 실패시 발생
+        Warning: 이미지를 찾을 수 없을 때 발생
+    """
     command_prefix: str = "븜 이미지 "
     
     if message.author.bot:
@@ -139,7 +157,15 @@ async def handle_image(message: discord.Message):
 # 주사위 (0~100)
 # 명령어 "/블링크빵" 사용
 @log_command
-async def handle_blinkbang(message: discord.Message):
+async def msg_handle_blinkbang(message: discord.Message):
+    """랜덤 주사위 0~100 결과를 보여주는 기능
+
+    Args:
+        message (discord.Message): /블링크빵 커맨드 입력
+
+    Raises:
+        Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
+    """
     command_prefix: str = "/블링크빵"
 
     if message.author.bot:

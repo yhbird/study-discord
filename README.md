@@ -57,8 +57,13 @@ python -m discord --version #설치확인
 python main.py
 ```
 
-### discord 봇 컨테이너 실행
+### discord 봇 컨테이너 실행 (Docker 설치 확인!)
 ```bash
 chmod +x deploy.sh
 bash deploy.sh
+```
+
+### discord 봇 이미지 배포 (Docker 설치 확인!)
+```bash
+docker save -o discord-bot-img.tar discord-bot-img:latest
 ```
