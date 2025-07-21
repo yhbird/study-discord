@@ -48,6 +48,14 @@ async def run_msg_handle_blinkbang(ctx: commands.Context):
 async def run_api_basic_info(ctx: commands.Context, character_name: str):
     await api_command.api_basic_info(ctx, character_name)
 
+@bot.command(name="피시방")
+async def run_api_pcbang_notice(ctx: commands.Context):
+    await api_command.api_pcbang_notice(ctx)
+
+@bot.command(name="썬데이")
+async def run_api_sunday_notice(ctx: commands.Context):
+    await api_command.api_sunday_notice(ctx)
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:

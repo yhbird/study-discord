@@ -2,7 +2,8 @@ import logging
 from logging import Logger
 from functools import wraps
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from dateutil import parser
 from pytz import timezone
 
 import time
@@ -71,3 +72,24 @@ def log_command(func):
         except Exception as e:
             logger.error(f"{func.__name__} error ({str(e)})")
     return wrapper
+
+def parse_iso_string(iso_string: str) -> str:
+    """국제기준(ISO) 날짜 문자열을 KST로 변환
+
+    Args:
+        date_str (str): 변환할 날짜 문자열
+
+    Returns:
+        str: KST로 변환된 날짜 문자열
+
+    Example:
+        ```python
+        date_str = "2025-07-21T17:30+09:00"
+        kst_date = date_to_kst(date_str)
+        print(kst_date)  # "2025-07-21 17:30:00"
+        ```"
+    """
+    dt = parser.isoparse(iso_string)
+    kst = timezone('Asia/Seoul')
+    return_string = f"{dt.year}년 {dt.month}월 {dt.day}일 {dt.hour}:{dt.minute:02d} (KST)"
+    return return_string
