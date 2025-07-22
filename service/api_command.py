@@ -357,7 +357,6 @@ async def api_pcbang_notice(ctx: commands.Context):
         # Embed 메시지 생성
         embed_description: str = (
             f"{notice_description}\n"
-            f"[🔗 공지사항 이동]({notice_url})\n"
             f"[🔗 이미지 원본 (이미지가 잘 안보이면 클릭!)]({image_url})\n"
             f"**이벤트 시작일:** {footer_notice_start_date}\n"
             f"**이벤트 종료일:** {footer_notice_end_date}\n"
@@ -428,7 +427,6 @@ async def api_sunday_notice(ctx: commands.Context):
         # Embed 메시지 생성
         embed_description: str = (
             f"{notice_description}\n"
-            f"[🔗 공지사항 이동]({notice_url})\n"
             f"[🔗 이미지 원본 (이미지가 잘 안보이면 클릭!)]({image_url})\n"
             f"**이벤트 시작일:** {footer_notice_start_date}\n"
             f"**이벤트 종료일:** {footer_notice_end_date}\n"
