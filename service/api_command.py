@@ -322,7 +322,6 @@ async def api_pcbang_notice(ctx: commands.Context):
         raise Exception(f"Failed to load pcbang notice: {str(e)}")
     
     # 공지사항 데이터 전처리
-    print(notice_data)
     if notice_data:
         notice_data: dict = notice_data[0]  # 가장 최근 공지사항 1개
 

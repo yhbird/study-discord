@@ -24,6 +24,8 @@ try:
     BOT_TOKEN_PRD: str = os.getenv('bot_token_prd')
     BOT_TOKEN_DEV: str = os.getenv('bot_token_dev')
     BOT_TOKEN_RUN: str = os.getenv('bot_token_run')
+    BOT_TOKEN = BOT_TOKEN_PRD if BOT_TOKEN_RUN == "prd" else BOT_TOKEN_DEV
+# Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
 except Exception as e:
     print(f"Failed loading bot token!!: {e}")
     sys.exit(1)
@@ -35,6 +37,7 @@ try:
     NEXON_API_KEY_LIVE: str = os.getenv('NEXON_API_TOKEN_LIVE')
     NEXON_API_KEY_TEST: str = os.getenv('NEXON_API_TOKEN_TEST')
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
+# Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except Exception as e:
     print(f"Failed loading Nexon API key!!: {e}")
     sys.exit(1)
@@ -54,3 +57,9 @@ def get_memory_usage_mb() -> float:
 # configuration variables
 # 메모리 정리 주기 (분)
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
+NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
+
+# Bot 시작 시간 기록
+BOT_START_TIME_STR: str = kst_format_now()
+BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
+BOT_VERSION: str = "dev 2025-07-22"
