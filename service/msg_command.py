@@ -238,7 +238,7 @@ async def msg_handle_help(message: discord.Message):
             inline=False
         )
         embed.add_field(
-            name="/썬데이",
+            name="/선데이",
             value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n",
             inline=False
         )

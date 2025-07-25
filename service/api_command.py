@@ -7,7 +7,7 @@ import io
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 
-from config import NEXON_API_HOME, NEXON_API_KEY_LIVE, NEXON_API_KEY_TEST
+from config import NEXON_API_HOME, NEXON_API_KEY
 from service.common import log_command, parse_iso_string
 
 from typing import Optional
@@ -65,7 +65,7 @@ def get_ocid(character_name: str) -> str:
     url_encode_name = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
     request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY_LIVE,
+        "x-nxopen-api-key": NEXON_API_KEY,
     }
     response = requests.get(
         url=request_url,
@@ -104,7 +104,7 @@ def get_notice(target_event: str = None) -> list[dict]:
     service_url = f"/maplestory/v1/notice-event"
     request_url = f"{NEXON_API_HOME}{service_url}"
     request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY_LIVE,
+        "x-nxopen-api-key": NEXON_API_KEY,
     }
     response = requests.get(
         url=request_url,
@@ -146,7 +146,7 @@ def get_notice_details(notice_id: str) -> dict:
     service_url = f"/maplestory/v1/notice-event/detail"
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
     request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY_LIVE,
+        "x-nxopen-api-key": NEXON_API_KEY,
     }
     response = requests.get(
         url=request_url,
@@ -221,7 +221,7 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     service_url: str = f"/maplestory/v1/character/basic"
     request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
     request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY_LIVE,
+        "x-nxopen-api-key": NEXON_API_KEY,
     }
     response = requests.get(
         url=request_url,

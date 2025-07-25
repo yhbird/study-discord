@@ -21,10 +21,8 @@ try:
     # Load environment variables from .env file
     assert load_dotenv('./env/token.env'), Exception("token.env file not found")
     assert os.getenv('bot_token_dev'), Exception("bot_token not found in env file")
-    BOT_TOKEN_PRD: str = os.getenv('bot_token_prd')
-    BOT_TOKEN_DEV: str = os.getenv('bot_token_dev')
-    BOT_TOKEN_RUN: str = os.getenv('bot_token_run')
-    BOT_TOKEN = BOT_TOKEN_PRD if BOT_TOKEN_RUN == "prd" else BOT_TOKEN_DEV
+    BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'dev')
+    BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
 # Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
 except Exception as e:
     print(f"Failed loading bot token!!: {e}")
@@ -34,8 +32,11 @@ except Exception as e:
 try:
     assert load_dotenv('./env/nexon.env'), Exception("nexon.env file not found")
     assert os.getenv('NEXON_API_TOKEN_LIVE'), Exception("NEXON_API_TOKEN_LIVE not found in env file")
-    NEXON_API_KEY_LIVE: str = os.getenv('NEXON_API_TOKEN_LIVE')
-    NEXON_API_KEY_TEST: str = os.getenv('NEXON_API_TOKEN_TEST')
+    if BOT_TOKEN_RUN == 'dev':
+        NEXON_API_RUN_ENV = 'TEST'
+    else:
+        NEXON_API_RUN_ENV = 'LIVE'
+    NEXON_API_KEY: str = os.getenv(f'NEXON_API_TOKEN_{NEXON_API_RUN_ENV}', None)
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except Exception as e:
