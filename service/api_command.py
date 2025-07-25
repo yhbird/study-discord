@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord.ui import View, Button
 
 import requests
+import io
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 
@@ -156,6 +157,27 @@ def get_notice_details(notice_id: str) -> dict:
         general_request_error_handler(response)
 
     return response.json()
+
+
+def get_image_bytes(image_url: str) -> bytes:
+    """이미지 URL로부터 이미지 바이트를 가져오는 함수
+
+    Args:
+        image_url (str): 이미지 URL
+
+    Returns:
+        bytes: 이미지 바이트
+
+    Raises:
+        Exception: 요청 오류에 대한 예외를 발생시킴
+    """
+    response = requests.get(image_url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to fetch image from {image_url}")
+    else:
+        image_bytes = io.BytesIO(response.content)
+    
+    return image_bytes
 
 @log_command
 async def api_basic_info(ctx: commands.Context, character_name: str):
@@ -328,7 +350,6 @@ async def api_pcbang_notice(ctx: commands.Context):
         # 공지사항 제목, 링크, 내용(HTML)
         notice_title: str = notice_data.get('title', '알 수 없음')
         notice_url: str = notice_data.get('url', '알 수 없음')
-        notice_description: str = "프리미엄 PC방 이벤트 공지사항이에양!!!\n"
         notice_id: str = notice_data.get('notice_id', '알 수 없음')
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
@@ -353,20 +374,26 @@ async def api_pcbang_notice(ctx: commands.Context):
         else:
             image_url = '알 수 없음'
 
-        # Embed 메시지 생성
-        embed_description: str = (
-            f"{notice_description}\n"
-            f"[🔗 이미지 원본 (이미지가 잘 안보이면 클릭!)]({image_url})\n"
+        # 메시지 생성
+        content_text: str = (
             f"**이벤트 시작일:** {footer_notice_start_date}\n"
             f"**이벤트 종료일:** {footer_notice_end_date}\n"
         )
-        embed = discord.Embed(title=notice_title, description=embed_description)
+        notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            embed.set_image(url=image_url)
-        embed.url = notice_url
-        embed.set_footer(text=footer_notice_text)
-        embed.colour = discord.Colour.from_rgb(239, 111, 148)
-        await ctx.send(embed=embed)
+            notice_image_bytes: bytes = get_image_bytes(image_url)
+            notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
+        notice_embed = discord.Embed(
+            url=notice_url,
+            color=discord.Colour.from_rgb(239, 111, 148)
+        )
+        notice_embed.title = notice_title
+        notice_embed.set_footer(text=footer_notice_text)
+        await ctx.send(
+            embed=notice_embed,
+            file=notice_image_file if image_url != '알 수 없음' else None,
+            content=content_text
+        )
 
     # 공지사항이 없을 때
     else:
@@ -398,7 +425,6 @@ async def api_sunday_notice(ctx: commands.Context):
         # 공지사항 제목, 링크, 내용(HTML)
         notice_title: str = notice_data.get('title', '알 수 없음')
         notice_url: str = notice_data.get('url', '알 수 없음')
-        notice_description: str = "썬데이 이벤트 공지사항이에양!!!\n"
         notice_id: str = notice_data.get('notice_id', '알 수 없음')
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
@@ -423,20 +449,26 @@ async def api_sunday_notice(ctx: commands.Context):
         else:
             image_url = '알 수 없음'
 
-        # Embed 메시지 생성
-        embed_description: str = (
-            f"{notice_description}\n"
-            f"[🔗 이미지 원본 (이미지가 잘 안보이면 클릭!)]({image_url})\n"
+        # 메시지 생성
+        content_text: str = (
             f"**이벤트 시작일:** {footer_notice_start_date}\n"
             f"**이벤트 종료일:** {footer_notice_end_date}\n"
         )
-        embed = discord.Embed(title=notice_title, description=embed_description)
+        notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            embed.set_image(url=image_url)
-        embed.url = notice_url
-        embed.set_footer(text=footer_notice_text)
-        embed.colour = discord.Colour.from_rgb(239, 111, 148)
-        await ctx.send(embed=embed)
+            notice_image_bytes: bytes = get_image_bytes(image_url)
+            notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
+        notice_embed = discord.Embed(
+            url=notice_url,
+            color=discord.Colour.from_rgb(239, 111, 148)
+        )
+        notice_embed.title = notice_title
+        notice_embed.set_footer(text=footer_notice_text)
+        await ctx.send(
+            embed=notice_embed,
+            file=notice_image_file if image_url != '알 수 없음' else None,
+            content=content_text
+        )
 
     # 공지사항이 없을 때
     else:

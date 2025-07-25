@@ -39,9 +39,15 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
         if up_d > 0:
             debug_msg = f"bot uptime: {up_d}일 {up_h}시간 {up_m}분 {up_s}초"
             send_msg = f"**봇 가동 시간:** {up_d}일 {up_h}시간 {up_m}분 {up_s}초"
-        else:
-            debug_msg = f"bot uptime {up_h}시간 {up_m}분 {up_s}초"
+        elif up_h > 0:
+            debug_msg = f"bot uptime: {up_h}시간 {up_m}분 {up_s}초"
             send_msg = f"**봇 가동 시간:** {up_h}시간 {up_m}분 {up_s}초"
+        elif up_m > 0:
+            debug_msg = f"bot uptime: {up_m}분 {up_s}초"
+            send_msg = f"**봇 가동 시간:** {up_m}분 {up_s}초"
+        else:
+            debug_msg = f"bot uptime: {up_s}초"
+            send_msg = f"**봇 가동 시간:** {up_s}초"
         logger.debug(debug_msg)
         info_msg = f"{bot_info}\n{send_msg}"
         await ctx.send(info_msg)
@@ -78,7 +84,7 @@ async def run_api_basic_info(ctx: commands.Context, character_name: str):
 async def run_api_pcbang_notice(ctx: commands.Context):
     await api_command.api_pcbang_notice(ctx)
 
-@bot.command(name="썬데이")
+@bot.command(name="선데이")
 async def run_api_sunday_notice(ctx: commands.Context):
     await api_command.api_sunday_notice(ctx)
 
