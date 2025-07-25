@@ -63,4 +63,4 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = "dev 2025-07-22"
+BOT_VERSION: str = f"2025-07-22-{BOT_TOKEN_RUN}"
