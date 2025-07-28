@@ -250,7 +250,7 @@ async def msg_handle_help(message: discord.Message):
         )
         embed.add_field(
             name="/미국주식 <티커>",
-            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n ",
+            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*티커: BRK.B -> BRK-B* ",
             inline=False
         )
         embed.add_field(

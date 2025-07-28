@@ -47,12 +47,12 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
         kst_time = datetime.now(tz=timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
         change_pct = ((today_close - previous_close) / previous_close) * 100
         stk_us_info = (
-            f"거래소: {stock_exchange} (섹터: {stock_sector})\n"
-            f"- 이전 종가: {safe_float(previous_close)} {stock_currency}\n"
-            f"- 현재 가격: {safe_float(today_close)} {stock_currency}\n"
-            f"- 변동률: {change_pct:.2f} %\n"
-            f"- 52주 최고가: {safe_float(stock_52w_high)} {stock_currency} ({safe_percent(stock_52w_high_change_pct)})\n"
-            f"- 52주 최저가: {safe_float(stock_52wk_low)} {stock_currency} ({safe_percent(stock_52wk_low_change_pct)})\n"
+            f"거래소: {stock_exchange} \n섹터: {stock_sector}\n"
+            f"- **이전 종가:** {safe_float(previous_close)} {stock_currency}\n"
+            f"- **현재 가격:** {safe_float(today_close)} {stock_currency}\n"
+            f"- **변동률:** {change_pct:.2f} %\n"
+            f"- **52주 최고가:** {safe_float(stock_52w_high)} {stock_currency} ({safe_percent(stock_52w_high_change_pct)})\n"
+            f"- **52주 최저가:** {safe_float(stock_52wk_low)} {stock_currency} ({safe_percent(stock_52wk_low_change_pct)})\n"
         )
         footer_text = (
             f"정보 제공: yahoo finance API (최대 15분 지연)\n"
