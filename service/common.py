@@ -7,6 +7,8 @@ from dateutil import parser
 from pytz import timezone
 
 import time
+import traceback
+import config 
 
 class kst_formatter(logging.Formatter):
     """logging.Formatter이 KST 포맷을 사용하도록 커스텀
@@ -40,6 +42,8 @@ def log_command(func):
 
     Args:
         func (Callable): api_command.py 및 msg_command.py에서 사용되는 함수
+        debug_mode (bool): 디버그 모드 여부, 기본값은 False
+          - 
 
     Returns:
         logger (Logger): 로깅된 함수의 결과를 반환
@@ -61,16 +65,47 @@ def log_command(func):
     """
     @wraps(func)
     async def wrapper(*args, **kwargs):
+        func_name = func.__name__
+        args_text = '. '.join(
+            repr(args) if isinstance(arg, (str, int, float)) else f"<{type(arg).__name__}>"
+            for arg in args
+        )
+        kwargs_text = '. '.join(
+            f"{k}={v!r}" for k, v in kwargs.items()
+        )
+        arg_info = f"[args: {args_text}" + (f", kwargs: {kwargs_text}" if kwargs else "") + "]"
         start_time = time.time()
         try:
             result = await func(*args, **kwargs)
-            elapsed_time = time.time() - start_time
-            logger.info(f"{func.__name__} success (Elapsed time: {elapsed_time:.3f} seconds)")
+            # 함수 소요 시간 계산
+            elapsed_time: float = time.time() - start_time
+
+            # 함수 이름과 인자 정보 로깅
+            if config.DEBUG_MODE:
+                info_log = f"{func_name} success (Elapsed time: {elapsed_time:.3f} seconds)\n{arg_info}"
+            else:
+                info_log = f"{func_name} success (Elapsed time: {elapsed_time:.3f} seconds)"
+            logger.info(info_log)
             return result
+        
+        # 예외 처리 - 경고 메시지 로깅
         except Warning as w:
-            logger.warning(f"{func.__name__} warning ({str(w)})")
+            elapsed_time: float = time.time() - start_time
+            if config.DEBUG_MODE:
+                warn_log = f"{func_name} warning ({str(w)})\n(Elapsed time: {elapsed_time:.3f} seconds)\n{arg_info}"
+            else:
+                warn_log = f"{func_name} warning ({str(w)}) (Elapsed time: {elapsed_time:.3f} seconds)"
+            logger.warning(f"{warn_log}")
+        
+        # 예외 처리 - 예외 메시지 로깅
         except Exception as e:
-            logger.error(f"{func.__name__} error ({str(e)})")
+            elapsed_time: float = time.time() - start_time
+            if config.DEBUG_MODE:
+                traceback_msg: str = traceback.format_exc()
+                errr_log = f"{func_name} error ({str(e)})\n(Elapsed time: {elapsed_time:.3f} seconds)\n{arg_info}\n{traceback_msg}"
+            else:
+                errr_log = f"{func_name} error ({str(e)}) (Elapsed time: {elapsed_time:.3f} seconds)"
+            logger.error(f"{errr_log}")
     return wrapper
 
 def parse_iso_string(iso_string: str) -> str:

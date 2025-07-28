@@ -1,3 +1,10 @@
+"""
+
+디스코드 기본 명령어 처리 모듈
+
+사용 라이브러리: discord.py, ddgs (DuckDuckGo Search API)
+
+"""
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
@@ -6,7 +13,7 @@ from ddgs import DDGS
 from ddgs.exceptions import DDGSException
 import time
 import random
-import asyncio
+
 from service.common import log_command
 from config import BOT_VERSION
 

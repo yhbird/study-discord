@@ -64,3 +64,11 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
 BOT_VERSION: str = f"2025-07-29-{BOT_TOKEN_RUN}"
+
+# 디버그 모드 설정
+if BOT_TOKEN_RUN == 'dev':
+    DEBUG_MODE: bool = True 
+else:
+    # 운영 환경에서는 디버그 모드 OFF
+    # (디버그 모드가 켜져있으면, 봇 명령어 실행 시 로깅이 더 자세하게 기록됨)
+    DEBUG_MODE: bool = False

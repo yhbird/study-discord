@@ -1,6 +1,13 @@
+"""
+
+디스코드 봇에서 Nexon Open API를 사용하여 메이플스토리 관련 명령어를 처리하는 모듈
+
+Reference: https://openapi.nexon.com/
+
+"""
+
 import discord
 from discord.ext import commands
-from discord.ui import View, Button
 
 import requests
 import io

@@ -1,16 +1,19 @@
 import discord
 import gc
 from discord.ext import commands, tasks
-from datetime import datetime, timedelta
 
-from config import kst_format_now, get_memory_usage_mb
-from config import BOT_TOKEN, MEMORY_CLEAR_INTERVAL, BOT_START_DT
+from config import get_memory_usage_mb
+from config import BOT_TOKEN, MEMORY_CLEAR_INTERVAL, DEBUG_MODE
 from service.common import logger
 
 # 디스코드 메세지 관련 명령어
 import service.msg_command as msg_command
 # 디스코드 API 처리 관련 명령어
 import service.api_command as api_command
+# 디스코드 주식 관련 명령어
+import service.stk_command as stk_command
+# 디스코드 디버그용 명령어
+import service.deb_command as deb_command
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -19,38 +22,12 @@ bot = commands.Bot(command_prefix='/', intents=intents, help_command=None)
 # 디버그용 명령어
 @bot.command(name="debug")
 async def bot_debug(ctx: commands.Context, arg: str = None):
-    await ctx.send(f"[DEBUG] 봇이 정상적으로 작동 중이에양!")
     if arg == "mem":
-        mem_usage: float = get_memory_usage_mb()
-        logger.debug(f"Current memory usage: {mem_usage:.2f} MB")
-        await ctx.send(f"현재 메모리 사용량: {mem_usage:.2f} MB")
+        await deb_command.deb_memory_usage(ctx)
     if arg == "info":
-        bot_info: str = (
-            f"**봇 이름:** {bot.user.name}\n"
-            f"**봇 시작 시간:** {BOT_START_DT.strftime('%Y년 %m월 %d일 %H시 %M분 %S초')}"
-        )
-        now_dt: datetime = datetime.strptime(kst_format_now(), '%Y-%m-%d %H:%M:%S')
-        uptime: timedelta = now_dt - BOT_START_DT
-        # uptime의 일, 시간, 분, 초 계산
-        up_d: int = uptime.days
-        up_h: int = uptime.seconds // 3600
-        up_m: int = (uptime.seconds % 3600) // 60
-        up_s: int = uptime.seconds % 60
-        if up_d > 0:
-            debug_msg = f"bot uptime: {up_d}일 {up_h}시간 {up_m}분 {up_s}초"
-            send_msg = f"**봇 가동 시간:** {up_d}일 {up_h}시간 {up_m}분 {up_s}초"
-        elif up_h > 0:
-            debug_msg = f"bot uptime: {up_h}시간 {up_m}분 {up_s}초"
-            send_msg = f"**봇 가동 시간:** {up_h}시간 {up_m}분 {up_s}초"
-        elif up_m > 0:
-            debug_msg = f"bot uptime: {up_m}분 {up_s}초"
-            send_msg = f"**봇 가동 시간:** {up_m}분 {up_s}초"
-        else:
-            debug_msg = f"bot uptime: {up_s}초"
-            send_msg = f"**봇 가동 시간:** {up_s}초"
-        logger.debug(debug_msg)
-        info_msg = f"{bot_info}\n{send_msg}"
-        await ctx.send(info_msg)
+        await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
+    if arg == "switch":
+        await deb_command.deb_switch(ctx)
 
 # 1시간 마다 메모리 정리
 @tasks.loop(minutes=MEMORY_CLEAR_INTERVAL)
