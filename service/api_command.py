@@ -45,6 +45,32 @@ def general_request_error_handler(response: requests.Response) -> None:
     raise Exception(f"{exception_msg_prefix}{str(exception_msg.get('name', default_exception_msg))}")
 
 
+def general_request_handler(request_url: str, headers: Optional[dict] = None) -> dict:
+    """Nexon Open API의 일반적인 요청을 처리하는 함수  
+    요청 URL과 헤더를 받아서 GET 요청을 수행하고, 응답 데이터를 반환함
+
+    Args:
+        request_url (str): 요청할 URL
+        headers (Optional[dict], optional): 요청 헤더. Defaults to None.
+
+    Returns:
+        dict: 응답 데이터
+
+    Raises:
+        Exception: 요청 오류에 대한 예외를 발생시킴
+    """
+    if headers is None:
+        headers = {
+            "x-nxopen-api-key": NEXON_API_KEY,
+        }
+    
+    response = requests.get(url=request_url, headers=headers)
+    
+    if response.status_code != 200:
+        general_request_error_handler(response)
+    
+    return response.json()
+
 def get_ocid(character_name: str) -> str:
     """character_name의 OCID를 검색
 
@@ -60,30 +86,19 @@ def get_ocid(character_name: str) -> str:
 
     Raises:
         Reference에 있는 URL 참조
+        (예외처리는 함수 밖에서 처리)
     """
     service_url = f"/maplestory/v1/id"
-    url_encode_name = quote(character_name)
+    url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
-    request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY,
-    }
-    response = requests.get(
-        url=request_url,
-        headers=request_headers
-    )
-    response_data: dict = response.json()
-
-    # 예외 처리 (자세한 내용은 Reference 참고)
-    if response.status_code != 200:
-        general_request_error_handler(response)
+    response_data: dict = general_request_handler(request_url)
     
     # 정상적으로 OCID를 찾았을 때
+    ocid: str = str(response_data.get('ocid'))
+    if ocid:
+        return ocid
     else:
-        ocid: str = str(response_data.get('ocid'))
-        if ocid:
-            return ocid
-        else:
-            raise Exception("OCID not found in response")
+        raise Exception("OCID not found in response")
 
 
 def get_notice(target_event: str = None) -> list[dict]:
@@ -103,32 +118,20 @@ def get_notice(target_event: str = None) -> list[dict]:
     """
     service_url = f"/maplestory/v1/notice-event"
     request_url = f"{NEXON_API_HOME}{service_url}"
-    request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY,
-    }
-    response = requests.get(
-        url=request_url,
-        headers=request_headers
-    )
-    
-    # 예외 처리 (자세한 내용은 Reference 참고)
-    if response.status_code != 200:
-        general_request_error_handler(response)
-    else:
-        response_data: dict = response.json()
-        notices: list = response_data.get('event_notice', [])
-        if target_event is None:
-            notice_filter = None
-        elif target_event == "pcbang":
-            notice_filter = "PC방"
-        elif target_event == "sunday":
-            notice_filter = "썬데이"
+    response_data: dict = general_request_handler(request_url)
+    notices: list = response_data.get('event_notice', [])
+    if target_event is None:
+        notice_filter = None
+    elif target_event == "pcbang":
+        notice_filter = "PC방"
+    elif target_event == "sunday":
+        notice_filter = "썬데이"
 
-        # 특정 이벤트에 대한 공지사항 필터링
-        if target_event:
-            notices = [notice for notice in notices if notice_filter in notice.get('title', '')]
+    # 특정 이벤트에 대한 공지사항 필터링
+    if target_event:
+        notices = [notice for notice in notices if notice_filter in notice.get('title', '')]
 
-        return notices
+    return notices
 
 
 def get_notice_details(notice_id: str) -> dict:
@@ -145,18 +148,8 @@ def get_notice_details(notice_id: str) -> dict:
     """
     service_url = f"/maplestory/v1/notice-event/detail"
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
-    request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY,
-    }
-    response = requests.get(
-        url=request_url,
-        headers=request_headers
-    )
-    
-    if response.status_code != 200:
-        general_request_error_handler(response)
-
-    return response.json()
+    response_data: dict = general_request_handler(request_url)
+    return response_data
 
 
 def get_image_bytes(image_url: str) -> bytes:
@@ -220,47 +213,51 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     
     service_url: str = f"/maplestory/v1/character/basic"
     request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
-    request_headers = {
-        "x-nxopen-api-key": NEXON_API_KEY,
-    }
-    response = requests.get(
-        url=request_url,
-        headers=request_headers
-    )
-    response_data: dict = response.json()
+    # 예외 처리 (자세한 내용은 Reference 참고)
+    try:
+        response_data: dict = general_request_handler(request_url)
+    except Exception as e:
+        if '400' in str(e):
+            await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+            raise Exception(f"Character '{character_name}' basic info not found")
+        if '403' in str(e):
+            await ctx.send("Nexon Open API 접근 권한이 없어양!")
+            raise Exception("Forbidden access to API")
+        if '429' in str(e):
+            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+            raise Exception("Too many requests to API")
+        if '500' in str(e):
+            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+            raise Exception("Nexon Open API Internal server error")
 
     # 정상적으로 캐릭터 기본 정보를 찾았을 때
-    if response.status_code == 200:
-        # 캐릭터 기본 정보 1 - 캐릭터 이름
-        character_name: str = response_data.get('character_name')
-        if not character_name:
-            await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-            raise Exception(f"Character basic info not found for: {character_name}")
-        # 캐릭터 기본 정보 2 - 캐릭터 레벨
-        character_level: int = response_data.get('character_level', 0)
-        # 캐릭터 기본 정보 3 - 캐릭터 소속월드
-        character_world: str = response_data.get('world_name', '알 수 없음')
-        # 캐릭터 기본 정보 4 - 캐릭터 성별
-        character_gender: str = response_data.get('character_gender', '알 수 없음')
-        # 캐릭터 기본 정보 5 - 캐릭터 직업(차수)
-        character_class: str = response_data.get('character_class', '알 수 없음')
-        character_class_level: str = response_data.get('character_class_level', '알 수 없음')
-        # 캐릭터 기본 정보 6 - 경험치
-        character_exp: int = response_data.get('character_exp', 0)
-        character_exp_rate: str = response_data.get('character_exp_rate', "0.000%")
-        # 캐릭터 기본 정보 7 - 소속길드
-        character_guild_name: str = response_data.get('character_guild_name', '알 수 없음')
-        # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-        character_image: str = response_data.get('character_image', '알 수 없음')
-        # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-        character_date_create: str = response_data.get('character_date_create', '알 수 없음')
-        # 캐릭터 기본 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-        character_access_flag: str = response_data.get('access_flag', '알 수 없음')
-        # 캐릭터 기본 정보 11 - 캐릭터 해방 퀘스트 완료 여부
-        character_liberation_quest_clear: str = response_data.get('liberation_quest_clear', '알 수 없음')
-    # 예외 처리 (자세한 내용은 Reference 참고)
-    else:
-        general_request_error_handler(response)
+    # 캐릭터 기본 정보 1 - 캐릭터 이름
+    character_name: str = response_data.get('character_name')
+    if not character_name:
+        await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
+        raise Exception(f"Character basic info not found for: {character_name}")
+    # 캐릭터 기본 정보 2 - 캐릭터 레벨
+    character_level: int = response_data.get('character_level', 0)
+    # 캐릭터 기본 정보 3 - 캐릭터 소속월드
+    character_world: str = response_data.get('world_name', '알 수 없음')
+    # 캐릭터 기본 정보 4 - 캐릭터 성별
+    character_gender: str = response_data.get('character_gender', '알 수 없음')
+    # 캐릭터 기본 정보 5 - 캐릭터 직업(차수)
+    character_class: str = response_data.get('character_class', '알 수 없음')
+    character_class_level: str = response_data.get('character_class_level', '알 수 없음')
+    # 캐릭터 기본 정보 6 - 경험치
+    character_exp: int = response_data.get('character_exp', 0)
+    character_exp_rate: str = response_data.get('character_exp_rate', "0.000%")
+    # 캐릭터 기본 정보 7 - 소속길드
+    character_guild_name: str = response_data.get('character_guild_name', '알 수 없음')
+    # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
+    character_image: str = response_data.get('character_image', '알 수 없음')
+    # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
+    character_date_create: str = response_data.get('character_date_create', '알 수 없음')
+    # 캐릭터 기본 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
+    character_access_flag: str = response_data.get('access_flag', '알 수 없음')
+    # 캐릭터 기본 정보 11 - 캐릭터 해방 퀘스트 완료 여부
+    character_liberation_quest_clear: str = response_data.get('liberation_quest_clear', '알 수 없음')
 
     # Basic Info 데이터 전처리
     if character_date_create != '알 수 없음':
@@ -340,9 +337,19 @@ async def api_pcbang_notice(ctx: commands.Context):
     try:
         notice_data: dict = get_notice(target_event="pcbang")
     except Exception as e:
-        await ctx.send(f"PC방 이벤트 공지사항을 가져오는 데 실패했어양!")
-        raise Exception(f"Failed to load pcbang notice: {str(e)}")
-    
+        if '400' in str(e):
+            await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
+            raise Exception("PC Bang notice not found")
+        if '403' in str(e):
+            await ctx.send("Nexon Open API 접근 권한이 없어양!")
+            raise Exception("Forbidden access to API")
+        if '429' in str(e):
+            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+            raise Exception("Too many requests to API")
+        if '500' in str(e):
+            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+            raise Exception("Nexon Open API Internal server error")
+        
     # 공지사항 데이터 전처리
     if notice_data:
         notice_data: dict = notice_data[0]  # 가장 최근 공지사항 1개
@@ -415,8 +422,18 @@ async def api_sunday_notice(ctx: commands.Context):
     try:
         notice_data: dict = get_notice(target_event="sunday")
     except Exception as e:
-        await ctx.send(f"썬데이 이벤트 공지사항을 가져오는 데 실패했어양!")
-        raise Exception(f"Failed to load sunday notice: {str(e)}")
+        if '400' in str(e):
+            await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
+            raise Exception("Sunday event notice not found")
+        if '403' in str(e):
+            await ctx.send("Nexon Open API 접근 권한이 없어양!")
+            raise Exception("Forbidden access to API")
+        if '429' in str(e):
+            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+            raise Exception("Too many requests to API")
+        if '500' in str(e):
+            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+            raise Exception("Nexon Open API Internal server error")
 
     # 공지사항 데이터 전처리
     if notice_data:
