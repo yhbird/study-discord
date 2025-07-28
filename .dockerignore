@@ -1,4 +1,10 @@
 node_modules/
 .git/
+.vscode/
 *.log
+*.json
+*.sh
 temp/
+data/
+__pycache__/
+README.md
