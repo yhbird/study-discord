@@ -37,6 +37,18 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+def safe_float(input_val, digits: int = 2) -> str:
+    try:
+        return f"{float(input_val):.{digits}f}"
+    except (ValueError, TypeError):
+        return "몰라양"
+    
+def safe_percent(input_val, digits: int = 2) -> str:
+    try:
+        return f"{float(input_val) * 100:.{digits}f} %"
+    except (ValueError, TypeError):
+        return "몰라양"
+
 def log_command(func):
     """Docker 컨테이너에 실행한 봇 명령어를 기록하고, 소요시간 및 예외를 로깅
 

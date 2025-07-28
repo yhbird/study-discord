@@ -13,7 +13,7 @@ import config
 
 # 1시간 마다 메모리 정리
 @tasks.loop(minutes=config.MEMORY_CLEAR_INTERVAL)
-async def clear_memory():
+async def deb_clear_memory():
     mem_usage : float = config.get_memory_usage_mb()
     logger.info(f"Memory clear")
     gc.collect()

@@ -180,7 +180,6 @@ async def msg_handle_blinkbang(message: discord.Message):
         return
     
     if message.content.startswith(command_prefix):
-        username: str  = message.author.display_name
         mention = message.author.mention
         result: int = random.randint(0, 100)
         try:
@@ -221,7 +220,7 @@ async def msg_handle_help(message: discord.Message):
         )
         embed.add_field(
             name="븜 이미지 <검색어>",
-            value="이미지를 검색해서 최대 10개의 이미지를 보여줍니다.\n(사용하는 검색엔진: 덕덕고)\n***참고로, 야한건... 안돼양!!!***\n",
+            value="이미지를 검색해서 최대 10개의 이미지를 보여줍니다.\n(사용하는 검색엔진: https://duckduckgo.com/)\n***참고로, 야한건... 안돼양!!!***\n",
             inline=False
         )
         embed.add_field(
@@ -241,12 +240,17 @@ async def msg_handle_help(message: discord.Message):
         )
         embed.add_field(
             name="/피시방",
-            value="**[Nexon OPEN API 연동]**\n 최근 피시방 공지사항을 조회합니다.\n*이미지가 길쭉해서 원본으로 봐야해양*\n",
+            value="**[Nexon OPEN API 연동]**\n 최근 피시방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n",
             inline=False
         )
         embed.add_field(
             name="/선데이",
             value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n",
+            inline=False
+        )
+        embed.add_field(
+            name="/미국주식 <티커>",
+            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n",
             inline=False
         )
         embed.add_field(

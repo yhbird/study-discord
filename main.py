@@ -2,8 +2,7 @@ import discord
 import gc
 from discord.ext import commands, tasks
 
-from config import get_memory_usage_mb
-from config import BOT_TOKEN, MEMORY_CLEAR_INTERVAL, DEBUG_MODE
+from config import BOT_TOKEN, MEMORY_CLEAR_INTERVAL
 from service.common import logger
 
 # 디스코드 메세지 관련 명령어
@@ -29,19 +28,11 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
     if arg == "switch":
         await deb_command.deb_switch(ctx)
 
-# 1시간 마다 메모리 정리
-@tasks.loop(minutes=MEMORY_CLEAR_INTERVAL)
-async def clear_memory():
-    mem_usage : float = get_memory_usage_mb()
-    logger.info(f"Memory clear")
-    gc.collect()
-    logger.info(f"Current memory usage: {mem_usage:.2f} MB")
-
 # 봇 실행 + 메모리 정리 반복 작업 시작
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as... {bot.user}!!')
-    clear_memory.start()
+    deb_command.deb_clear_memory.start()
 
 # 명령어 등록 from service.msg_command
 @bot.command(name="블링크빵")
@@ -64,6 +55,11 @@ async def run_api_pcbang_notice(ctx: commands.Context):
 @bot.command(name="선데이")
 async def run_api_sunday_notice(ctx: commands.Context):
     await api_command.api_sunday_notice(ctx)
+
+# 명령어 등록 from service.stk_command
+@bot.command(name="미국주식")
+async def run_stk_us_stock(ctx: commands.Context, ticker: str):
+    await stk_command.stk_us_stock_price(ctx, ticker)
 
 @bot.event
 async def on_message(message: discord.Message):
