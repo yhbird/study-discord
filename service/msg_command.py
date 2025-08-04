@@ -239,6 +239,11 @@ async def msg_handle_help(message: discord.Message):
             inline=False
         )
         embed.add_field(
+            name="/상세정보 <캐릭터 이름>",
+            value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
+            inline=False
+        )
+        embed.add_field(
             name="/피시방",
             value="**[Nexon OPEN API 연동]**\n 최근 피시방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
             inline=False

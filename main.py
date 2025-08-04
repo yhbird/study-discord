@@ -48,6 +48,10 @@ async def run_msg_handle_help(ctx: commands.Context):
 async def run_api_basic_info(ctx: commands.Context, character_name: str):
     await api_command.api_basic_info(ctx, character_name)
 
+@bot.command(name="상세정보")
+async def run_api_detail_info(ctx: commands.Context, character_name: str):
+    await api_command.api_detail_info(ctx, character_name)
+    
 @bot.command(name="피시방")
 async def run_api_pcbang_notice(ctx: commands.Context):
     await api_command.api_pcbang_notice(ctx)
