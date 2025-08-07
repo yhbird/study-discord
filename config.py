@@ -21,9 +21,9 @@ try:
     # Load environment variables from .env file
     assert load_dotenv('./env/token.env'), Exception("token.env file not found")
     assert os.getenv('bot_token_dev'), Exception("bot_token not found in env file")
-    BOT_TOKEN_PRD: str = os.getenv('bot_token_prd')
-    BOT_TOKEN_DEV: str = os.getenv('bot_token_dev')
-    BOT_TOKEN_RUN: str = os.getenv('bot_token_run')
+    BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'dev')
+    BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
+# Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
 except Exception as e:
     print(f"Failed loading bot token!!: {e}")
     sys.exit(1)
@@ -32,11 +32,29 @@ except Exception as e:
 try:
     assert load_dotenv('./env/nexon.env'), Exception("nexon.env file not found")
     assert os.getenv('NEXON_API_TOKEN_LIVE'), Exception("NEXON_API_TOKEN_LIVE not found in env file")
-    NEXON_API_KEY_LIVE: str = os.getenv('NEXON_API_TOKEN_LIVE')
-    NEXON_API_KEY_TEST: str = os.getenv('NEXON_API_TOKEN_TEST')
+    if BOT_TOKEN_RUN == 'dev':
+        NEXON_API_RUN_ENV = 'TEST'
+    else:
+        NEXON_API_RUN_ENV = 'LIVE'
+    NEXON_API_KEY: str = os.getenv(f'NEXON_API_TOKEN_{NEXON_API_RUN_ENV}', None)
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
+# Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except Exception as e:
     print(f"Failed loading Nexon API key!!: {e}")
+    sys.exit(1)
+
+# weather API Key loading
+try:
+    assert load_dotenv('./env/weather.env'), Exception("weather.env file not found")
+    assert os.getenv('kko_token_api'), Exception("kko_token_api not found in env file")
+    assert os.getenv('wth_data_api'), Exception("wth_data_api not found in env file")
+    KKO_LOCAL_API_KEY: str = os.getenv('kko_token_api', None)
+    KKO_API_HOME: str = os.getenv('kko_api_url', None)
+    WTH_DATA_API_KEY: str = os.getenv('wth_data_api', None)
+    WTH_API_HOME: str = os.getenv('wth_data_url', None)
+# weather API 키를 제대로 불러오지 못하면 실행 불가
+except Exception as e:
+    print(f"Failed loading weather API key!!: {e}")
     sys.exit(1)
 
 # Debug configuration
@@ -54,3 +72,17 @@ def get_memory_usage_mb() -> float:
 # configuration variables
 # 메모리 정리 주기 (분)
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
+NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
+
+# Bot 시작 시간 기록
+BOT_START_TIME_STR: str = kst_format_now()
+BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
+BOT_VERSION: str = f"v20250805-{BOT_TOKEN_RUN}"
+
+# 디버그 모드 설정
+if BOT_TOKEN_RUN == 'dev':
+    DEBUG_MODE: bool = True 
+else:
+    # 운영 환경에서는 디버그 모드 OFF
+    # (디버그 모드가 켜져있으면, 봇 명령어 실행 시 로깅이 더 자세하게 기록됨)
+    DEBUG_MODE: bool = False

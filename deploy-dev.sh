@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")"
 
 IMAGE_NAME="discord-bot-img"
-CONTAINER_NAME="discord-bot-live"
+CONTAINER_NAME="discord-bot-test"
 
 if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
   echo "기존 컨테이너가 존재하여 종료 및 삭제진행"
@@ -22,5 +22,6 @@ fi
 echo "도커 이미지 빌드 중..."
 docker build -t $IMAGE_NAME .
 
+# Run the container with the environment variable set to 'dev'
 echo "도커 컨테이너 실행 중..."
-docker run -d --name $CONTAINER_NAME -e PYTHON_RUN_ENV=prd $IMAGE_NAME
+docker run -d --name $CONTAINER_NAME -e PYTHON_RUN_ENV=dev $IMAGE_NAME

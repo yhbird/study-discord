@@ -208,3 +208,8 @@ __marimo__/
 
 # temp folder
 temp/
+.vscode/
+
+# Data
+data/
+user_stock_favorites.json

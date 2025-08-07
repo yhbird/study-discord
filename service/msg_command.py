@@ -1,3 +1,10 @@
+"""
+
+디스코드 기본 명령어 처리 모듈
+
+사용 라이브러리: discord.py, ddgs (DuckDuckGo Search API)
+
+"""
 import discord
 from discord.ext import commands
 from discord.ui import View, Button
@@ -6,8 +13,9 @@ from ddgs import DDGS
 from ddgs.exceptions import DDGSException
 import time
 import random
-import asyncio
+
 from service.common import log_command
+from config import BOT_VERSION
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
@@ -172,7 +180,6 @@ async def msg_handle_blinkbang(message: discord.Message):
         return
     
     if message.content.startswith(command_prefix):
-        username: str  = message.author.display_name
         mention = message.author.mention
         result: int = random.randint(0, 100)
         try:
@@ -182,3 +189,88 @@ async def msg_handle_blinkbang(message: discord.Message):
             raise Exception("permission denied to delete message")
 
         await message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
+
+# 명령어 "/help" 사용
+@log_command
+async def msg_handle_help(message: discord.Message):
+    """봇의 사용법을 안내하는 기능
+    Args:
+        message (discord.Message): /help 커맨드 입력
+
+    Raises:
+        Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
+
+    Returns:
+        None: 사용법 안내 메시지를 채널에 전송
+    """
+    command_prefix: str = "/help"
+
+    if message.author.bot:
+        return
+    
+    if message.content.startswith(command_prefix):
+        embed_description: str = (
+            "봇 개발자: yhbird ([github.com](https://github.com/yhbird))\n"
+            "븜끼 봇 사용법을 알려드릴게양!\n"
+        )
+        embed = discord.Embed(
+            title=f"븜끼 사용설명서 ({BOT_VERSION})",
+            description=embed_description,
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="븜 이미지 <검색어>",
+            value="이미지를 검색해서 최대 10개의 이미지를 보여줍니다.\n(사용하는 검색엔진: https://duckduckgo.com/)\n***참고로, 야한건... 안돼양!!!***\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 따라해 <메세지>",
+            value="입력한 메세지를 그대로 따라합니다. \n*마크다운을 지원해양*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 날씨 <지역명 혹은 주소> (v1)",
+            value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*집주소 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+        )
+        embed.add_field(
+            name="/블링크빵",
+            value="랜덤한 자연수 1~100 랜덤 추출합니다. \n*결과는 날아간 거리로 보여줘양*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="/기본정보 <캐릭터 이름>",
+            value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 기본 정보를 조회합니다.\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="/상세정보 <캐릭터 이름>",
+            value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="/피시방",
+            value="**[Nexon OPEN API 연동]**\n 최근 피시방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="/선데이",
+            value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="/미국주식 <티커>",
+            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
+            inline=False
+        )
+        embed.add_field(
+            name="/help",
+            value="도움말을 표시합니다. \n*도움이 필요하면 언제든지 불러양!!*\n ",
+            inline=False
+        )
+        embed_footer:str = (
+            f"봇 이름: {message.guild.me.name}\n"
+            f"봇 버전: {BOT_VERSION}\n"
+            f"소스코드: https://github.com/yhbird/study-discord"
+        )
+        embed.set_footer(text=embed_footer)
+        await message.channel.send(embed=embed)
