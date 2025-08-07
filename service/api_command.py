@@ -9,198 +9,12 @@ Reference: https://openapi.nexon.com/
 import discord
 from discord.ext import commands
 
-import requests
-import io
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 
-from config import NEXON_API_HOME, NEXON_API_KEY
 from service.common import log_command, parse_iso_string, preprocess_int_with_korean
-
-from typing import Optional
-
-
-def general_request_error_handler(response: requests.Response) -> None:
-    """Nexon Open API의 일반적인 요청 오류를 처리하는 함수  
-    특수한 오류가 있는 경우를 제외하고, 일반적인 오류에 대한 예외를 발생시킴  
-    예외 처리 기준은 아래 Reference 링크를 참고
-
-    Args:
-        res (requests.Response): 요청 응답 객체
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
-
-    Reference:
-        https://openapi.nexon.com/ko/game/maplestory/?id=14
-    """
-    response_status_code: str = str(response.status_code)
-    exception_msg_prefix: str = f"{response_status_code} : "
-    response_data: dict = response.json()
-    exception_msg: dict = response_data.get('error')
-    if response.status_code == 400:
-        default_exception_msg = "Bad Request"
-    elif response.status_code == 403:
-        default_exception_msg = "Forbidden"
-    elif response.status_code == 429:
-        default_exception_msg = "Too Many Requests"
-    elif response.status_code == 500:
-        default_exception_msg = "Internal Server Error"
-    else:
-        default_exception_msg = "Unknown Error"
-
-    raise Exception(f"{exception_msg_prefix}{str(exception_msg.get('name', default_exception_msg))}")
-
-
-def general_request_handler(request_url: str, headers: Optional[dict] = None) -> dict:
-    """Nexon Open API의 일반적인 요청을 처리하는 함수  
-    요청 URL과 헤더를 받아서 GET 요청을 수행하고, 응답 데이터를 반환함
-
-    Args:
-        request_url (str): 요청할 URL
-        headers (Optional[dict], optional): 요청 헤더. Defaults to None.
-
-    Returns:
-        dict: 응답 데이터
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
-    """
-    if headers is None:
-        headers = {
-            "x-nxopen-api-key": NEXON_API_KEY,
-        }
-    
-    response = requests.get(url=request_url, headers=headers)
-    
-    if response.status_code != 200:
-        general_request_error_handler(response)
-    return response.json()
-
-def get_ocid(character_name: str) -> str:
-    """character_name의 OCID를 검색
-
-    Args:
-        character_name (str): 캐릭터 이름
-        캐릭터 이름을 base64로 인코딩하여 Nexon Open API를 통해 OCID를 검색
-
-    Returns:
-        str: OCID (string)
-
-    Reference:
-        https://openapi.nexon.com/ko/game/maplestory/?id=14
-
-    Raises:
-        Reference에 있는 URL 참조
-        (예외처리는 함수 밖에서 처리)
-    """
-    service_url = f"/maplestory/v1/id"
-    url_encode_name: str = quote(character_name)
-    request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
-    response_data: dict = general_request_handler(request_url)
-    
-    # 정상적으로 OCID를 찾았을 때
-    ocid: str = str(response_data.get('ocid'))
-    if ocid:
-        return ocid
-    else:
-        raise Exception("OCID not found in response")
-
-
-def get_character_popularity(ocid: str) -> str:
-    """OCID에 해당하는 캐릭터의 인기도를 가져오는 함수
-
-    Args:
-        ocid (str): 캐릭터 OCID
-
-    Returns:
-        str: 캐릭터의 인기도
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
-    """
-    service_url = f"/maplestory/v1/character/popularity"
-    request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
-    try:
-        response_data: dict = general_request_handler(request_url)
-
-        popularity: int = response_data.get('popularity', "몰라양")
-        return popularity
-    except Exception as e:
-
-        return "몰라양"  # 예외 발생 시 기본값으로 "몰라양" 반환
-
-
-def get_notice(target_event: str = None) -> list[dict]:
-    """Nexon Open API를 통해 메이플스토리 공지사항을 가져오는 함수
-
-    Args:
-        target_event (str, optional): 특정 이벤트에 대한 공지사항을 필터링할 수 있음. 기본값은 None.
-
-    Returns:
-        list[dict]: 공지사항 목록
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
-
-    Reference:
-        https://openapi.nexon.com/ko/game/maplestory/?id=24
-    """
-    service_url = f"/maplestory/v1/notice-event"
-    request_url = f"{NEXON_API_HOME}{service_url}"
-    response_data: dict = general_request_handler(request_url)
-    notices: list = response_data.get('event_notice', [])
-    if target_event is None:
-        notice_filter = None
-    elif target_event == "pcbang":
-        notice_filter = "PC방"
-    elif target_event == "sunday":
-        notice_filter = "썬데이"
-
-    # 특정 이벤트에 대한 공지사항 필터링
-    if target_event:
-        notices = [notice for notice in notices if notice_filter in notice.get('title', '')]
-
-    return notices
-
-
-def get_notice_details(notice_id: str) -> dict:
-    """Nexon Open API를 통해 특정 공지사항의 상세 정보를 가져오는 함수
-
-    Args:
-        notice_id (str): 공지사항 ID
-
-    Returns:
-        dict: 공지사항 상세 정보
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
-    """
-    service_url = f"/maplestory/v1/notice-event/detail"
-    request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
-    response_data: dict = general_request_handler(request_url)
-    return response_data
-
-
-def get_image_bytes(image_url: str) -> bytes:
-    """이미지 URL로부터 이미지 바이트를 가져오는 함수
-
-    Args:
-        image_url (str): 이미지 URL
-
-    Returns:
-        bytes: 이미지 바이트
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
-    """
-    response = requests.get(image_url)
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch image from {image_url}")
-    else:
-        image_bytes = io.BytesIO(response.content)
-    
-    return image_bytes
+from service.api_utils import *
+from config import NEXON_API_HOME
 
 @log_command
 async def api_basic_info(ctx: commands.Context, character_name: str):
@@ -539,9 +353,8 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         - 캐릭터 외형 이미지
         - 캐릭터 생성일
         - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-        - 캐릭터 능력치: 스탯 공격력
         - 캐릭터 능력치: 스탯수치
-        - 캐릭터 능력치: 전투 능력치(보공, 크뎀, 방무, 벞지, 쿨감, 미사용)
+        - 캐릭터 능력치: 전투 능력치(보공, 크뎀, 방무, 쿨감)
         - 캐릭터 능력치: 전투력
 
     Args:
@@ -553,6 +366,9 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
 
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
+
+    Reference:
+        https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
     # 캐릭터의 OCID 조회
     try:
@@ -759,3 +575,169 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     else:
         embed.colour = discord.Colour.from_rgb(128, 128, 128)
     await ctx.send(embed=embed)
+
+@log_command
+async def api_weather_v1(message: discord.Message):
+    """현재 지역의 날씨 정보를 가져오는 명령어 v1
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        location_name (str): 날씨 정보를 가져올 지역명/주소
+
+    Returns:
+        discord.ui.Embed: 날씨 정보를 담은 Embed 객체
+
+    Raises:
+        Exception : 지역정보 조회, 날씨 조회 실패 시 발생
+
+    Reference:
+        [지역 정보 조회 API (KAKAO developers)](https://developers.kakao.com/docs/latest/ko/local/dev-guide#search-by-address)
+        [날씨 조회 API (Data.go.kr)](https://www.data.go.kr/data/15084084/openapi.do)
+    """
+    command_prefix: str = "븜 날씨 "
+    if message.author.bot:
+        return
+    
+    if message.content.startswith(command_prefix):
+        location_name: str = message.content[len(command_prefix):]
+    
+    try:
+        # 지역 정보 조회
+        location_data = get_local_info(local_name=location_name)
+        local_type = location_data.get('address_type')
+        if local_type == "REGION":
+            local_address_name = location_data.get('address_name')
+            local_x: str = location_data.get('x')
+            local_y: str = location_data.get('y')
+        else:
+            local_road_address: dict = location_data.get('road_address')
+            local_address_1 = local_road_address.get('region_1depth_name')
+            local_address_2 = local_road_address.get('region_2depth_name')
+            local_address_3 = local_road_address.get('region_3depth_name')
+            local_address_name = f"{local_address_1} {local_address_2} {local_address_3}"
+            local_x: str = local_road_address.get('x')
+            local_y: str = local_road_address.get('y')
+    except Exception as e:
+        if str(e) == "WTH_KKO_NO_LOCAL_INFO":
+            await message.channel.send(f"지역 정보를 찾을 수 없어양! 정확한 지역명을 입력해보세양.")
+            raise Exception(f"Location '{location_name}' not found")
+        else:
+            await message.channel.send(f"지역 정보를 조회하는데 오류가 발생했어양! 다시 시도해보세양.")
+            raise Exception(e)
+
+    try:
+        # 날씨 정보 조회
+        weather_info = get_weather_info(local_x, local_y)
+    except Exception as e:
+        if str(e) == "WTH_KKO_NO_WEATHER_INFO":
+            await message.channel.send(f"해당 지역의 날씨 정보가 없어양!")
+            raise Exception(f"Weather info for '{local_address_name}' not found")
+        if "01" in str(e): # 날씨 API 내부 오류
+            await message.channel.send(f"날씨 조회 API에 오류가 발생했어양!")
+            raise Exception(f"Weather API internal error - {str(e)}")
+        if "02" in str(e): # 날씨 API 내부 데이터 오류
+            await message.channel.send(f"날씨 조회 API에 데이터에 문제가 발생했어양!")
+            raise Exception(f"Weather API internal error - {str(e)}")
+        if "03" in str(e): # 날씨 API 내부 데이터 오류
+            await message.channel.send(f"해당 지역의 날씨 정보가 없어양!")
+            raise Exception(f"Weather API internal error - {str(e)}")
+        if "04" in str(e): # 날씨 API HTTP 오류
+            await message.channel.send(f"날씨 데이터 요청이 잘못되었어양!")
+            raise Exception(f"Weather API http error - {str(e)}")
+        if "05" in str(e): # 날씨 API Timeout
+            await message.channel.send(f"날씨 조회 API 연결에 실패했어양...")
+            raise Exception(f"Weather API timeout - {str(e)}")
+        if "10" in str(e): # 날씨 API가 잘못된 요청을 받았을 때
+            await message.channel.send(f"잘못된 날씨 데이터를 요청했어양...")
+            raise Exception(f"Weather API bad request - {str(e)}")
+        if "11" in str(e): # 날씨 API가 지원하지 않는 지역
+            await message.channel.send(f"잘못된 날씨 데이터를 요청했어양...")
+            raise Exception(f"Weather API bad request - {str(e)}")
+        if "12" in str(e): # 날씨 API가 더이상 지원하지 않는 경우
+            await message.channel.send(f"더이상 지원하지 않는 기능이에양!")
+            raise Exception(f"Weather API deprecated - {str(e)}")
+        if "20" in str(e): # 서비스 접근 거부
+            await message.channel.send(f"날씨 조회 API 접근 권한이 없어양!")
+            raise Exception(f"Weather API access denied - {str(e)}")
+        if "21" in str(e): # 서비스 키 일시적 사용 불가
+            await message.channel.send(f"날씨 조회 서비스가 현재 일시적으로 사용 불가해양!")
+            raise Exception(f"Weather API temporarily unavailable - {str(e)}")
+        if "22" in str(e): # 서비스 요청 횟수 초과
+            await message.channel.send(f"날씨 조회 API 요청 횟수를 초과했어양!")
+            raise Exception(f"Weather API request limit exceeded - {str(e)}")
+        if "30" in str(e): # 서비스 키가 잘못된 경우
+            await message.channel.send(f"날씨 조회 API 서비스 키가 잘못되었어양!")
+            raise Exception(f"Weather API invalid service key - {str(e)}")
+        if "31" in str(e): # 서비스 키가 만료된 경우
+            await message.channel.send(f"날씨 조회 API 서비스 키가 만료되었어양!")
+            raise Exception(f"Weather API service key expired - {str(e)}")
+        if "99" in str(e): # 기타 오류
+            await message.channel.send(f"날씨 조회 API에 알 수 없는 오류가 발생했어양!")
+            raise Exception(f"Weather API unknown error - {str(e)}")
+        else:
+            await message.channel.send(f"날씨 정보를 조회하는데 오류가 발생했어양! 다시 시도해보세양.")
+            raise Exception(e)
+
+    weather_data = process_weather_data(weather_info)
+
+    # 날씨 데이터 전처리
+    current_date = weather_data.get('기준시간', '몰라양')
+    current_temp = weather_data.get('기온', '몰라양')
+    current_humidity = weather_data.get('습도', '몰라양')
+    current_wind_speed = weather_data.get('풍속', '몰라양')
+    current_wind_direction = weather_data.get('풍향', '몰라양')
+    current_rain_1h = weather_data.get('1시간강수량_수치')
+    if current_rain_1h == "0":
+        current_rain_flag: bool = False
+    else:
+        current_rain_flag: bool = True
+    
+    # 비가오는 경우 강수 정보 메세지 생성
+    if current_rain_flag:
+        current_rain_type: str = weather_data.get('1시간강수량_정성')
+        current_rain_show: str = weather_data.get('1시간강수량_표시')
+        current_rain_float: float = float(current_rain_1h)
+        if current_rain_float >= 30 and current_rain_float < 50:
+            current_rain_float_text = "들풍과 천둥, 번개를 동반한 비가 내릴 수 있어양."
+        elif current_rain_float >= 50 and current_rain_float < 70:
+            current_rain_float_text = "도로가 침수될 수 있고, 차량 운행이 어려울 수 있어양."
+        elif current_rain_float >= 70:
+            current_rain_float_text = "심각한 피해가 발생할 수 있어양. 이불 밖은 위험해양!"
+        else:
+            current_rain_float_text = "우산을 챙기세양. 비가 내릴 수 있어양."
+        current_rain_desc: str = (
+            f"현재 1시간 강수량이 {current_rain_1h}mm 이에양.\n"
+            f"{current_rain_float_text}"
+        )
+        current_rain: str = (
+            f"**1시간 강수량**: {current_rain_type} ({current_rain_show})\n"
+        )
+    else:
+        current_rain_desc: str = ""
+        current_rain: str = f""
+
+    # Embed 메시지 생성
+    embed_title: str = f"{local_address_name}의 현재 날씨 정보에양!"
+    embed_description: str = (
+        f"**현재 기온**: {current_temp}\n"
+        f"**현재 습도**: {current_humidity}\n"
+        f"**현재 풍속**: ({current_wind_direction}풍) {current_wind_speed}\n"
+        f"**강수 여부**: {weather_data['강수형태']}\n"
+        f"{current_rain}"
+    )
+    embed_footer: str = (
+        f"정보 제공: KAKAO Local API | Data.go.kr\n"
+        f"제공 날짜: {current_date}\n(날씨 정보 10분 단위 갱신)\n"
+    )
+
+    embed = discord.Embed(
+        title=embed_title,
+        description=embed_description,
+        color=discord.Colour.from_rgb(135, 206, 235)  # 하늘색
+    )
+    embed.set_footer(text=embed_footer)
+    
+    if current_rain_flag:
+        await message.channel.send(embed=embed, content=current_rain_desc)
+    else:
+        await message.channel.send(embed=embed)

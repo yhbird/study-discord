@@ -229,6 +229,10 @@ async def msg_handle_help(message: discord.Message):
             inline=False
         )
         embed.add_field(
+            name="븜 날씨 <지역명 혹은 주소> (v1)",
+            value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*집주소 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+        )
+        embed.add_field(
             name="/블링크빵",
             value="랜덤한 자연수 1~100 랜덤 추출합니다. \n*결과는 날아간 거리로 보여줘양*\n ",
             inline=False
@@ -255,7 +259,7 @@ async def msg_handle_help(message: discord.Message):
         )
         embed.add_field(
             name="/미국주식 <티커>",
-            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*티커: BRK.B -> BRK-B* ",
+            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
             inline=False
         )
         embed.add_field(

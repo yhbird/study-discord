@@ -75,6 +75,8 @@ async def on_message(message: discord.Message):
         await msg_command.msg_handle_repeat(message)
     if message.content.startswith('븜 이미지 '):
         await msg_command.msg_handle_image(message)
+    if message.content.startswith('븜 날씨 '):
+        await api_command.api_weather_v1(message)
 
     # 봇 명령어 처리
     await bot.process_commands(message)
