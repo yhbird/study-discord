@@ -43,6 +43,20 @@ except Exception as e:
     print(f"Failed loading Nexon API key!!: {e}")
     sys.exit(1)
 
+# weather API Key loading
+try:
+    assert load_dotenv('./env/weather.env'), Exception("weather.env file not found")
+    assert os.getenv('kko_token_api'), Exception("kko_token_api not found in env file")
+    assert os.getenv('wth_data_api'), Exception("wth_data_api not found in env file")
+    KKO_LOCAL_API_KEY: str = os.getenv('kko_token_api', None)
+    KKO_API_HOME: str = os.getenv('kko_api_url', None)
+    WTH_DATA_API_KEY: str = os.getenv('wth_data_api', None)
+    WTH_API_HOME: str = os.getenv('wth_data_url', None)
+# weather API 키를 제대로 불러오지 못하면 실행 불가
+except Exception as e:
+    print(f"Failed loading weather API key!!: {e}")
+    sys.exit(1)
+
 # Debug configuration
 # 현재 사용중인 메모리 사용량을 MB 단위로 반환 -> 디버그용
 def get_memory_usage_mb() -> float:
@@ -63,4 +77,12 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"2025-07-29-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20250805-{BOT_TOKEN_RUN}"
+
+# 디버그 모드 설정
+if BOT_TOKEN_RUN == 'dev':
+    DEBUG_MODE: bool = True 
+else:
+    # 운영 환경에서는 디버그 모드 OFF
+    # (디버그 모드가 켜져있으면, 봇 명령어 실행 시 로깅이 더 자세하게 기록됨)
+    DEBUG_MODE: bool = False
