@@ -36,50 +36,36 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     # 캐릭터의 OCID 조회
     try:
         character_ocid: str = get_ocid(character_name)
-    except Exception as e:
-        if '400' in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-            raise Exception(f"Character '{character_name}' not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
-
-    # OCID 데이터값 검증
-    if not character_ocid:
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+    except NexonAPIOCIDNotFound:
         await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise Exception(f"OCID not found for character: {character_name}")
-    
+
     service_url: str = f"/maplestory/v1/character/basic"
     request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
     # 예외 처리 (자세한 내용은 Reference 참고)
     try:
         response_data: dict = general_request_handler(request_url)
-    except Exception as e:
-        if '400' in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-            raise Exception(f"Character '{character_name}' basic info not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
 
     # 정상적으로 캐릭터 기본 정보를 찾았을 때
     # 캐릭터 기본 정보 1 - 캐릭터 이름
     character_name: str = response_data.get('character_name')
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
-        raise Exception(f"Character basic info not found for: {character_name}")
     # 캐릭터 기본 정보 2 - 캐릭터 레벨
     character_level: int = response_data.get('character_level', 0)
     # 캐릭터 기본 정보 3 - 캐릭터 소속월드
@@ -373,13 +359,13 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     # 캐릭터의 OCID 조회
     try:
         character_ocid: str = get_ocid(character_name)
-    except Exception as e:
+    except NexonAPIError as e:
         if '400' in str(e):
             await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-            raise Exception(f"Character '{character_name}' not found")
+            raise NexonAPIBadRequest(f"Character '{character_name}' not found")
         if '403' in str(e):
             await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
+            raise NexonAPIForbidden("Forbidden access to API")
         if '429' in str(e):
             await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
             raise Exception("Too many requests to API")
@@ -617,70 +603,50 @@ async def api_weather_v1(message: discord.Message):
             local_address_name = f"{local_address_1} {local_address_2} {local_address_3}"
             local_x: str = local_road_address.get('x')
             local_y: str = local_road_address.get('y')
-    except Exception as e:
-        if str(e) == "WTH_KKO_NO_LOCAL_INFO":
-            await message.channel.send(f"지역 정보를 찾을 수 없어양! 정확한 지역명을 입력해보세양.")
-            raise Exception(f"Location '{location_name}' not found")
-        else:
-            await message.channel.send(f"지역 정보를 조회하는데 오류가 발생했어양! 다시 시도해보세양.")
-            raise Exception(e)
+    except KKO_LOCAL_API_ERROR as e:
+        await message.channel.send(f"해당 지역의 정보를 검색하는 중에 오류가 발생했어양!")
+        raise KakaoAPIError(str(e))
+    except KKO_NO_LOCAL_INFO as e:
+        await message.channel.send(f"해당 지역의 정보를 찾을 수 없어양!")
+        raise KakaoAPIError(str(e))
 
     try:
         # 날씨 정보 조회
         weather_info = get_weather_info(local_x, local_y)
+    except WTH_API_INTERNAL_ERROR:
+        await message.channel.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
+    except WTH_API_DATA_ERROR:
+        await message.channel.send(f"날씨 API 데이터에 문제가 발생했어양!")
+    except WTH_API_DATA_NOT_FOUND:
+        await message.channel.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
+    except WTH_API_HTTP_ERROR:
+        await message.channel.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+    except WTH_API_TIMEOUT:
+        await message.channel.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
+    except WTH_API_INVALID_PARAMS:
+        await message.channel.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
+    except WTH_API_INVALID_REGION:
+        await message.channel.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
+    except WTH_API_DEPRECATED:
+        await message.channel.send(f"더 이상 지원되지 않는 기능이에양!")
+    except WTH_API_UNAUTHORIZED:
+        await message.channel.send(f"날씨 API 서비스 접근 권한이 없어양!")
+    except WTH_API_KEY_TEMP_ERROR:
+        await message.channel.send(f"날씨 API 키가 임시로 제한되었어양!")
+    except WTH_API_KEY_LIMIT_EXCEEDED:
+        await message.channel.send(f"날씨 API 키의 요청 한도를 초과했어양!")
+    except WTH_API_KEY_INVALID:
+        await message.channel.send(f"날씨 API 키가 유효하지 않아양!")
+    except WTH_API_KEY_EXPIRED:
+        await message.channel.send(f"날씨 API 키가 만료되었어양!")
+    except WeatherAPIError:
+        await message.channel.send(f"날씨 API 요청 중에 오류가 발생했어양!")
     except Exception as e:
-        if str(e) == "WTH_KKO_NO_WEATHER_INFO":
-            await message.channel.send(f"해당 지역의 날씨 정보가 없어양!")
-            raise Exception(f"Weather info for '{local_address_name}' not found")
-        if "01" in str(e): # 날씨 API 내부 오류
-            await message.channel.send(f"날씨 조회 API에 오류가 발생했어양!")
-            raise Exception(f"Weather API internal error - {str(e)}")
-        if "02" in str(e): # 날씨 API 내부 데이터 오류
-            await message.channel.send(f"날씨 조회 API에 데이터에 문제가 발생했어양!")
-            raise Exception(f"Weather API internal error - {str(e)}")
-        if "03" in str(e): # 날씨 API 내부 데이터 오류
-            await message.channel.send(f"해당 지역의 날씨 정보가 없어양!")
-            raise Exception(f"Weather API internal error - {str(e)}")
-        if "04" in str(e): # 날씨 API HTTP 오류
-            await message.channel.send(f"날씨 데이터 요청이 잘못되었어양!")
-            raise Exception(f"Weather API http error - {str(e)}")
-        if "05" in str(e): # 날씨 API Timeout
-            await message.channel.send(f"날씨 조회 API 연결에 실패했어양...")
-            raise Exception(f"Weather API timeout - {str(e)}")
-        if "10" in str(e): # 날씨 API가 잘못된 요청을 받았을 때
-            await message.channel.send(f"잘못된 날씨 데이터를 요청했어양...")
-            raise Exception(f"Weather API bad request - {str(e)}")
-        if "11" in str(e): # 날씨 API가 지원하지 않는 지역
-            await message.channel.send(f"잘못된 날씨 데이터를 요청했어양...")
-            raise Exception(f"Weather API bad request - {str(e)}")
-        if "12" in str(e): # 날씨 API가 더이상 지원하지 않는 경우
-            await message.channel.send(f"더이상 지원하지 않는 기능이에양!")
-            raise Exception(f"Weather API deprecated - {str(e)}")
-        if "20" in str(e): # 서비스 접근 거부
-            await message.channel.send(f"날씨 조회 API 접근 권한이 없어양!")
-            raise Exception(f"Weather API access denied - {str(e)}")
-        if "21" in str(e): # 서비스 키 일시적 사용 불가
-            await message.channel.send(f"날씨 조회 서비스가 현재 일시적으로 사용 불가해양!")
-            raise Exception(f"Weather API temporarily unavailable - {str(e)}")
-        if "22" in str(e): # 서비스 요청 횟수 초과
-            await message.channel.send(f"날씨 조회 API 요청 횟수를 초과했어양!")
-            raise Exception(f"Weather API request limit exceeded - {str(e)}")
-        if "30" in str(e): # 서비스 키가 잘못된 경우
-            await message.channel.send(f"날씨 조회 API 서비스 키가 잘못되었어양!")
-            raise Exception(f"Weather API invalid service key - {str(e)}")
-        if "31" in str(e): # 서비스 키가 만료된 경우
-            await message.channel.send(f"날씨 조회 API 서비스 키가 만료되었어양!")
-            raise Exception(f"Weather API service key expired - {str(e)}")
-        if "99" in str(e): # 기타 오류
-            await message.channel.send(f"날씨 조회 API에 알 수 없는 오류가 발생했어양!")
-            raise Exception(f"Weather API unknown error - {str(e)}")
-        else:
-            await message.channel.send(f"날씨 정보를 조회하는데 오류가 발생했어양! 다시 시도해보세양.")
-            raise Exception(e)
-
-    weather_data = process_weather_data(weather_info)
+        await message.channel.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
+        raise WeatherAPIError(str(e))
 
     # 날씨 데이터 전처리
+    weather_data = process_weather_data(weather_info)
     current_date = weather_data.get('기준시간', '몰라양')
     current_temp = weather_data.get('기온', '몰라양')
     current_humidity = weather_data.get('습도', '몰라양')
@@ -726,7 +692,7 @@ async def api_weather_v1(message: discord.Message):
         f"{current_rain}"
     )
     embed_footer: str = (
-        f"정보 제공: KAKAO Local API | Data.go.kr\n"
+        f"정보 제공: Kakao Local API | Data.go.kr\n"
         f"제공 날짜: {current_date}\n(날씨 정보 10분 단위 갱신)\n"
     )
 
