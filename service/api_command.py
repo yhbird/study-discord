@@ -663,11 +663,11 @@ async def api_weather_v1(message: discord.Message):
         current_rain_type: str = weather_data.get('1시간강수량_정성')
         current_rain_show: str = weather_data.get('1시간강수량_표시')
         current_rain_float: float = float(current_rain_1h)
-        if current_rain_float >= 30 and current_rain_float < 50:
+        if current_rain_float >= 30.0 and current_rain_float < 50.0:
             current_rain_float_text = "들풍과 천둥, 번개를 동반한 비가 내릴 수 있어양."
-        elif current_rain_float >= 50 and current_rain_float < 70:
+        elif current_rain_float >= 50.0 and current_rain_float < 70.0:
             current_rain_float_text = "도로가 침수될 수 있고, 차량 운행이 어려울 수 있어양."
-        elif current_rain_float >= 70:
+        elif current_rain_float >= 70.0:
             current_rain_float_text = "심각한 피해가 발생할 수 있어양. 이불 밖은 위험해양!"
         else:
             current_rain_float_text = "우산을 챙기세양. 비가 내릴 수 있어양."

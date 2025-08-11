@@ -402,21 +402,24 @@ def process_weather_data(weather_data: dict) -> dict:
     # 날씨정보 1 - PTY: 강수 형태 코드
     return_data: dict = {}
     return_data["기준시간"] = f"{base_date_ymd} {base_time_hm}"
-    result_data["PTY"] = result_data.get("PTY", "0")
-    if result_data["PTY"] == "0":
+    rainsnow_flag = result_data.get("PTY", "몰라양")
+    return_data["강수형태"] = rainsnow_flag
+    if rainsnow_flag == "0":
         return_data["강수형태"] = "없음"
-    elif result_data["PTY"] == "1":
+    elif rainsnow_flag == "1":
         return_data["강수형태"] = "비"
-    elif result_data["PTY"] == "2":
+    elif rainsnow_flag == "2":
         return_data["강수형태"] = "비/눈"
-    elif result_data["PTY"] == "3":
+    elif rainsnow_flag == "3":
         return_data["강수형태"] = "눈"
-    elif result_data["PTY"] == "5":
+    elif rainsnow_flag == "5":
         return_data["강수형태"] = "빗방울"
-    elif result_data["PTY"] == "6":
+    elif rainsnow_flag == "6":
         return_data["강수형태"] = "빗방울/눈날림"
-    elif result_data["PTY"] == "7":
+    elif rainsnow_flag == "7":
         return_data["강수형태"] = "눈날림"
+    else:
+        return_data["강수형태"] = "몰라양"
 
     # 날씨정보 2 - REH: 습도 (%)
     return_data["습도"] = f"{result_data.get('REH', '알수없음')}%"
