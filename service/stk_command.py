@@ -13,7 +13,9 @@ from discord.ext import commands
 from service.common import log_command
 from pytz import timezone
 from datetime import datetime
+
 from service.common import safe_float, safe_percent
+from service.stk_exception import *
 
 def exchange_krw_rate(from_currency: str) -> float:
     """
@@ -44,10 +46,10 @@ def exchange_krw_rate(from_currency: str) -> float:
             if from_currency in opt.text:
                 rate: float = float(opt.get("value"))
                 return rate
-        raise Exception("STK_ERROR_NO_RATE")
+        raise STK_ERROR_NO_RATE(f"환율 정보를 찾을 수 없어양: {from_currency}")
     else:
         # 환율 정보를 가져오는 데 실패한 경우
-        raise Exception(f"STK_ERROR_FETCH_RATE (HTTP {response.status_code}: {response.reason})")
+        raise STK_ERROR_FETCH_RATE(f"HTTP {response.status_code}: {response.reason}")
 
 @log_command
 async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
@@ -64,7 +66,7 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
         previous_close = stock.info.get('regularMarketPreviousClose', '몰라양')
         today_close = stock.info.get('regularMarketPrice', '몰라양')
         if previous_close == '몰라양' or today_close == '몰라양':
-            raise Exception("STK_ERROR_NO_TICKER")
+            raise STK_ERROR_NO_TICKER(f'티커 {ticker}는 존재하지 않거나, 주식 정보가 없어양!')
         stock_name = stock.info.get('shortName', ticker)
         stock_ticker = stock.info.get('symbol', ticker)
         stock_timezone = stock.info.get('exchangeTimezoneName', 'America/New_York')
@@ -91,7 +93,7 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
             footer_text_extra = (
                 f"\n환율 정보 제공: 네이버 금융 (하나은행)\n"
                 f"기준 환율: 1 {stock_currency} -> {currency_rate:.2f} KRW\n"
-                f"환율은 네이버 금융에서 제공하며\n우대금리, 거래 수수료에 따라 다를 수 있어양."
+                f"환율 우대, 거래 수수료에 따라 주식가격이 다를 수 있어양."
             )
         else:
             pc_krw_text = ""
@@ -100,19 +102,13 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
             low_52w_krw_text = ""
             footer_text_extra = ""
 
-    except Exception as e:
-        if str(e) == "STK_ERROR_NO_TICKER":
-            error_message = f"티커 '{ticker}'는 존재하지 않거나, 주식 정보가 없어양!"
-            await ctx.send(error_message)
-            raise Exception(str(e))
-        elif str(e) == "STK_ERROR_NO_RATE":
-            warning_msg = f"환율 정보를 가져올 수 없어양! {stock_currency}의 환율 정보를 확인해 보세양"
-            await ctx.send(warning_msg)
-        elif str(e).startswith("STK_ERROR_FETCH_RATE"):
-            raise Warning(f"환율 정보를 가져오는 중 오류가 발생했어양: {str(e)}")
-        else:
-            await ctx.send(f"주식 정보를 가져오는 중 오류가 발생했어양")
-            raise Exception(f"주식 정보를 가져오는 중 오류가 발생했어양: {str(e)}")
+    except STK_ERROR_NO_TICKER:
+        await ctx.send(f"티커 {ticker}는 존재하지 않거나, 주식 정보가 없어양!")
+        return
+    except STK_ERROR_NO_RATE:
+        await ctx.send(f"경고) {stock_currency} 환율 정보를 찾을 수 없어양!")
+    except STK_ERROR_FETCH_RATE:
+        await ctx.send(f"경고) 환율 정보를 가져오는 데 실패했어양!")
     
     finally:
         # 가장 최근 거래일의 종가를 가져옵니다.
@@ -132,6 +128,7 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
             f"정보 제공: yahoo finance API (최대 15분 지연)\n"
             f"현지 시간: {stock_time} ({stock_timezone_short})\n"
             f"한국 시간: {kst_time} (KST)"
+            f"\n--- 환율안내 ---\n"
             f"{footer_text_extra}"
         )
         stock_embed = discord.Embed(

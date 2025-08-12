@@ -10,12 +10,16 @@ from discord.ext import commands
 from discord.ui import View, Button
 
 from ddgs import DDGS
-from ddgs.exceptions import DDGSException
 import time
 import random
 
 from service.common import log_command
 from config import BOT_VERSION
+
+from service.common import (
+    BotWarning
+)
+from ddgs.exceptions import DDGSException
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
@@ -78,7 +82,7 @@ class ImageViewer(View):
             try:
                 await self.message.edit(view=self)
             except discord.NotFound:
-                pass
+                raise BotWarning
 
 # 샴 따라해 기능 복원
 @log_command
@@ -102,9 +106,10 @@ async def msg_handle_repeat(message: discord.Message):
             await message.delete()
         except discord.Forbidden:
             await message.channel.send("메세지 삭제 권한이 없어양")
-            raise Exception("permission denied to delete message")
+            return
         except discord.HTTPException as e:
-            raise Exception(f"Failed to delete message: {e}")
+            await message.channel.send("메세지 삭제 중 오류가 발생했어양")
+            return
 
         if output:
             await message.channel.send(output)
@@ -141,15 +146,15 @@ async def msg_handle_image(message: discord.Message):
             )
         except DDGSException as e:
             await message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
-            raise Exception(f"Failed to search images: {e}")
+            return
         except Exception as e:
             await message.channel.send(f"검색 중에 오류가 발생했어양...")
-            raise Exception(f"Unexpected error during image search: {e}")
+            return
     
     if not results:
         await message.channel.send("이미지를 찾을 수 없어양!!")
-        raise Warning(f"No images found keyword: {image_search_keyword}")
-    
+        return
+
     image_results = [r for r in results if "image" in r and "url" in r]
     view_owner: discord.User = message.author
     view = ImageViewer(images=image_results, search_keyword=image_search_keyword, requester=view_owner)
@@ -186,7 +191,7 @@ async def msg_handle_blinkbang(message: discord.Message):
             await message.delete()
         except discord.Forbidden:
             await message.channel.send("메세지 삭제 권한이 없어양")
-            raise Exception("permission denied to delete message")
+            return
 
         await message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
 

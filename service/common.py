@@ -37,6 +37,41 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+# Base Exception Class
+class BotBaseException(Exception):
+    """Bot 기본 예외 클래스"""
+    def __init__(self, message: str = "알수 없는 오류가 발생 했어양"):
+        super().__init__(message)
+        self.message = message
+
+class BotConfigFailed(BotBaseException):
+    """봇 설정 실패"""
+    def __init__(self, message: str = "봇 설정을 불러오는 데 실패했어양"):
+        super().__init__(message)
+        self.message = message
+
+class BotCommandError(BotBaseException):
+    """명령어 실행 중 오류 발생"""
+    def __init__(self, message: str = "명령어 실행 중 오류가 발생 했어양"):
+        super().__init__(message)
+        self.message = message
+
+class BotCommandInvalidError(BotBaseException):
+    """명령어 유효성 검사 실패"""
+    def __init__(self, message: str = "명령어를 잘못 사용했어양"):
+        super().__init__(message)
+        self.message = message
+
+class BotCommandResponseError(BotBaseException):
+    """명령어 응답 처리 중 오류 발생"""
+    def __init__(self, message: str = "명령어 응답 처리 중 오류가 발생 했어양"):
+        super().__init__(message)
+        self.message = message
+
+class BotWarning(Exception):
+    """작업을 중단하지 않고 경고 메시지를 표시할 때 사용"""
+    pass
+
 def safe_float(input_val, digits: int = 2) -> str:
     try:
         return f"{float(input_val):.{digits}f}"
@@ -130,13 +165,14 @@ def log_command(func):
             return result
         
         # 예외 처리 - 경고 메시지 로깅
-        except Warning as w:
+        except BotWarning as w:
             elapsed_time: float = time.time() - start_time
             if config.DEBUG_MODE:
                 warn_log = f"{func_name} warning ({str(w)})\n(Elapsed time: {elapsed_time:.3f} seconds)\n{arg_info}"
             else:
                 warn_log = f"{func_name} warning ({str(w)}) (Elapsed time: {elapsed_time:.3f} seconds)"
             logger.warning(f"{warn_log}")
+            return
         
         # 예외 처리 - 예외 메시지 로깅
         except Exception as e:
@@ -147,6 +183,7 @@ def log_command(func):
             else:
                 errr_log = f"{func_name} error ({str(e)}) (Elapsed time: {elapsed_time:.3f} seconds)"
             logger.error(f"{errr_log}")
+            raise
     return wrapper
 
 def parse_iso_string(iso_string: str) -> str:
