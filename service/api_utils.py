@@ -8,6 +8,7 @@ from pytz import timezone
 from config import NEXON_API_HOME, NEXON_API_KEY # NEXON OPEN API
 from config import KKO_LOCAL_API_KEY, KKO_API_HOME # KAKAO Local API
 from config import WTH_DATA_API_KEY, WTH_API_HOME # Weather API
+from service.api_exception import *
 
 from typing import Optional
 
@@ -32,16 +33,26 @@ def general_request_error_handler(response: requests.Response) -> None:
     exception_msg: dict = response_data.get('error')
     if response.status_code == 400:
         default_exception_msg = "Bad Request"
+        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+        raise NexonAPIBadRequest(exception_msg)
     elif response.status_code == 403:
         default_exception_msg = "Forbidden"
+        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+        raise NexonAPIForbidden(exception_msg)
     elif response.status_code == 429:
         default_exception_msg = "Too Many Requests"
+        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+        raise NexonAPITooManyRequests(exception_msg)
     elif response.status_code == 500:
         default_exception_msg = "Internal Server Error"
+        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+        raise NexonAPIServiceUnavailable(exception_msg)
     else:
-        default_exception_msg = "Unknown Error"
-
-    raise Exception(f"{exception_msg_prefix}{str(exception_msg.get('name', default_exception_msg))}")
+        if not exception_msg.get('message'):
+            raise NexonAPIError
+        else :
+            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message')}"
+            raise NexonAPIError(exception_msg)
 
 
 def general_request_handler(request_url: str, headers: Optional[dict] = None) -> dict:
@@ -97,7 +108,7 @@ def get_ocid(character_name: str) -> str:
     if ocid:
         return ocid
     else:
-        raise Exception("OCID not found in response")
+        raise NexonAPIOCIDNotFound("OCID not found in response")
 
 
 def get_character_popularity(ocid: str) -> str:
@@ -119,7 +130,7 @@ def get_character_popularity(ocid: str) -> str:
 
         popularity: int = response_data.get('popularity', "몰라양")
         return popularity
-    except Exception as e:
+    except NexonAPIError:
         return "몰라양"  # 예외 발생 시 기본값으로 "몰라양" 반환
 
 
@@ -188,7 +199,7 @@ def get_image_bytes(image_url: str) -> bytes:
     """
     response = requests.get(image_url)
     if response.status_code != 200:
-        raise Exception(f"Failed to fetch image from {image_url}")
+        raise BotCommandError(f"Failed to fetch image from {image_url}")
     else:
         image_bytes = io.BytesIO(response.content)
     
@@ -273,13 +284,13 @@ def get_local_info(local_name: str) -> dict:
         error_type: str = error_info.get('errorType', 'Unknown Error')
         error_text: str = error_info.get('message', 'No message provided')
         exception_msg: str = f"[{status_code}] {error_type}: {error_text}"
-        raise Exception(exception_msg)
+        raise KKO_LOCAL_API_ERROR(exception_msg)
     else:
         response_data: dict = response.json()
         local_info = response_data.get('documents')
         # 검색 결과가 없는 경우
         if not local_info:
-            raise Exception("WTH_KKO_NO_LOCAL_INFO")
+            raise KKO_NO_LOCAL_INFO("해당 지역 정보를 찾을 수 없어양")
         # 검색 결과가 있는 경우 첫 번째 결과 반환
         else:
             return local_info[0]
@@ -305,8 +316,9 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
     local_y: float = round(float(local_y), 6)
     nx, ny = convert_grid(lat=local_y, lon=local_x)
 
-    base_date: str = datetime.now(timezone('Asia/Seoul')).strftime('%Y%m%d')
-    base_time: str = (datetime.now(timezone('Asia/Seoul')) - timedelta(minutes=5)).strftime('%H%M')
+    query_date: datetime = datetime.now(timezone('Asia/Seoul')) - timedelta(minutes=30)
+    base_date: str = query_date.strftime('%Y%m%d')
+    base_time: str = query_date.strftime('%H%M')
     request_url = f"{WTH_API_HOME}/getUltraSrtNcst"
     request_params = {
         'ServiceKey': WTH_DATA_API_KEY,
@@ -327,7 +339,7 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
     if response_result.get('resultCode') != '00':
         error_code: str = response_result.get('resultCode', 'Unknown Error')
         error_text: str = response_result.get('resultMsg', 'Unknown Error')
-        raise Exception(f"[{error_code}] {error_text}")
+        weather_exception_handler(error_code, error_text)
     else:
         # 정상적으로 응답이 온 경우
         response_data: dict = response_content.get("body")
@@ -335,7 +347,7 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
         if weather_data:
             return weather_data
         else:
-            raise Exception("WTH_NO_WEATHER_DATA")
+            raise WeatherAPIError("WTH_NO_WEATHER_DATA")
         
 
 def get_wind_direction(wind_degree: float) -> str:
@@ -361,17 +373,17 @@ def process_weather_data(weather_data: dict) -> dict:
         weather_data (dict): 기상청 API로부터 받은 날씨 데이터
 
     Returns:
-        dict: 전처리된 날씨 데이터
-        {
-            "PTY" -> 강수 형태 코드 (0: 없음, 1: 비, 2: 비/눈, 3: 눈, 5: 빗방울, 6: 빗방울/눈날림, 7: 눈날림)
-            "REH" -> 습도 (%)
-            "RN1" -> 1시간 강수량 (mm)
-            "T1H" -> 기온 (℃)
-            "UUU" -> 동서풍속 (m/s)
-            "VVV" -> 남북풍속 (m/s)
-            "VEC" -> 풍향 (도, deg)
-            "WSD" -> 풍속 (m/s)
-        }
+        dict: 전처리된 날씨 데이터  
+        {  
+            "PTY" -> 강수 형태 코드 (0: 없음, 1: 비, 2: 비/눈, 3: 눈, 5: 빗방울, 6: 빗방울/눈날림, 7: 눈날림)  
+            "REH" -> 습도 (%)  
+            "RN1" -> 1시간 강수량 (mm)  
+            "T1H" -> 기온 (℃)  
+            "UUU" -> 동서풍속 (m/s)  
+            "VVV" -> 남북풍속 (m/s)  
+            "VEC" -> 풍향 (도, deg)  
+            "WSD" -> 풍속 (m/s)  
+        }  
 
     Reference:
         https://www.data.go.kr/data/15084084/openapi.do
@@ -390,21 +402,24 @@ def process_weather_data(weather_data: dict) -> dict:
     # 날씨정보 1 - PTY: 강수 형태 코드
     return_data: dict = {}
     return_data["기준시간"] = f"{base_date_ymd} {base_time_hm}"
-    result_data["PTY"] = result_data.get("PTY", "0")
-    if result_data["PTY"] == "0":
+    rainsnow_flag = result_data.get("PTY", "몰라양")
+    return_data["강수형태"] = rainsnow_flag
+    if rainsnow_flag == "0":
         return_data["강수형태"] = "없음"
-    elif result_data["PTY"] == "1":
+    elif rainsnow_flag == "1":
         return_data["강수형태"] = "비"
-    elif result_data["PTY"] == "2":
+    elif rainsnow_flag == "2":
         return_data["강수형태"] = "비/눈"
-    elif result_data["PTY"] == "3":
+    elif rainsnow_flag == "3":
         return_data["강수형태"] = "눈"
-    elif result_data["PTY"] == "5":
+    elif rainsnow_flag == "5":
         return_data["강수형태"] = "빗방울"
-    elif result_data["PTY"] == "6":
+    elif rainsnow_flag == "6":
         return_data["강수형태"] = "빗방울/눈날림"
-    elif result_data["PTY"] == "7":
+    elif rainsnow_flag == "7":
         return_data["강수형태"] = "눈날림"
+    else:
+        return_data["강수형태"] = "몰라양"
 
     # 날씨정보 2 - REH: 습도 (%)
     return_data["습도"] = f"{result_data.get('REH', '알수없음')}%"

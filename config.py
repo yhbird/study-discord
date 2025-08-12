@@ -3,6 +3,7 @@ import sys
 import psutil
 
 from dotenv import load_dotenv
+from service.common import BotConfigFailed
 
 from datetime import datetime
 from pytz import timezone
@@ -19,19 +20,19 @@ def kst_format_now() -> str:
 # Discord Bot Token loading
 try:
     # Load environment variables from .env file
-    assert load_dotenv('./env/token.env'), Exception("token.env file not found")
-    assert os.getenv('bot_token_dev'), Exception("bot_token not found in env file")
+    assert load_dotenv('./env/token.env'), BotConfigFailed("token.env file not found")
+    assert os.getenv('bot_token_dev'), BotConfigFailed("bot_token not found in env file")
     BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'dev')
     BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
 # Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
-except Exception as e:
+except BotConfigFailed as e:
     print(f"Failed loading bot token!!: {e}")
     sys.exit(1)
 
 # Nexon Open API Key loading
 try:
-    assert load_dotenv('./env/nexon.env'), Exception("nexon.env file not found")
-    assert os.getenv('NEXON_API_TOKEN_LIVE'), Exception("NEXON_API_TOKEN_LIVE not found in env file")
+    assert load_dotenv('./env/nexon.env'), BotConfigFailed("nexon.env file not found")
+    assert os.getenv('NEXON_API_TOKEN_LIVE'), BotConfigFailed("NEXON_API_TOKEN_LIVE not found in env file")
     if BOT_TOKEN_RUN == 'dev':
         NEXON_API_RUN_ENV = 'TEST'
     else:
@@ -39,21 +40,21 @@ try:
     NEXON_API_KEY: str = os.getenv(f'NEXON_API_TOKEN_{NEXON_API_RUN_ENV}', None)
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
-except Exception as e:
+except BotConfigFailed as e:
     print(f"Failed loading Nexon API key!!: {e}")
     sys.exit(1)
 
 # weather API Key loading
 try:
-    assert load_dotenv('./env/weather.env'), Exception("weather.env file not found")
-    assert os.getenv('kko_token_api'), Exception("kko_token_api not found in env file")
-    assert os.getenv('wth_data_api'), Exception("wth_data_api not found in env file")
+    assert load_dotenv('./env/weather.env'), BotConfigFailed("weather.env file not found")
+    assert os.getenv('kko_token_api'), BotConfigFailed("kko_token_api not found in env file")
+    assert os.getenv('wth_data_api'), BotConfigFailed("wth_data_api not found in env file")
     KKO_LOCAL_API_KEY: str = os.getenv('kko_token_api', None)
     KKO_API_HOME: str = os.getenv('kko_api_url', None)
     WTH_DATA_API_KEY: str = os.getenv('wth_data_api', None)
     WTH_API_HOME: str = os.getenv('wth_data_url', None)
 # weather API 키를 제대로 불러오지 못하면 실행 불가
-except Exception as e:
+except BotConfigFailed as e:
     print(f"Failed loading weather API key!!: {e}")
     sys.exit(1)
 
