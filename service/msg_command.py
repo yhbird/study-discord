@@ -216,6 +216,7 @@ async def msg_handle_help(message: discord.Message):
     if message.content.startswith(command_prefix):
         embed_description: str = (
             "봇 개발자: yhbird ([github.com](https://github.com/yhbird))\n"
+            "Data based on NEXON Open API\n"
             "븜끼 봇 사용법을 알려드릴게양!\n"
         )
         embed = discord.Embed(

@@ -67,27 +67,75 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
     # 캐릭터 기본 정보 2 - 캐릭터 레벨
-    character_level: int = response_data.get('character_level', 0)
+    character_level: int = (
+        int(response_data.get('character_level'))
+        if response_data.get('character_level') is not None
+        else 0
+    )
     # 캐릭터 기본 정보 3 - 캐릭터 소속월드
-    character_world: str = response_data.get('world_name', '알 수 없음')
+    character_world: str = (
+        str(response_data.get('world_name')).strip()
+        if response_data.get('world_name') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 4 - 캐릭터 성별
-    character_gender: str = response_data.get('character_gender', '알 수 없음')
+    character_gender: str = (
+        str(response_data.get('character_gender')).strip()
+        if response_data.get('character_gender') is not None
+        else '기타(제로)'
+    )
     # 캐릭터 기본 정보 5 - 캐릭터 직업(차수)
-    character_class: str = response_data.get('character_class', '알 수 없음')
-    character_class_level: str = response_data.get('character_class_level', '알 수 없음')
+    character_class: str = (
+        str(response_data.get('character_class')).strip()
+        if response_data.get('character_class') is not None
+        else '알 수 없음'
+    )
+    character_class_level: str = (
+        str(response_data.get('character_class_level')).strip()
+        if response_data.get('character_class_level') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 6 - 경험치
-    character_exp: int = response_data.get('character_exp', 0)
-    character_exp_rate: str = response_data.get('character_exp_rate', "0.000%")
+    character_exp: int = (
+        int(response_data.get('character_exp'))
+        if response_data.get('character_exp') is not None
+        else 0
+    )
+    character_exp_rate: str = (
+        str(response_data.get('character_exp_rate')).strip()
+        if response_data.get('character_exp_rate') is not None
+        else "0.000%"
+    )
     # 캐릭터 기본 정보 7 - 소속길드
-    character_guild_name: str = response_data.get('character_guild_name', '알 수 없음')
+    character_guild_name_json = response_data.get('character_guild_name')
+    if character_guild_name_json is None:
+        character_guild_name = '길드가 없어양'
+    else:
+        character_guild_name = character_guild_name_json
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-    character_image: str = response_data.get('character_image', '알 수 없음')
+    character_image: str = (
+        str(response_data.get('character_image'))
+        if response_data.get('character_image') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-    character_date_create: str = response_data.get('character_date_create', '알 수 없음')
+    character_date_create: str = (
+        str(response_data.get('character_date_create')).strip()
+        if response_data.get('character_date_create') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-    character_access_flag: str = response_data.get('access_flag', '알 수 없음')
+    character_access_flag: str = (
+        str(response_data.get('access_flag'))
+        if response_data.get('access_flag') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 11 - 캐릭터 해방 퀘스트 완료 여부
-    character_liberation_quest_clear: str = response_data.get('liberation_quest_clear', '알 수 없음')
+    character_liberation_quest_clear: str = (
+        str(response_data.get('liberation_quest_clear'))
+        if response_data.get('liberation_quest_clear') is not None
+        else '알 수 없음'
+    )
 
     # Basic Info 데이터 전처리
     if character_date_create != '알 수 없음':
@@ -117,7 +165,7 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     elif character_liberation_quest_clear == "2":
         character_liberation_quest_clear = "데스티니 1차 해방 퀘스트 완료"
     else:
-        character_liberation_quest_clear = "알 수 없음"
+        character_liberation_quest_clear = "해방 퀘스트 진행 여부 알 수 없음"
 
     if character_image != '알 수 없음':
         character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&width=200&height=200"
@@ -187,14 +235,38 @@ async def api_pcbang_notice(ctx: commands.Context):
         notice_data: dict = notice_data[0]  # 가장 최근 공지사항 1개
 
         # 공지사항 제목, 링크, 내용(HTML)
-        notice_title: str = notice_data.get('title', '알 수 없음')
-        notice_url: str = notice_data.get('url', '알 수 없음')
-        notice_id: str = notice_data.get('notice_id', '알 수 없음')
+        notice_title: str = (
+            str(notice_data.get('title')).strip()
+            if notice_data.get('title') is not None
+            else '알 수 없음'
+        )
+        notice_url: str = (
+            str(notice_data.get('url')).strip()
+            if notice_data.get('url') is not None
+            else '알 수 없음'
+        )
+        notice_id: str = (
+            str(notice_data.get('notice_id')).strip()
+            if notice_data.get('notice_id') is not None
+            else '알 수 없음'
+        )
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
-        notice_date: str = notice_data.get('date', '알 수 없음')
-        notice_start_date: str = notice_data.get('date_event_start', '알 수 없음')
-        notice_end_date: str = notice_data.get('date_event_end', '알 수 없음')
+        notice_date: str = (
+            str(notice_data.get('date')).strip()
+            if notice_data.get('date') is not None
+            else '알 수 없음'
+        )
+        notice_start_date: str = (
+            str(notice_data.get('date_event_start')).strip()
+            if notice_data.get('date_event_start') is not None
+            else '알 수 없음'
+        )
+        notice_end_date: str = (
+            str(notice_data.get('date_event_end')).strip()
+            if notice_data.get('date_event_end') is not None
+            else '알 수 없음'
+        )
 
         footer_notice_date: str = parse_iso_string(notice_date)
         footer_notice_start_date: str = parse_iso_string(notice_start_date)
@@ -205,7 +277,11 @@ async def api_pcbang_notice(ctx: commands.Context):
 
         # 공지사항 이미지 URL 추출
         notice_detail_data: dict = get_notice_details(notice_id)
-        notice_contents: str = notice_detail_data.get('contents', '알 수 없음')
+        notice_contents: str = (
+            str(notice_detail_data.get('contents', '알 수 없음'))
+            if notice_detail_data.get('contents') is not None
+            else '알 수 없음'
+        )
         if notice_contents != '알 수 없음':
             bs4_contents = BeautifulSoup(notice_contents, 'html.parser')
             image_src = bs4_contents.find('img')['src'] if bs4_contents.find('img') else '알 수 없음'
@@ -272,14 +348,38 @@ async def api_sunday_notice(ctx: commands.Context):
         notice_data: dict = notice_data[0] # 가장 최근 공지사항 1개
 
         # 공지사항 제목, 링크, 내용(HTML)
-        notice_title: str = notice_data.get('title', '알 수 없음')
-        notice_url: str = notice_data.get('url', '알 수 없음')
-        notice_id: str = notice_data.get('notice_id', '알 수 없음')
+        notice_title: str = (
+            str(notice_data.get('title')).strip()
+            if notice_data.get('title') is not None
+            else '알 수 없음'
+        )
+        notice_url: str = (
+            str(notice_data.get('url')).strip()
+            if notice_data.get('url') is not None
+            else '알 수 없음'
+        )
+        notice_id: str = (
+            str(notice_data.get('notice_id')).strip()
+            if notice_data.get('notice_id') is not None
+            else '알 수 없음'
+        )
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
-        notice_date: str = notice_data.get('date', '알 수 없음')
-        notice_start_date: str = notice_data.get('date_event_start', '알 수 없음')
-        notice_end_date: str = notice_data.get('date_event_end', '알 수 없음')
+        notice_date: str = (
+            str(notice_data.get('date')).strip()
+            if notice_data.get('date') is not None
+            else '알 수 없음'
+        )
+        notice_start_date: str = (
+            str(notice_data.get('date_event_start')).strip()
+            if notice_data.get('date_event_start') is not None
+            else '알 수 없음'
+        )
+        notice_end_date: str = (
+            str(notice_data.get('date_event_end')).strip()
+            if notice_data.get('date_event_end') is not None
+            else '알 수 없음'
+        )
 
         footer_notice_date: str = parse_iso_string(notice_date)
         footer_notice_start_date: str = parse_iso_string(notice_start_date)
@@ -290,7 +390,11 @@ async def api_sunday_notice(ctx: commands.Context):
 
         # 공지사항 이미지 URL 추출
         notice_detail_data: dict = get_notice_details(notice_id)
-        notice_contents: str = notice_detail_data.get('contents', '알 수 없음')
+        notice_contents: str = (
+            str(notice_detail_data.get('contents')).strip()
+            if notice_detail_data.get('contents') is not None
+            else '알 수 없음'
+        )
         if notice_contents != '알 수 없음':
             bs4_contents = BeautifulSoup(notice_contents, 'html.parser')
             image_src = bs4_contents.find('img')['src'] if bs4_contents.find('img') else '알 수 없음'
@@ -407,25 +511,65 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
         raise Exception(f"Character detail info not found for: {character_name}")
     # 캐릭터 상세 정보 2 - 캐릭터 레벨
-    character_level: int = basic_info_response_data.get('character_level', 0)
+    character_level: int = (
+        int(basic_info_response_data.get('character_level', 0))
+        if basic_info_response_data.get('character_level') is not None
+        else 0
+    )
     # 캐릭터 상세 정보 3 - 캐릭터 소속월드
-    character_world: str = basic_info_response_data.get('world_name', '알 수 없음')
+    character_world: str = (
+        str(basic_info_response_data.get('world_name')).strip()
+        if basic_info_response_data.get('world_name') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 상세 정보 4 - 캐릭터 성별
-    character_gender: str = basic_info_response_data.get('character_gender', '알 수 없음')
+    character_gender: str = (
+        str(basic_info_response_data.get('character_gender')).strip()
+        if basic_info_response_data.get('character_gender') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 상세 정보 5 - 캐릭터 직업(차수)
-    character_class: str = basic_info_response_data.get('character_class', '알 수 없음')
-    character_class_level: str = basic_info_response_data.get('character_class_level', '알 수 없음')
+    character_class: str = (
+        str(basic_info_response_data.get('character_class')).strip()
+        if basic_info_response_data.get('character_class') is not None
+        else '알 수 없음'
+    )
+    character_class_level: str = (
+        str(basic_info_response_data.get('character_class_level')).strip()
+        if basic_info_response_data.get('character_class_level') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 상세 정보 6 - 경험치
-    character_exp: int = basic_info_response_data.get('character_exp', 0)
-    character_exp_rate: str = basic_info_response_data.get('character_exp_rate', "0.000%")
+    character_exp: int = (
+        int(basic_info_response_data.get('character_exp'))
+        if basic_info_response_data.get('character_exp') is not None
+        else 0
+    )
+    character_exp_rate: str = (
+        str(basic_info_response_data.get('character_exp_rate')).strip()
+        if basic_info_response_data.get('character_exp_rate') is not None
+        else "0.000%"
+    )
     # 캐릭터 상세 정보 7 - 소속길드
-    character_guild_name: str = basic_info_response_data.get('character_guild_name', '알 수 없음')
+    character_guild_name: str = (
+        str(basic_info_response_data.get('character_guild_name')).strip()
+        if basic_info_response_data.get('character_guild_name') is not None
+        else '길드가 없어양'
+    )
     # 캐릭터 상세 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-    character_image: str = basic_info_response_data.get('character_image', '알 수 없음')
+    character_image: str = (
+        str(basic_info_response_data.get('character_image')).strip()
+        if basic_info_response_data.get('character_image') is not None
+        else '알 수 없음'
+    )
     if character_image != '알 수 없음':
         character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&width=200&height=200"
     # 캐릭터 상세 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-    character_date_create: str = basic_info_response_data.get('character_date_create', '알 수 없음')
+    character_date_create: str = (
+        str(basic_info_response_data.get('character_date_create')).strip()
+        if basic_info_response_data.get('character_date_create') is not None
+        else '알 수 없음'
+    )
     if character_date_create != '알 수 없음':
         character_date_create = character_date_create.split("T")[0]  # "2023-12-21" 형태로 변환
         character_date_create_ymd = character_date_create.split("-")
@@ -435,11 +579,17 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
             f"{int(character_date_create_ymd[2])}일"
         )
     # 캐릭터 상세 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-    character_access_flag: str = basic_info_response_data.get('access_flag', '알 수 없음')
+    character_access_flag: str = (
+        str(basic_info_response_data.get('access_flag')).strip()
+        if basic_info_response_data.get('access_flag') is not None
+        else '알 수 없음'
+    )
     if character_access_flag == "true":
         character_access_flag = "최근 7일 이내 접속함"
-    else:
+    elif character_access_flag == "false":
         character_access_flag = "최근 7일 이내 접속하지 않음"
+    else:
+        character_access_flag = "최근 접속 여부 알 수 없음"
     
     # detail_info_response_data 전처리
     stat_list: list[dict] = detail_info_response_data.get('final_stat', [])
@@ -454,48 +604,151 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
             stat_info[stat_name] = stat_value
     
     # 캐릭터 상세 정보 11 - 캐릭터 능력치: 스탯 공격력 "209558569" -> 억 만 단위 변환
-    character_stat_attack: str = stat_info.get('최대 스탯공격력', '몰라양')
+    character_stat_attack: str = (
+        str(stat_info.get('최대 스탯공격력')).strip()
+        if stat_info.get('최대 스탯공격력') is not None
+        else '몰라양')
     if character_stat_attack != '몰라양':
         character_stat_attack = preprocess_int_with_korean(character_stat_attack)
     # 캐릭터 상세 정보 12 - 캐릭터 능력치: 데미지(%) "175.00" -> "175.00%"
-    character_stat_damage: str = stat_info.get('데미지', '0.00%')
+    character_stat_damage: str = (
+        str(stat_info.get('데미지')).strip()
+        if stat_info.get('데미지') is not None
+        else '0.00%'
+    )
     if character_stat_damage != '0.00%':
         character_stat_damage = f"{character_stat_damage}%"
     # 캐릭터 상세 정보 13 - 캐릭터 능력치: 보스 공격력(%) "50.00" -> "50.00%"
-    character_stat_boss_attack: str = stat_info.get('보스 몬스터 데미지', '0.00%')
+    character_stat_boss_attack: str = (
+        str(stat_info.get('보스 몬스터 데미지')).strip()
+        if stat_info.get('보스 몬스터 데미지') is not None
+        else '0.00%'
+    )
     if character_stat_boss_attack != '0.00%':
         character_stat_boss_attack = f"{character_stat_boss_attack}%"
     # 캐릭터 상세 정보 14 - 캐릭터 능력치: 크리티컬 데미지(%) "50.00" -> "50.00%"
-    character_stat_critical_damage: str = stat_info.get('크리티컬 데미지', '0.00%')
+    character_stat_critical_damage: str = (
+        str(stat_info.get('크리티컬 데미지')).strip()
+        if stat_info.get('크리티컬 데미지') is not None
+        else '0.00%'
+    )
     if character_stat_critical_damage != '0.00%':
         character_stat_critical_damage = f"{character_stat_critical_damage}%"
     # 캐릭터 상세 정보 15 - 캐릭터 능력치: 방어율 무시(%) "50.00" -> "50.00%"
-    character_stat_ignore_defense: str = stat_info.get('방어율 무시', '0.00%')
+    character_stat_ignore_defense: str = (
+        str(stat_info.get('방어율 무시')).strip()
+        if stat_info.get('방어율 무시') is not None
+        else '0.00%'
+    )
     if character_stat_ignore_defense != '0.00%':
         character_stat_ignore_defense = f"{character_stat_ignore_defense}%"
     # 캐릭터 상세 정보 16 - 캐릭터 능력치: 스타포스
-    character_stat_starforce: str = stat_info.get('스타포스', '0')
+    character_stat_starforce: str = (
+        str(stat_info.get('스타포스')).strip()
+        if stat_info.get('스타포스') is not None
+        else '0'
+    )
     if character_stat_starforce != '0':
         character_stat_starforce = f"총합 {character_stat_starforce}성"
     # 캐릭터 상세 정보 17 - 캐릭터 능력치: 아케인포스
-    character_stat_arcaneforce: str = stat_info.get('아케인포스', '0')
+    character_stat_arcaneforce: str = (
+        str(stat_info.get('아케인포스')).strip()
+        if stat_info.get('아케인포스') is not None
+        else '0'
+    )
     # 캐릭터 상세 정보 18 - 캐릭터 능력치: 어센틱포스
-    character_stat_authenticforce: str = stat_info.get('어센틱포스', '0')
+    character_stat_authenticforce: str = (
+        str(stat_info.get('어센틱포스')).strip()
+        if stat_info.get('어센틱포스') is not None
+        else '0'
+    )
     # 캐릭터 상세 정보 19 - 캐릭터 능력치: 스탯(힘, 덱, 인트, 럭) "1000" -> "1,000"
-    character_stat_str: str = f"{int(stat_info.get('STR', '0')):,}"
-    character_stat_dex: str = f"{int(stat_info.get('DEX', '0')):,}"
-    character_stat_int: str = f"{int(stat_info.get('INT', '0')):,}"
-    character_stat_luk: str = f"{int(stat_info.get('LUK', '0')):,}"
-    character_stat_hp: str = f"{int(stat_info.get('HP', '0')):,}"
-    character_stat_mp: str = f"{int(stat_info.get('MP', '0')):,}"
-    character_stat_ap_str: str = f"{int(stat_info.get('AP 배분 STR', '0')):,}"
-    character_stat_ap_dex: str = f"{int(stat_info.get('AP 배분 DEX', '0')):,}"
-    character_stat_ap_int: str = f"{int(stat_info.get('AP 배분 INT', '0')):,}"
-    character_stat_ap_luk: str = f"{int(stat_info.get('AP 배분 LUK', '0')):,}"
-    character_stat_ap_hp : str = stat_info.get('AP 배분 HP', '0')
-    if int(character_stat_ap_hp) < 0:
-        character_stat_ap_hp: str = '0'
-    character_stat_ap_hp = f"{int(character_stat_ap_hp):,}"
+    stat_str: int = (
+        int(stat_info.get('STR'))
+        if stat_info.get('STR') is not None
+        else 0
+    )
+    stat_dex: int = (
+        int(stat_info.get('DEX'))
+        if stat_info.get('DEX') is not None
+        else 0
+    )
+    stat_int: int = (
+        int(stat_info.get('INT'))
+        if stat_info.get('INT') is not None
+        else 0
+    )
+    stat_luk: int = (
+        int(stat_info.get('LUK'))
+        if stat_info.get('LUK') is not None
+        else 0
+    )
+    stat_hp: int = (
+        int(stat_info.get('HP'))
+        if stat_info.get('HP') is not None
+        else 0
+    )
+    stat_mp: int = (
+        int(stat_info.get('MP'))
+        if stat_info.get('MP') is not None
+        else 0
+    )
+    if stat_mp == 0:
+        stat_mp = 0
+    stat_ap_str: int = (
+        int(stat_info.get('AP 배분 STR', '0'))
+        if stat_info.get('AP 배분 STR') is not None
+        else 0
+    )
+    stat_ap_dex: int = (
+        int(stat_info.get('AP 배분 DEX', '0'))
+        if stat_info.get('AP 배분 DEX') is not None
+        else 0
+    )
+    stat_ap_int: int = (
+        int(stat_info.get('AP 배분 INT', '0'))
+        if stat_info.get('AP 배분 INT') is not None
+        else 0
+    )
+    stat_ap_luk: int = (
+        int(stat_info.get('AP 배분 LUK', '0'))
+        if stat_info.get('AP 배분 LUK') is not None
+        else 0
+    )
+    stat_ap_hp: int = (
+        int(stat_info.get('AP 배분 HP', '0'))
+        if stat_info.get('AP 배분 HP') is not None
+        else 0
+    )
+    if stat_ap_hp < 0:
+        stat_ap_hp = 0
+    stat_ap_mp: int = (
+        int(stat_info.get('AP 배분 MP', '0'))
+        if stat_info.get('AP 배분 MP') is not None
+        else 0
+    )
+    if stat_ap_mp < 0:
+        stat_ap_mp = 0
+    character_stat_str: str = f"{stat_str:,}"
+    character_stat_dex: str = f"{stat_dex:,}"
+    character_stat_int: str = f"{stat_int:,}"
+    character_stat_luk: str = f"{stat_luk:,}"
+    character_stat_hp: str = f"{stat_hp:,}"
+    character_stat_mp: str = (
+        f"{stat_mp:,}"
+        if stat_mp > 0
+        else "MP를 사용하지 않는 캐릭터에양"
+    )
+    character_stat_ap_str: str = f"{stat_ap_str:,}"
+    character_stat_ap_dex: str = f"{stat_ap_dex:,}"
+    character_stat_ap_int: str = f"{stat_ap_int:,}"
+    character_stat_ap_luk: str = f"{stat_ap_luk:,}"
+    character_stat_ap_hp: str = f"{stat_ap_hp:,}"
+    character_stat_ap_mp: str = (
+        f"{stat_ap_mp:,}"
+        if stat_mp > 0
+        else "X"
+    )
     # 캐릭터 상세 정보 20 - 캐릭터 능력치: 드메
     character_stat_drop: str = stat_info.get('아이템 드롭률', '0%')
     if character_stat_drop != '0%':
@@ -540,6 +793,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         f"**INT**: {character_stat_int} ({character_stat_ap_int})\n"
         f"**LUK**: {character_stat_luk} ({character_stat_ap_luk})\n"
         f"**HP**: {character_stat_hp} ({character_stat_ap_hp})\n"
+        f"**MP**: {character_stat_mp} ({character_stat_ap_mp})\n"
         f"**재사용 대기시간 감소**: {character_stat_cooldown}\n"
         f"\n**\-\-\- 포스정보 \-\-\-**\n"
         f"**스타포스**: {character_stat_starforce}\n"
