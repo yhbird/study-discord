@@ -337,8 +337,16 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
     response_content: dict = response_json.get('response')
     response_result: dict = response_content.get('header')
     if response_result.get('resultCode') != '00':
-        error_code: str = response_result.get('resultCode', 'Unknown Error')
-        error_text: str = response_result.get('resultMsg', 'Unknown Error')
+        error_code: str = (
+            str(response_result.get('resultCode').strip())
+            if response_result.get('resultCode') is not None
+            else 'Unknown Error'
+        )
+        error_text: str = (
+            str(response_result.get('resultMsg').strip())
+            if response_result.get('resultMsg') is not None
+            else 'Unknown Error'
+        )
         weather_exception_handler(error_code, error_text)
     else:
         # 정상적으로 응답이 온 경우
@@ -394,8 +402,16 @@ def process_weather_data(weather_data: dict) -> dict:
         category: str = item.get('category')
         value: str = item.get('obsrValue')
         result_data[category] = value
-    basedate: str = item.get('baseDate', '알수없음')
-    basetime: str = item.get('baseTime', '알수없음')
+    basedate: str = (
+        str(item.get('baseDate'))
+        if item.get('baseDate') is not None
+        else '알수없음'
+    )
+    basetime: str = (
+        str(item.get('baseTime'))
+        if item.get('baseTime') is not None
+        else '알수없음'
+    )
     base_date_ymd: str = f"{basedate[:4]}년 {basedate[4:6]}월 {basedate[6:]}일"
     base_time_hm: str = f"{basetime[:2]}시 {basetime[2:]}분"
 

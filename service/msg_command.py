@@ -208,7 +208,7 @@ async def msg_handle_help(message: discord.Message):
     Returns:
         None: 사용법 안내 메시지를 채널에 전송
     """
-    command_prefix: str = "/help"
+    command_prefix: str = "븜 명령어"
 
     if message.author.bot:
         return
@@ -236,7 +236,7 @@ async def msg_handle_help(message: discord.Message):
         )
         embed.add_field(
             name="븜 날씨 <지역명 혹은 주소> (v1)",
-            value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*집주소 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+            value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
         )
         embed.add_field(
             name="/블링크빵",
@@ -269,8 +269,8 @@ async def msg_handle_help(message: discord.Message):
             inline=False
         )
         embed.add_field(
-            name="/help",
-            value="도움말을 표시합니다. \n*도움이 필요하면 언제든지 불러양!!*\n ",
+            name="븜 명령어",
+            value="명령어 목록을 표시합니다. \n*도움이 필요하면 언제든지 불러양!!*\n ",
             inline=False
         )
         embed_footer:str = (

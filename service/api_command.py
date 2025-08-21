@@ -930,7 +930,7 @@ async def api_weather_v1(message: discord.Message):
             f"{current_rain_float_text}"
         )
         current_rain: str = (
-            f"**1시간 강수량**: {current_rain_type} ({current_rain_show})\n"
+            f"**1시간 강수량**: {current_rain_show} ({current_rain_type})\n"
         )
     else:
         current_rain_desc: str = ""

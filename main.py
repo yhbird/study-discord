@@ -38,10 +38,6 @@ async def on_ready():
 @bot.command(name="블링크빵")
 async def run_msg_handle_blinkbang(ctx: commands.Context):
     await msg_command.msg_handle_blinkbang(ctx.message)
-
-@bot.command(name="help")
-async def run_msg_handle_help(ctx: commands.Context):
-    await msg_command.msg_handle_help(ctx.message)
     
 # 명령어 등록 from service.api_command
 @bot.command(name="기본정보")
@@ -77,6 +73,8 @@ async def on_message(message: discord.Message):
         await msg_command.msg_handle_image(message)
     if message.content.startswith('븜 날씨 '):
         await api_command.api_weather_v1(message)
+    if message.content.startswith('븜 명령어'):
+        await msg_command.msg_handle_help(message)
 
     # 봇 명령어 처리
     await bot.process_commands(message)
