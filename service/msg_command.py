@@ -90,7 +90,7 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
     Args:
-        message (Discord.ctx): "븜 따라해 "로 시작하는 디스코드 메세지
+        ctx (commands.Context): "븜 따라해 "로 시작하는 디스코드 메세지
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -120,7 +120,7 @@ async def msg_handle_image(ctx: commands.Context, search_term: str):
     """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
 
     Args:
-        message (Discord.ctx): "븜 이미지 "로 시작하는 디스코드 메세지
+        ctx (commands.Context): "븜 이미지 "로 시작하는 디스코드 메세지
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -174,7 +174,7 @@ async def msg_handle_blinkbang(ctx: commands.Context):
     """랜덤 주사위 0~100 결과를 보여주는 기능
 
     Args:
-        message (discord.Message): /블링크빵 커맨드 입력
+        ctx (commands.Context): 븜 블링크빵 커맨드 입력
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -200,7 +200,7 @@ async def msg_handle_blinkbang(ctx: commands.Context):
 async def msg_handle_help(ctx: commands.Context):
     """봇의 사용법을 안내하는 기능
     Args:
-        message (discord.Message): /help 커맨드 입력
+        ctx (commands.Context): /help 커맨드 입력
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -274,9 +274,9 @@ async def msg_handle_help(ctx: commands.Context):
             inline=False
         )
         embed_footer:str = (
-            f"봇 이름: {ctx.message.guild.me.name}\n"
+            f"봇 이름: {ctx.guild.me.name}\n"
             f"봇 버전: {BOT_VERSION}\n"
             f"소스코드: https://github.com/yhbird/study-discord"
         )
         embed.set_footer(text=embed_footer)
-        await ctx.message.channel.send(embed=embed)
+        await ctx.send(embed=embed)

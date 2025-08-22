@@ -928,7 +928,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str):
         await ctx.send(embed=embed)
 
 @log_command
-async def api_weather_v1(message: discord.Message, location_name: str):
+async def api_weather_v1(ctx: commands.Context, location_name: str):
     """현재 지역의 날씨 정보를 가져오는 명령어 v1
 
     Args:
@@ -946,7 +946,7 @@ async def api_weather_v1(message: discord.Message, location_name: str):
         [날씨 조회 API (Data.go.kr)](https://www.data.go.kr/data/15084084/openapi.do)
     """
     command_prefix: str = "븜 날씨 "
-    if message.author.bot:
+    if ctx.message.author.bot:
         return
     
     try:
@@ -966,45 +966,45 @@ async def api_weather_v1(message: discord.Message, location_name: str):
             local_x: str = local_road_address.get('x')
             local_y: str = local_road_address.get('y')
     except KKO_LOCAL_API_ERROR as e:
-        await message.channel.send(f"해당 지역의 정보를 검색하는 중에 오류가 발생했어양!")
+        await ctx.send(f"해당 지역의 정보를 검색하는 중에 오류가 발생했어양!")
         raise KakaoAPIError(str(e))
     except KKO_NO_LOCAL_INFO as e:
-        await message.channel.send(f"해당 지역의 정보를 찾을 수 없어양!")
+        await ctx.send(f"해당 지역의 정보를 찾을 수 없어양!")
         raise KakaoAPIError(str(e))
 
     try:
         # 날씨 정보 조회
         weather_info = get_weather_info(local_x, local_y)
     except WTH_API_INTERNAL_ERROR:
-        await message.channel.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
+        await ctx.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
     except WTH_API_DATA_ERROR:
-        await message.channel.send(f"날씨 API 데이터에 문제가 발생했어양!")
+        await ctx.send(f"날씨 API 데이터에 문제가 발생했어양!")
     except WTH_API_DATA_NOT_FOUND:
-        await message.channel.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
+        await ctx.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
     except WTH_API_HTTP_ERROR:
-        await message.channel.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+        await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
     except WTH_API_TIMEOUT:
-        await message.channel.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
+        await ctx.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
     except WTH_API_INVALID_PARAMS:
-        await message.channel.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
+        await ctx.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
     except WTH_API_INVALID_REGION:
-        await message.channel.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
+        await ctx.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
     except WTH_API_DEPRECATED:
-        await message.channel.send(f"더 이상 지원되지 않는 기능이에양!")
+        await ctx.send(f"더 이상 지원되지 않는 기능이에양!")
     except WTH_API_UNAUTHORIZED:
-        await message.channel.send(f"날씨 API 서비스 접근 권한이 없어양!")
+        await ctx.send(f"날씨 API 서비스 접근 권한이 없어양!")
     except WTH_API_KEY_TEMP_ERROR:
-        await message.channel.send(f"날씨 API 키가 임시로 제한되었어양!")
+        await ctx.send(f"날씨 API 키가 임시로 제한되었어양!")
     except WTH_API_KEY_LIMIT_EXCEEDED:
-        await message.channel.send(f"날씨 API 키의 요청 한도를 초과했어양!")
+        await ctx.send(f"날씨 API 키의 요청 한도를 초과했어양!")
     except WTH_API_KEY_INVALID:
-        await message.channel.send(f"날씨 API 키가 유효하지 않아양!")
+        await ctx.send(f"날씨 API 키가 유효하지 않아양!")
     except WTH_API_KEY_EXPIRED:
-        await message.channel.send(f"날씨 API 키가 만료되었어양!")
+        await ctx.send(f"날씨 API 키가 만료되었어양!")
     except WeatherAPIError:
-        await message.channel.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+        await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
     except Exception as e:
-        await message.channel.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
+        await ctx.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
         raise WeatherAPIError(str(e))
 
     # 날씨 데이터 전처리
@@ -1066,6 +1066,6 @@ async def api_weather_v1(message: discord.Message, location_name: str):
     embed.set_footer(text=embed_footer)
     
     if current_rain_flag:
-        await message.channel.send(embed=embed, content=current_rain_desc)
+        await ctx.send(embed=embed, content=current_rain_desc)
     else:
-        await message.channel.send(embed=embed)
+        await ctx.send(embed=embed)
