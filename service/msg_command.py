@@ -86,41 +86,41 @@ class ImageViewer(View):
 
 # 샴 따라해 기능 복원
 @log_command
-async def msg_handle_repeat(message: discord.Message):
+async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
     Args:
-        message (discord.Message): "븜 따라해 "로 시작하는 디스코드 메세지
+        message (Discord.ctx): "븜 따라해 "로 시작하는 디스코드 메세지
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
     """
     command_prefix: str = "븜 따라해 "
 
-    if message.author.bot:
+    if ctx.message.author.bot:
         return
-    
-    if message.content.startswith(command_prefix):
-        output = message.content[len(command_prefix):]
+
+    if ctx.message.content.startswith(command_prefix):
+        output = ctx.message.content[len(command_prefix):]
         try:
-            await message.delete()
+            await ctx.message.delete()
         except discord.Forbidden:
-            await message.channel.send("메세지 삭제 권한이 없어양")
+            await ctx.message.channel.send("메세지 삭제 권한이 없어양")
             return
         except discord.HTTPException as e:
-            await message.channel.send("메세지 삭제 중 오류가 발생했어양")
+            await ctx.message.channel.send("메세지 삭제 중 오류가 발생했어양")
             return
 
         if output:
-            await message.channel.send(output)
+            await ctx.message.channel.send(output)
 
 # 샴 이미지 기능 복원
 @log_command
-async def msg_handle_image(message: discord.Message):
+async def msg_handle_image(ctx: commands.Context, search_term: str):
     """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
 
     Args:
-        message (discord.Message): "븜 이미지 "로 시작하는 디스코드 메세지
+        message (Discord.ctx): "븜 이미지 "로 시작하는 디스코드 메세지
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -128,12 +128,12 @@ async def msg_handle_image(message: discord.Message):
         Warning: 이미지를 찾을 수 없을 때 발생
     """
     command_prefix: str = "븜 이미지 "
-    
-    if message.author.bot:
+
+    if ctx.message.author.bot:
         return
-    
-    if message.content.startswith(command_prefix):
-        image_search_keyword: str = message.content[len(command_prefix):]
+
+    if ctx.message.content.startswith(command_prefix):
+        image_search_keyword: str = ctx.message.content[len(command_prefix):]
 
     results: list[dict] = None
     with DDGS() as ddgs:
@@ -145,18 +145,18 @@ async def msg_handle_image(message: discord.Message):
                 num_results=10,
             )
         except DDGSException as e:
-            await message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
+            await ctx.message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
             return
         except Exception as e:
-            await message.channel.send(f"검색 중에 오류가 발생했어양...")
+            await ctx.message.channel.send(f"검색 중에 오류가 발생했어양...")
             return
     
     if not results:
-        await message.channel.send("이미지를 찾을 수 없어양!!")
+        await ctx.message.channel.send("이미지를 찾을 수 없어양!!")
         return
 
     image_results = [r for r in results if "image" in r and "url" in r]
-    view_owner: discord.User = message.author
+    view_owner: discord.User = ctx.message.author
     view = ImageViewer(images=image_results, search_keyword=image_search_keyword, requester=view_owner)
     index_indicator: str = f"{view.current_index + 1}/{len(view.images)}"
 
@@ -164,13 +164,13 @@ async def msg_handle_image(message: discord.Message):
     embed.set_image(url=view.images[view.current_index]["image"])
     embed.description = f"[🔗 원본 보기]({view.images[view.current_index]['url']})"
 
-    sent_message = await message.channel.send(embed=embed, view=view)
+    sent_message = await ctx.message.channel.send(embed=embed, view=view)
     view.message = sent_message
 
 # 주사위 (0~100)
-# 명령어 "/블링크빵" 사용
+# 명령어 "븜 블링크빵" 사용
 @log_command
-async def msg_handle_blinkbang(message: discord.Message):
+async def msg_handle_blinkbang(ctx: commands.Context):
     """랜덤 주사위 0~100 결과를 보여주는 기능
 
     Args:
@@ -179,25 +179,25 @@ async def msg_handle_blinkbang(message: discord.Message):
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
     """
-    command_prefix: str = "/블링크빵"
+    command_prefix: str = "븜 블링크빵"
 
-    if message.author.bot:
+    if ctx.message.author.bot:
         return
-    
-    if message.content.startswith(command_prefix):
-        mention = message.author.mention
+
+    if ctx.message.content.startswith(command_prefix):
+        mention = ctx.message.author.mention
         result: int = random.randint(0, 100)
         try:
-            await message.delete()
+            await ctx.message.delete()
         except discord.Forbidden:
-            await message.channel.send("메세지 삭제 권한이 없어양")
+            await ctx.message.channel.send("메세지 삭제 권한이 없어양")
             return
 
-        await message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
+        await ctx.message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
 
-# 명령어 "/help" 사용
+# 명령어 "븜 명령어" 사용
 @log_command
-async def msg_handle_help(message: discord.Message):
+async def msg_handle_help(ctx: commands.Context):
     """봇의 사용법을 안내하는 기능
     Args:
         message (discord.Message): /help 커맨드 입력
@@ -210,10 +210,10 @@ async def msg_handle_help(message: discord.Message):
     """
     command_prefix: str = "븜 명령어"
 
-    if message.author.bot:
+    if ctx.message.author.bot:
         return
-    
-    if message.content.startswith(command_prefix):
+
+    if ctx.message.content.startswith(command_prefix):
         embed_description: str = (
             "봇 개발자: yhbird ([github.com](https://github.com/yhbird))\n"
             "Data based on NEXON Open API\n"
@@ -239,32 +239,32 @@ async def msg_handle_help(message: discord.Message):
             value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
         )
         embed.add_field(
-            name="/블링크빵",
+            name="븜 블링크빵",
             value="랜덤한 자연수 1~100 랜덤 추출합니다. \n*결과는 날아간 거리로 보여줘양*\n ",
             inline=False
         )
         embed.add_field(
-            name="/기본정보 <캐릭터 이름>",
+            name="븜 기본정보 <캐릭터 이름>",
             value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 기본 정보를 조회합니다.\n ",
             inline=False
         )
         embed.add_field(
-            name="/상세정보 <캐릭터 이름>",
+            name="븜 상세정보 <캐릭터 이름>",
             value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
             inline=False
         )
         embed.add_field(
-            name="/피시방",
-            value="**[Nexon OPEN API 연동]**\n 최근 피시방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
+            name="븜 피씨방",
+            value="**[Nexon OPEN API 연동]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
             inline=False
         )
         embed.add_field(
-            name="/선데이",
+            name="븜 썬데이",
             value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n ",
             inline=False
         )
         embed.add_field(
-            name="/미국주식 <티커>",
+            name="븜 미국주식 <티커>",
             value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
             inline=False
         )
@@ -274,9 +274,9 @@ async def msg_handle_help(message: discord.Message):
             inline=False
         )
         embed_footer:str = (
-            f"봇 이름: {message.guild.me.name}\n"
+            f"봇 이름: {ctx.message.guild.me.name}\n"
             f"봇 버전: {BOT_VERSION}\n"
             f"소스코드: https://github.com/yhbird/study-discord"
         )
         embed.set_footer(text=embed_footer)
-        await message.channel.send(embed=embed)
+        await ctx.message.channel.send(embed=embed)

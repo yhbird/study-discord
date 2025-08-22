@@ -17,7 +17,7 @@ import service.deb_command as deb_command
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix='/', intents=intents, help_command=None)
+bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
 # 디버그용 명령어
 @bot.command(name="debug")
 async def bot_debug(ctx: commands.Context, arg: str = None):
@@ -37,8 +37,20 @@ async def on_ready():
 # 명령어 등록 from service.msg_command
 @bot.command(name="블링크빵")
 async def run_msg_handle_blinkbang(ctx: commands.Context):
-    await msg_command.msg_handle_blinkbang(ctx.message)
-    
+    await msg_command.msg_handle_blinkbang(ctx)
+
+@bot.command(name="따라해")
+async def run_msg_handle_repeat(ctx: commands.Context, *, text: str):
+    await msg_command.msg_handle_repeat(ctx, text)
+
+@bot.command(name="이미지")
+async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
+    await msg_command.msg_handle_image(ctx, search_term)
+
+@bot.command(name="명령어")
+async def run_msg_handle_help(ctx: commands.Context):
+    await msg_command.msg_handle_help(ctx)
+
 # 명령어 등록 from service.api_command
 @bot.command(name="기본정보")
 async def run_api_basic_info(ctx: commands.Context, character_name: str):
@@ -48,13 +60,21 @@ async def run_api_basic_info(ctx: commands.Context, character_name: str):
 async def run_api_detail_info(ctx: commands.Context, character_name: str):
     await api_command.api_detail_info(ctx, character_name)
     
-@bot.command(name="피시방")
+@bot.command(name="피씨방")
 async def run_api_pcbang_notice(ctx: commands.Context):
     await api_command.api_pcbang_notice(ctx)
 
-@bot.command(name="선데이")
+@bot.command(name="썬데이")
 async def run_api_sunday_notice(ctx: commands.Context):
     await api_command.api_sunday_notice(ctx)
+
+@bot.command(name="어빌리티")
+async def run_api_ability_info(ctx: commands.Context, character_name: str):
+    await api_command.api_ability_info(ctx, character_name)
+
+@bot.command(name="날씨")
+async def run_api_weather(ctx: commands.Context, location: str):
+    await api_command.api_weather_v1(ctx, location)
 
 # 명령어 등록 from service.stk_command
 @bot.command(name="미국주식")
@@ -63,19 +83,6 @@ async def run_stk_us_stock(ctx: commands.Context, ticker: str):
 
 @bot.event
 async def on_message(message: discord.Message):
-    if message.author.bot:
-        return
-
-    # 특수 명령어 실행 (from service.msg_command)
-    if message.content.startswith('븜 따라해 '):
-        await msg_command.msg_handle_repeat(message)
-    if message.content.startswith('븜 이미지 '):
-        await msg_command.msg_handle_image(message)
-    if message.content.startswith('븜 날씨 '):
-        await api_command.api_weather_v1(message)
-    if message.content.startswith('븜 명령어'):
-        await msg_command.msg_handle_help(message)
-
     # 봇 명령어 처리
     await bot.process_commands(message)
 

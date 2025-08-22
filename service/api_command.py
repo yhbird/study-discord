@@ -168,8 +168,8 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
         character_liberation_quest_clear = "해방 퀘스트 진행 여부 알 수 없음"
 
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&width=200&height=200"
-    
+        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
+
     # Embed 메시지 생성
     maple_scouter_url: str = f"https://maplescouter.com/info?name={character_name_quote}"
     
@@ -563,7 +563,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         else '알 수 없음'
     )
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&width=200&height=200"
+        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
     # 캐릭터 상세 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str = (
         str(basic_info_response_data.get('character_date_create')).strip()
@@ -764,7 +764,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     if character_stat_cooldown_sec != '0초':
         character_stat_cooldown_sec = f"{character_stat_cooldown_sec}초"
     character_stat_cooldown: str = f"{character_stat_cooldown_pct} | {character_stat_cooldown_sec}"
-    # 캐릭터 상세 정보 22 - 캐릭터 능력치: 공마
+    # 캐릭터 상세 정보 22 - 캐릭터 능력치: 공격력/마력
     character_stat_attack_power: str = f"{int(stat_info.get('공격력', '0')):,}"
     character_stat_magic_power: str = f"{int(stat_info.get('마력', '0')):,}"
     # 캐릭터 상세 정보 23 - 캐릭터 능력치: 전투력 "억 만 단위 변환"
@@ -817,7 +817,118 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     await ctx.send(embed=embed)
 
 @log_command
-async def api_weather_v1(message: discord.Message):
+async def api_ability_info(ctx: commands.Context, character_name: str):
+    """캐릭터의 어빌리티 정보 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 메이플스토리 캐릭터 이름
+
+    Returns:
+        discord.ui.Embed: 캐릭터 어빌리티 정보를 담은 Embed 객체 (add_field 사용)
+
+    Raises:
+        Exception: 캐릭터 정보 조회 실패 시 발생
+    """
+    try:
+        ocid = get_ocid(character_name)
+        if ocid is not None:
+            ability_info: dict = get_character_ability_info(ocid)
+            basic_info_service_url: str = f"/maplestory/v1/character/basic"
+            basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={ocid}"
+            basic_info: dict = general_request_handler(basic_info_request_url)
+            character_name: str = basic_info.get('character_name', character_name)
+            character_world: str = (
+                str(basic_info.get('world_name')).strip()
+                if basic_info.get('world_name') is not None else '모르는'
+            )
+            character_img_url: str = (
+                str(basic_info.get('character_image')).strip()
+                if basic_info.get('character_image') is not None else '몰라양'
+            )
+    except NexonAPIOCIDNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
+        return
+    except Exception as e:
+        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 가져오는 중에 오류가 발생했어양!")
+        return
+
+
+    # 캐릭터의 남은 명성 조회
+    ability_fame: int = (
+        int(ability_info.get('remain_fame'))
+        if ability_info.get('remain_fame') is not None else 0
+    )
+
+    # 캐릭터가 현재 사용중인 어빌리티 정보 조회
+    current_ability_info: list[dict] = ability_info.get("ability_info")
+    if current_ability_info is None or len(current_ability_info) == 0:
+        await ctx.send(f"아직 어빌리티를 획득하지 않았거나 정보를 조회할 수 없어양!")
+        return
+    else:
+        # 어빌리티 전체 등급
+        current_ability_grade: str = (
+            str(ability_info.get('ability_grade')).strip()
+            if ability_info.get('ability_grade') is not None else "몰라양"
+        )
+        current_ability_grade_symbol: str = convert_grade_text(current_ability_grade)
+        current_ability_preset_no: int = (
+            int(ability_info.get('preset_no'))
+            if ability_info.get('preset_no') is not None else 0
+        )
+        current_ability_text = ability_info_parse(ability_info=current_ability_info)
+
+        # embed 객체 생성
+        if current_ability_grade == "레전드리":
+            embed_color: discord.Color = discord.Color.green()
+        elif current_ability_grade == "유니크":
+            embed_color: discord.Color = discord.Color.orange()
+        elif current_ability_grade == "에픽":
+            embed_color: discord.Color = discord.Color.purple()
+        elif current_ability_grade == "레어":
+            embed_color: discord.Color = discord.Color.blue()
+
+        embed = discord.Embed(
+            title=f"{character_world}월드 '{character_name}' 어빌리티 정보에양",
+            description=f"현재 보유 명성: {ability_fame:,} \n",
+            color=embed_color
+        )
+
+        # embed에 현재 사용중인 어빌리티 정보 추가
+        current_embed_value: str = f"{current_ability_text}"
+        embed.add_field(
+            name=(
+                f"현재 사용중인 어빌리티에양\n"
+                f"({current_ability_grade_symbol} {current_ability_preset_no}번 프리셋 사용중)"
+            ),
+            value=current_embed_value
+        )
+        # # 캐릭터 이미지 썸네일 추출
+        # if character_img_url != '몰라양':
+        #     character_image_url: str = f"{character_img_url}?action=A00.2&emotion=E00&wmotion=W00"
+        #     embed.set_image(url=character_image_url)
+
+        # current_ability_preset_no번 프리셋를 제외한 다른 프리셋 호출
+        preset_idx_list = [1, 2, 3]
+        preset_idx_list.remove(current_ability_preset_no)
+        for preset_idx in preset_idx_list:
+            preset_ability: dict = ability_info.get(f'ability_preset_{preset_idx}')
+            preset_ability_grade: str = (
+                str(preset_ability.get('ability_preset_grade')).strip()
+                if preset_ability.get('ability_preset_grade') is not None else "몰라양"
+            )
+            preset_ability_grade_symbol: str = convert_grade_text(preset_ability_grade)
+            preset_ability_info: list[dict] = preset_ability.get('ability_info')
+            preset_ability_text: str = ability_info_parse(ability_info=preset_ability_info)
+            preset_embed_name = f"\[{preset_ability_grade_symbol} 프리셋 {preset_idx}번 어빌리티 정보\]"
+            preset_embed_value = preset_ability_text
+            embed.add_field(name=preset_embed_name, value=preset_embed_value, inline=False)
+
+        embed.set_footer(text=f"캐릭터 어빌리티 최대값은 숫자 뒤 괄호안에 표시되어 있어양")
+        await ctx.send(embed=embed)
+
+@log_command
+async def api_weather_v1(message: discord.Message, location_name: str):
     """현재 지역의 날씨 정보를 가져오는 명령어 v1
 
     Args:
@@ -837,9 +948,6 @@ async def api_weather_v1(message: discord.Message):
     command_prefix: str = "븜 날씨 "
     if message.author.bot:
         return
-    
-    if message.content.startswith(command_prefix):
-        location_name: str = message.content[len(command_prefix):]
     
     try:
         # 지역 정보 조회

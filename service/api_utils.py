@@ -1,6 +1,7 @@
 import math
 import requests
 import io
+import re
 from urllib.parse import quote
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -10,7 +11,7 @@ from config import KKO_LOCAL_API_KEY, KKO_API_HOME # KAKAO Local API
 from config import WTH_DATA_API_KEY, WTH_API_HOME # Weather API
 from service.api_exception import *
 
-from typing import Optional
+from typing import Optional, Dict, List
 
 
 def general_request_error_handler(response: requests.Response) -> None:
@@ -127,11 +128,208 @@ def get_character_popularity(ocid: str) -> str:
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     try:
         response_data: dict = general_request_handler(request_url)
-
         popularity: int = response_data.get('popularity', "몰라양")
         return popularity
     except NexonAPIError:
         return "몰라양"  # 예외 발생 시 기본값으로 "몰라양" 반환
+
+
+def get_character_ability_info(ocid: str) -> dict:
+    """OCID에 해당하는 캐릭터의 어빌리티 정보를 가져오는 함수
+
+    Args:
+        ocid (str): 캐릭터 OCID
+
+    Returns:
+        dict: 캐릭터의 어빌리티 정보
+    """
+    service_url = f"/maplestory/v1/character/ability"
+    request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    response_data: dict = general_request_handler(request_url)
+    return response_data
+
+
+# 어빌리티 최대값 테이블 작성
+# 등장하지 않는 등급의 경우 -1으로 입력
+ABILITY_MAX_TABLE: Dict[str, Dict[str, int]] = {
+    r"STR\s{n}\s증가": {"레전드리": 40, "유니크": 30, "에픽": 20, "레어": 10},
+    r"DEX\s{n}\s증가": {"레전드리": 40, "유니크": 30, "에픽": 20, "레어": 10},
+    r"INT\s{n}\s증가": {"레전드리": 40, "유니크": 30, "에픽": 20, "레어": 10},
+    r"LUK\s{n}\s증가": {"레전드리": 40, "유니크": 30, "에픽": 20, "레어": 10},
+    r"모든\s능력치\s{n}\s증가": {"레전드리": 40, "유니크": 30, "에픽": 20, "레어": 10},
+    r"AP를\s직접\s투자한\sSTR의\s{n}%\s만큼\sDEX\s증가": {"레전드리": 10, "유니크": 8, "에픽": 5, "레어": 3},
+    r"AP를\s직접\s투자한\sDEX의\s{n}%\s만큼\sSTR\s증가": {"레전드리": 10, "유니크": 8, "에픽": 5, "레어": 3},
+    r"AP를\s직접\s투자한\sINT의\s{n}%\s만큼\sLUK\s증가": {"레전드리": 10, "유니크": 8, "에픽": 5, "레어": 3},
+    r"AP를\s직접\s투자한\sLUK의\s{n}%\s만큼\sDEX\s증가": {"레전드리": 10, "유니크": 8, "에픽": 5, "레어": 3},
+    r"최대\sHP\s{n}\s증가": {"레전드리": 600, "유니크": 450, "에픽": 300, "레어": 150},
+    r"최대\sMP\s{n}\s증가": {"레전드리": 600, "유니크": 450, "에픽": 300, "레어": 150},
+    r"방어력\s{n}\s증가": {"레전드리": 400, "유니크": 300, "에픽": 200, "레어": 100},
+    r"버프\s지속시간\s{n}%\s증가": {"레전드리": 50, "유니크": 38, "에픽": 25, "레어": -1},
+    r"일반\s몬스터\s공격\s시\s데미지\s{n}%\s증가": {"레전드리": 10, "유니크": 8, "에픽": 5, "레어": 3},
+    r"상태\s이상에\s걸린\s대상\s공격\s시\s데미지\s{n}%\s증가": {"레전드리": 10, "유니크": 8, "에픽": 5, "레어": -1},
+    r"메소\s획득량\s{n}%\s증가": {"레전드리": 20, "유니크": 15, "에픽": 10, "레어": 5},
+    r"아이템\s드롭률\s{n}%\s증가": {"레전드리": 20, "유니크": 15, "에픽": 10, "레어": 5},
+    r"이동속도\s{n}\s증가": {"레전드리": -1, "유니크": 20, "에픽": 14, "레어": 8},
+    r"점프력\s{n}\s증가": {"레전드리": -1, "유니크": 20, "에픽": 14, "레어": 8},
+    r"공격력\s{n}\s증가": {"레전드리": 30, "유니크": 21, "에픽": 12, "레어": -1},
+    r"마력\s{n}\s증가": {"레전드리": 30, "유니크": 21, "에픽": 12, "레어": -1},
+    r"크리티컬\s확률\s{n}%\s증가": {"레전드리": 30, "유니크": 20, "에픽": 10, "레어": -1},
+    r"보스\s몬스터\s공격\s시\s데미지\s{n}%\s증가": {"레전드리": 20, "유니크": 10, "에픽": -1, "레어": -1},
+    r"{n}%\s확률로\s재사용\s대기시간이\s미적용": {"레전드리": 20, "유니크": 10, "에픽": -1, "레어": -1},
+    r"최대\sHP\s{n}%\s증가": {"레전드리": 20, "유니크": 10, "에픽": -1, "레어": -1},
+    r"최대\sMP\s{n}%\s증가": {"레전드리": 20, "유니크": 10, "에픽": -1, "레어": -1},
+    r"방어력의\s{n}%\s만큼\s데미지\s고정값\s증가": {"레전드리": 50, "유니크": 25, "에픽": -1, "레어": -1},
+    r"{n}레벨마다\s공격력\s1\s증가": {"레전드리": 10, "유니크": -1, "에픽": -1, "레어": -1},
+    r"{n}레벨마다\s마력\s1\s증가": {"레전드리": 10, "유니크": -1, "에픽": -1, "레어": -1}
+}
+def _compile_patterns():
+    compiled = []
+    for pat, grade_map in ABILITY_MAX_TABLE.items():
+        rx = pat.replace("{n}", r"(?P<value>\d+(?:\,\d+)?)")
+        rx = rf"^\s*(?P<head>{rx})\s*$"
+        compiled.append((re.compile(rx), grade_map))
+    return compiled
+
+_COMPILED_PATTERNS = _compile_patterns()
+
+DUAL_ABILITY_MAX_N = {"레전드리": 40, "유니크": 30, "에픽": 20, "레어": 10}
+_DUAL_NUM_RX = re.compile(
+    r"^\s*\S+?\s*(\d{1,3}(?:,\d{3})*|\d+)\s*증가\s*,\s*\S+?\s*(\d{1,3}(?:,\d{3})*|\d+)\s*증가\s*$"
+)
+
+def ability_max_value(
+        ability_grade: str,
+        ability_value: str,
+        *,
+        already_max: bool = False
+    ) -> str:
+    """어빌리티의 최대 값을 반환하는 함수
+
+    Args:
+        ability_grade (str): 어빌리티 등급 (ability_grade)
+        ability_value (str): 어빌리티 값 (ability_value)
+        already_max (bool): 이미 최대값이면 최대값 출력 여부
+
+    Returns:
+        str: 어빌리티의 최대 값  
+        (예: 레전드리 등급에서 STR N 증가의 경우, N의 최대값 = 40)
+    
+    Exception:
+        일부 어빌리티 경우에는 최대값이 없음  
+        (예: "공격 속도 N단계 상승"의 경우, 최대값이 없음)
+
+    입력 예:
+      - 등급='레전더리', 값='메소 획득량 18% 증가'  → '메소 획득량 18(20)% 증가'
+      - 등급='레전더리', 값='STR 37 증가, DEX 19 증가' → 'STR 37(40) 증가, DEX 19(20) 증가'
+    """
+    ability_grade = ability_grade.strip()
+    ability_text = ability_value.strip()
+
+    # 듀얼 어빌리티인 경우
+    m2 = _DUAL_NUM_RX.match(ability_text)
+    if m2 and ability_grade in DUAL_ABILITY_MAX_N:
+        try:
+            cur_value1 = int(m2.group(1).replace(",", ""))
+            cur_value2 = int(m2.group(2).replace(",", ""))
+        except ValueError:
+            cur_value1 = cur_value2 = None  # 숫자가 아닌 경우
+        
+        if cur_value1 is not None:
+            max_value1 = DUAL_ABILITY_MAX_N[ability_grade]
+            max_value2 = math.ceil(max_value1 / 2)
+
+            def need(cur, max):
+                return (cur < max) or (cur == max and not already_max)
+
+            s, e = m2.span(2)
+            out = ability_text
+            if need(cur_value2, max_value2):
+                out = f"{out[:s]}{cur_value2}({max_value2}){out[e:]}"
+
+            m1 = re.search(r"(\d{1,3}(?:,\d{3})*|\d+)", out)
+            if m1 and need(cur_value1, max_value1):
+                s, e = m1.span(1)
+                out = f"{out[:s]}{cur_value1}({max_value1}){out[e:]}"
+
+            return out
+
+    # 듀얼 어빌리티가 아닌 경우
+    for rx, grade_max in _COMPILED_PATTERNS:
+        m = rx.match(ability_text)
+        if not m:
+            continue
+
+        # 현재수치
+        cur_value = m.group("value").replace(",","")
+        try:
+            cur_value = int(cur_value)
+        except ValueError:
+            return ability_text  # 숫자가 아닌 경우 그대로 반환
+        
+        # 최대수치
+        max_value: Optional[int] = grade_max.get(ability_grade)
+        max_value_str: str = str(max_value) if max_value is not None else "오류"
+        if max_value is None:
+            return ability_text
+
+        if (cur_value < max_value) or (cur_value == max_value and not already_max):
+            start, end = m.span("value")
+            return f"{ability_text[:start]}{cur_value}({max_value_str}){ability_text[end:]}"
+        else:
+            return ability_text
+        
+    return ability_text  # 매칭되는 패턴이 없는 경우 그대로 반환
+
+
+def ability_info_parse(ability_info: List[Dict]) -> str:
+    """어빌리티 정보를 문자열로 변환하는 함수
+
+    Args:
+        ability_info (dict): 어빌리티 정보 딕셔너리
+
+    Returns:
+        str: 변환된 어빌리티 정보 문자열
+    """
+    result_ability_text = ""
+    for idx in ability_info:
+        ability_grade: str = (
+            str(idx.get("ability_grade")).strip()
+            if idx.get("ability_grade") is not None else "몰라양"
+        )
+        ability_value: str = (
+            str(idx.get("ability_value")).strip()
+            if idx.get("ability_value") is not None else "몰라양"
+        )
+        ability_text: str = ability_max_value(
+            ability_grade=ability_grade,
+            ability_value=ability_value
+        )
+        ability_grade_symbol: str = convert_grade_text(ability_grade)
+        result_ability_text += f"{ability_grade_symbol} {ability_text}\n"
+
+    return result_ability_text.strip() if result_ability_text else "몰라양"
+
+
+def convert_grade_text(grade_text: str) -> str:
+    """메이플 스토리 등급 텍스트를 이모티콘으로 변환하는 함수
+
+    Args:
+        grade_text (str): 변환할 등급 텍스트
+
+    Returns:
+        str: 변환된 등급 이모티콘
+    """
+    lgnd_grade_symbol: str = "🟩"
+    uniq_grade_symbol: str = "🟨"
+    epic_grade_symbol: str = "🟪"
+    rare_grade_symbol: str = "🟦"
+    grade_mapping = {
+        "레전드리": lgnd_grade_symbol,
+        "유니크": uniq_grade_symbol,
+        "에픽": epic_grade_symbol,
+        "레어": rare_grade_symbol,
+    }
+    return grade_mapping.get(grade_text, "몰라양")
 
 
 def get_notice(target_event: str = None) -> list[dict]:
