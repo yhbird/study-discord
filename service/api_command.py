@@ -67,27 +67,75 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
     # 캐릭터 기본 정보 2 - 캐릭터 레벨
-    character_level: int = response_data.get('character_level', 0)
+    character_level: int = (
+        int(response_data.get('character_level'))
+        if response_data.get('character_level') is not None
+        else 0
+    )
     # 캐릭터 기본 정보 3 - 캐릭터 소속월드
-    character_world: str = response_data.get('world_name', '알 수 없음')
+    character_world: str = (
+        str(response_data.get('world_name')).strip()
+        if response_data.get('world_name') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 4 - 캐릭터 성별
-    character_gender: str = response_data.get('character_gender', '알 수 없음')
+    character_gender: str = (
+        str(response_data.get('character_gender')).strip()
+        if response_data.get('character_gender') is not None
+        else '기타(제로)'
+    )
     # 캐릭터 기본 정보 5 - 캐릭터 직업(차수)
-    character_class: str = response_data.get('character_class', '알 수 없음')
-    character_class_level: str = response_data.get('character_class_level', '알 수 없음')
+    character_class: str = (
+        str(response_data.get('character_class')).strip()
+        if response_data.get('character_class') is not None
+        else '알 수 없음'
+    )
+    character_class_level: str = (
+        str(response_data.get('character_class_level')).strip()
+        if response_data.get('character_class_level') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 6 - 경험치
-    character_exp: int = response_data.get('character_exp', 0)
-    character_exp_rate: str = response_data.get('character_exp_rate', "0.000%")
+    character_exp: int = (
+        int(response_data.get('character_exp'))
+        if response_data.get('character_exp') is not None
+        else 0
+    )
+    character_exp_rate: str = (
+        str(response_data.get('character_exp_rate')).strip()
+        if response_data.get('character_exp_rate') is not None
+        else "0.000%"
+    )
     # 캐릭터 기본 정보 7 - 소속길드
-    character_guild_name: str = response_data.get('character_guild_name', '알 수 없음')
+    character_guild_name_json = response_data.get('character_guild_name')
+    if character_guild_name_json is None:
+        character_guild_name = '길드가 없어양'
+    else:
+        character_guild_name = character_guild_name_json
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-    character_image: str = response_data.get('character_image', '알 수 없음')
+    character_image: str = (
+        str(response_data.get('character_image'))
+        if response_data.get('character_image') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-    character_date_create: str = response_data.get('character_date_create', '알 수 없음')
+    character_date_create: str = (
+        str(response_data.get('character_date_create')).strip()
+        if response_data.get('character_date_create') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-    character_access_flag: str = response_data.get('access_flag', '알 수 없음')
+    character_access_flag: str = (
+        str(response_data.get('access_flag'))
+        if response_data.get('access_flag') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 기본 정보 11 - 캐릭터 해방 퀘스트 완료 여부
-    character_liberation_quest_clear: str = response_data.get('liberation_quest_clear', '알 수 없음')
+    character_liberation_quest_clear: str = (
+        str(response_data.get('liberation_quest_clear'))
+        if response_data.get('liberation_quest_clear') is not None
+        else '알 수 없음'
+    )
 
     # Basic Info 데이터 전처리
     if character_date_create != '알 수 없음':
@@ -117,11 +165,11 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     elif character_liberation_quest_clear == "2":
         character_liberation_quest_clear = "데스티니 1차 해방 퀘스트 완료"
     else:
-        character_liberation_quest_clear = "알 수 없음"
+        character_liberation_quest_clear = "해방 퀘스트 진행 여부 알 수 없음"
 
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&width=200&height=200"
-    
+        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
+
     # Embed 메시지 생성
     maple_scouter_url: str = f"https://maplescouter.com/info?name={character_name_quote}"
     
@@ -187,14 +235,38 @@ async def api_pcbang_notice(ctx: commands.Context):
         notice_data: dict = notice_data[0]  # 가장 최근 공지사항 1개
 
         # 공지사항 제목, 링크, 내용(HTML)
-        notice_title: str = notice_data.get('title', '알 수 없음')
-        notice_url: str = notice_data.get('url', '알 수 없음')
-        notice_id: str = notice_data.get('notice_id', '알 수 없음')
+        notice_title: str = (
+            str(notice_data.get('title')).strip()
+            if notice_data.get('title') is not None
+            else '알 수 없음'
+        )
+        notice_url: str = (
+            str(notice_data.get('url')).strip()
+            if notice_data.get('url') is not None
+            else '알 수 없음'
+        )
+        notice_id: str = (
+            str(notice_data.get('notice_id')).strip()
+            if notice_data.get('notice_id') is not None
+            else '알 수 없음'
+        )
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
-        notice_date: str = notice_data.get('date', '알 수 없음')
-        notice_start_date: str = notice_data.get('date_event_start', '알 수 없음')
-        notice_end_date: str = notice_data.get('date_event_end', '알 수 없음')
+        notice_date: str = (
+            str(notice_data.get('date')).strip()
+            if notice_data.get('date') is not None
+            else '알 수 없음'
+        )
+        notice_start_date: str = (
+            str(notice_data.get('date_event_start')).strip()
+            if notice_data.get('date_event_start') is not None
+            else '알 수 없음'
+        )
+        notice_end_date: str = (
+            str(notice_data.get('date_event_end')).strip()
+            if notice_data.get('date_event_end') is not None
+            else '알 수 없음'
+        )
 
         footer_notice_date: str = parse_iso_string(notice_date)
         footer_notice_start_date: str = parse_iso_string(notice_start_date)
@@ -205,7 +277,11 @@ async def api_pcbang_notice(ctx: commands.Context):
 
         # 공지사항 이미지 URL 추출
         notice_detail_data: dict = get_notice_details(notice_id)
-        notice_contents: str = notice_detail_data.get('contents', '알 수 없음')
+        notice_contents: str = (
+            str(notice_detail_data.get('contents', '알 수 없음'))
+            if notice_detail_data.get('contents') is not None
+            else '알 수 없음'
+        )
         if notice_contents != '알 수 없음':
             bs4_contents = BeautifulSoup(notice_contents, 'html.parser')
             image_src = bs4_contents.find('img')['src'] if bs4_contents.find('img') else '알 수 없음'
@@ -272,14 +348,38 @@ async def api_sunday_notice(ctx: commands.Context):
         notice_data: dict = notice_data[0] # 가장 최근 공지사항 1개
 
         # 공지사항 제목, 링크, 내용(HTML)
-        notice_title: str = notice_data.get('title', '알 수 없음')
-        notice_url: str = notice_data.get('url', '알 수 없음')
-        notice_id: str = notice_data.get('notice_id', '알 수 없음')
+        notice_title: str = (
+            str(notice_data.get('title')).strip()
+            if notice_data.get('title') is not None
+            else '알 수 없음'
+        )
+        notice_url: str = (
+            str(notice_data.get('url')).strip()
+            if notice_data.get('url') is not None
+            else '알 수 없음'
+        )
+        notice_id: str = (
+            str(notice_data.get('notice_id')).strip()
+            if notice_data.get('notice_id') is not None
+            else '알 수 없음'
+        )
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
-        notice_date: str = notice_data.get('date', '알 수 없음')
-        notice_start_date: str = notice_data.get('date_event_start', '알 수 없음')
-        notice_end_date: str = notice_data.get('date_event_end', '알 수 없음')
+        notice_date: str = (
+            str(notice_data.get('date')).strip()
+            if notice_data.get('date') is not None
+            else '알 수 없음'
+        )
+        notice_start_date: str = (
+            str(notice_data.get('date_event_start')).strip()
+            if notice_data.get('date_event_start') is not None
+            else '알 수 없음'
+        )
+        notice_end_date: str = (
+            str(notice_data.get('date_event_end')).strip()
+            if notice_data.get('date_event_end') is not None
+            else '알 수 없음'
+        )
 
         footer_notice_date: str = parse_iso_string(notice_date)
         footer_notice_start_date: str = parse_iso_string(notice_start_date)
@@ -290,7 +390,11 @@ async def api_sunday_notice(ctx: commands.Context):
 
         # 공지사항 이미지 URL 추출
         notice_detail_data: dict = get_notice_details(notice_id)
-        notice_contents: str = notice_detail_data.get('contents', '알 수 없음')
+        notice_contents: str = (
+            str(notice_detail_data.get('contents')).strip()
+            if notice_detail_data.get('contents') is not None
+            else '알 수 없음'
+        )
         if notice_contents != '알 수 없음':
             bs4_contents = BeautifulSoup(notice_contents, 'html.parser')
             image_src = bs4_contents.find('img')['src'] if bs4_contents.find('img') else '알 수 없음'
@@ -407,25 +511,65 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
         raise Exception(f"Character detail info not found for: {character_name}")
     # 캐릭터 상세 정보 2 - 캐릭터 레벨
-    character_level: int = basic_info_response_data.get('character_level', 0)
+    character_level: int = (
+        int(basic_info_response_data.get('character_level', 0))
+        if basic_info_response_data.get('character_level') is not None
+        else 0
+    )
     # 캐릭터 상세 정보 3 - 캐릭터 소속월드
-    character_world: str = basic_info_response_data.get('world_name', '알 수 없음')
+    character_world: str = (
+        str(basic_info_response_data.get('world_name')).strip()
+        if basic_info_response_data.get('world_name') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 상세 정보 4 - 캐릭터 성별
-    character_gender: str = basic_info_response_data.get('character_gender', '알 수 없음')
+    character_gender: str = (
+        str(basic_info_response_data.get('character_gender')).strip()
+        if basic_info_response_data.get('character_gender') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 상세 정보 5 - 캐릭터 직업(차수)
-    character_class: str = basic_info_response_data.get('character_class', '알 수 없음')
-    character_class_level: str = basic_info_response_data.get('character_class_level', '알 수 없음')
+    character_class: str = (
+        str(basic_info_response_data.get('character_class')).strip()
+        if basic_info_response_data.get('character_class') is not None
+        else '알 수 없음'
+    )
+    character_class_level: str = (
+        str(basic_info_response_data.get('character_class_level')).strip()
+        if basic_info_response_data.get('character_class_level') is not None
+        else '알 수 없음'
+    )
     # 캐릭터 상세 정보 6 - 경험치
-    character_exp: int = basic_info_response_data.get('character_exp', 0)
-    character_exp_rate: str = basic_info_response_data.get('character_exp_rate', "0.000%")
+    character_exp: int = (
+        int(basic_info_response_data.get('character_exp'))
+        if basic_info_response_data.get('character_exp') is not None
+        else 0
+    )
+    character_exp_rate: str = (
+        str(basic_info_response_data.get('character_exp_rate')).strip()
+        if basic_info_response_data.get('character_exp_rate') is not None
+        else "0.000%"
+    )
     # 캐릭터 상세 정보 7 - 소속길드
-    character_guild_name: str = basic_info_response_data.get('character_guild_name', '알 수 없음')
+    character_guild_name: str = (
+        str(basic_info_response_data.get('character_guild_name')).strip()
+        if basic_info_response_data.get('character_guild_name') is not None
+        else '길드가 없어양'
+    )
     # 캐릭터 상세 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-    character_image: str = basic_info_response_data.get('character_image', '알 수 없음')
+    character_image: str = (
+        str(basic_info_response_data.get('character_image')).strip()
+        if basic_info_response_data.get('character_image') is not None
+        else '알 수 없음'
+    )
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&width=200&height=200"
+        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
     # 캐릭터 상세 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-    character_date_create: str = basic_info_response_data.get('character_date_create', '알 수 없음')
+    character_date_create: str = (
+        str(basic_info_response_data.get('character_date_create')).strip()
+        if basic_info_response_data.get('character_date_create') is not None
+        else '알 수 없음'
+    )
     if character_date_create != '알 수 없음':
         character_date_create = character_date_create.split("T")[0]  # "2023-12-21" 형태로 변환
         character_date_create_ymd = character_date_create.split("-")
@@ -435,11 +579,17 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
             f"{int(character_date_create_ymd[2])}일"
         )
     # 캐릭터 상세 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-    character_access_flag: str = basic_info_response_data.get('access_flag', '알 수 없음')
+    character_access_flag: str = (
+        str(basic_info_response_data.get('access_flag')).strip()
+        if basic_info_response_data.get('access_flag') is not None
+        else '알 수 없음'
+    )
     if character_access_flag == "true":
         character_access_flag = "최근 7일 이내 접속함"
-    else:
+    elif character_access_flag == "false":
         character_access_flag = "최근 7일 이내 접속하지 않음"
+    else:
+        character_access_flag = "최근 접속 여부 알 수 없음"
     
     # detail_info_response_data 전처리
     stat_list: list[dict] = detail_info_response_data.get('final_stat', [])
@@ -454,48 +604,151 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
             stat_info[stat_name] = stat_value
     
     # 캐릭터 상세 정보 11 - 캐릭터 능력치: 스탯 공격력 "209558569" -> 억 만 단위 변환
-    character_stat_attack: str = stat_info.get('최대 스탯공격력', '몰라양')
+    character_stat_attack: str = (
+        str(stat_info.get('최대 스탯공격력')).strip()
+        if stat_info.get('최대 스탯공격력') is not None
+        else '몰라양')
     if character_stat_attack != '몰라양':
         character_stat_attack = preprocess_int_with_korean(character_stat_attack)
     # 캐릭터 상세 정보 12 - 캐릭터 능력치: 데미지(%) "175.00" -> "175.00%"
-    character_stat_damage: str = stat_info.get('데미지', '0.00%')
+    character_stat_damage: str = (
+        str(stat_info.get('데미지')).strip()
+        if stat_info.get('데미지') is not None
+        else '0.00%'
+    )
     if character_stat_damage != '0.00%':
         character_stat_damage = f"{character_stat_damage}%"
     # 캐릭터 상세 정보 13 - 캐릭터 능력치: 보스 공격력(%) "50.00" -> "50.00%"
-    character_stat_boss_attack: str = stat_info.get('보스 몬스터 데미지', '0.00%')
+    character_stat_boss_attack: str = (
+        str(stat_info.get('보스 몬스터 데미지')).strip()
+        if stat_info.get('보스 몬스터 데미지') is not None
+        else '0.00%'
+    )
     if character_stat_boss_attack != '0.00%':
         character_stat_boss_attack = f"{character_stat_boss_attack}%"
     # 캐릭터 상세 정보 14 - 캐릭터 능력치: 크리티컬 데미지(%) "50.00" -> "50.00%"
-    character_stat_critical_damage: str = stat_info.get('크리티컬 데미지', '0.00%')
+    character_stat_critical_damage: str = (
+        str(stat_info.get('크리티컬 데미지')).strip()
+        if stat_info.get('크리티컬 데미지') is not None
+        else '0.00%'
+    )
     if character_stat_critical_damage != '0.00%':
         character_stat_critical_damage = f"{character_stat_critical_damage}%"
     # 캐릭터 상세 정보 15 - 캐릭터 능력치: 방어율 무시(%) "50.00" -> "50.00%"
-    character_stat_ignore_defense: str = stat_info.get('방어율 무시', '0.00%')
+    character_stat_ignore_defense: str = (
+        str(stat_info.get('방어율 무시')).strip()
+        if stat_info.get('방어율 무시') is not None
+        else '0.00%'
+    )
     if character_stat_ignore_defense != '0.00%':
         character_stat_ignore_defense = f"{character_stat_ignore_defense}%"
     # 캐릭터 상세 정보 16 - 캐릭터 능력치: 스타포스
-    character_stat_starforce: str = stat_info.get('스타포스', '0')
+    character_stat_starforce: str = (
+        str(stat_info.get('스타포스')).strip()
+        if stat_info.get('스타포스') is not None
+        else '0'
+    )
     if character_stat_starforce != '0':
         character_stat_starforce = f"총합 {character_stat_starforce}성"
     # 캐릭터 상세 정보 17 - 캐릭터 능력치: 아케인포스
-    character_stat_arcaneforce: str = stat_info.get('아케인포스', '0')
+    character_stat_arcaneforce: str = (
+        str(stat_info.get('아케인포스')).strip()
+        if stat_info.get('아케인포스') is not None
+        else '0'
+    )
     # 캐릭터 상세 정보 18 - 캐릭터 능력치: 어센틱포스
-    character_stat_authenticforce: str = stat_info.get('어센틱포스', '0')
+    character_stat_authenticforce: str = (
+        str(stat_info.get('어센틱포스')).strip()
+        if stat_info.get('어센틱포스') is not None
+        else '0'
+    )
     # 캐릭터 상세 정보 19 - 캐릭터 능력치: 스탯(힘, 덱, 인트, 럭) "1000" -> "1,000"
-    character_stat_str: str = f"{int(stat_info.get('STR', '0')):,}"
-    character_stat_dex: str = f"{int(stat_info.get('DEX', '0')):,}"
-    character_stat_int: str = f"{int(stat_info.get('INT', '0')):,}"
-    character_stat_luk: str = f"{int(stat_info.get('LUK', '0')):,}"
-    character_stat_hp: str = f"{int(stat_info.get('HP', '0')):,}"
-    character_stat_mp: str = f"{int(stat_info.get('MP', '0')):,}"
-    character_stat_ap_str: str = f"{int(stat_info.get('AP 배분 STR', '0')):,}"
-    character_stat_ap_dex: str = f"{int(stat_info.get('AP 배분 DEX', '0')):,}"
-    character_stat_ap_int: str = f"{int(stat_info.get('AP 배분 INT', '0')):,}"
-    character_stat_ap_luk: str = f"{int(stat_info.get('AP 배분 LUK', '0')):,}"
-    character_stat_ap_hp : str = stat_info.get('AP 배분 HP', '0')
-    if int(character_stat_ap_hp) < 0:
-        character_stat_ap_hp: str = '0'
-    character_stat_ap_hp = f"{int(character_stat_ap_hp):,}"
+    stat_str: int = (
+        int(stat_info.get('STR'))
+        if stat_info.get('STR') is not None
+        else 0
+    )
+    stat_dex: int = (
+        int(stat_info.get('DEX'))
+        if stat_info.get('DEX') is not None
+        else 0
+    )
+    stat_int: int = (
+        int(stat_info.get('INT'))
+        if stat_info.get('INT') is not None
+        else 0
+    )
+    stat_luk: int = (
+        int(stat_info.get('LUK'))
+        if stat_info.get('LUK') is not None
+        else 0
+    )
+    stat_hp: int = (
+        int(stat_info.get('HP'))
+        if stat_info.get('HP') is not None
+        else 0
+    )
+    stat_mp: int = (
+        int(stat_info.get('MP'))
+        if stat_info.get('MP') is not None
+        else 0
+    )
+    if stat_mp == 0:
+        stat_mp = 0
+    stat_ap_str: int = (
+        int(stat_info.get('AP 배분 STR', '0'))
+        if stat_info.get('AP 배분 STR') is not None
+        else 0
+    )
+    stat_ap_dex: int = (
+        int(stat_info.get('AP 배분 DEX', '0'))
+        if stat_info.get('AP 배분 DEX') is not None
+        else 0
+    )
+    stat_ap_int: int = (
+        int(stat_info.get('AP 배분 INT', '0'))
+        if stat_info.get('AP 배분 INT') is not None
+        else 0
+    )
+    stat_ap_luk: int = (
+        int(stat_info.get('AP 배분 LUK', '0'))
+        if stat_info.get('AP 배분 LUK') is not None
+        else 0
+    )
+    stat_ap_hp: int = (
+        int(stat_info.get('AP 배분 HP', '0'))
+        if stat_info.get('AP 배분 HP') is not None
+        else 0
+    )
+    if stat_ap_hp < 0:
+        stat_ap_hp = 0
+    stat_ap_mp: int = (
+        int(stat_info.get('AP 배분 MP', '0'))
+        if stat_info.get('AP 배분 MP') is not None
+        else 0
+    )
+    if stat_ap_mp < 0:
+        stat_ap_mp = 0
+    character_stat_str: str = f"{stat_str:,}"
+    character_stat_dex: str = f"{stat_dex:,}"
+    character_stat_int: str = f"{stat_int:,}"
+    character_stat_luk: str = f"{stat_luk:,}"
+    character_stat_hp: str = f"{stat_hp:,}"
+    character_stat_mp: str = (
+        f"{stat_mp:,}"
+        if stat_mp > 0
+        else "MP를 사용하지 않는 캐릭터에양"
+    )
+    character_stat_ap_str: str = f"{stat_ap_str:,}"
+    character_stat_ap_dex: str = f"{stat_ap_dex:,}"
+    character_stat_ap_int: str = f"{stat_ap_int:,}"
+    character_stat_ap_luk: str = f"{stat_ap_luk:,}"
+    character_stat_ap_hp: str = f"{stat_ap_hp:,}"
+    character_stat_ap_mp: str = (
+        f"{stat_ap_mp:,}"
+        if stat_mp > 0
+        else "X"
+    )
     # 캐릭터 상세 정보 20 - 캐릭터 능력치: 드메
     character_stat_drop: str = stat_info.get('아이템 드롭률', '0%')
     if character_stat_drop != '0%':
@@ -511,7 +764,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     if character_stat_cooldown_sec != '0초':
         character_stat_cooldown_sec = f"{character_stat_cooldown_sec}초"
     character_stat_cooldown: str = f"{character_stat_cooldown_pct} | {character_stat_cooldown_sec}"
-    # 캐릭터 상세 정보 22 - 캐릭터 능력치: 공마
+    # 캐릭터 상세 정보 22 - 캐릭터 능력치: 공격력/마력
     character_stat_attack_power: str = f"{int(stat_info.get('공격력', '0')):,}"
     character_stat_magic_power: str = f"{int(stat_info.get('마력', '0')):,}"
     # 캐릭터 상세 정보 23 - 캐릭터 능력치: 전투력 "억 만 단위 변환"
@@ -540,6 +793,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         f"**INT**: {character_stat_int} ({character_stat_ap_int})\n"
         f"**LUK**: {character_stat_luk} ({character_stat_ap_luk})\n"
         f"**HP**: {character_stat_hp} ({character_stat_ap_hp})\n"
+        f"**MP**: {character_stat_mp} ({character_stat_ap_mp})\n"
         f"**재사용 대기시간 감소**: {character_stat_cooldown}\n"
         f"\n**\-\-\- 포스정보 \-\-\-**\n"
         f"**스타포스**: {character_stat_starforce}\n"
@@ -563,7 +817,118 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     await ctx.send(embed=embed)
 
 @log_command
-async def api_weather_v1(message: discord.Message):
+async def api_ability_info(ctx: commands.Context, character_name: str):
+    """캐릭터의 어빌리티 정보 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 메이플스토리 캐릭터 이름
+
+    Returns:
+        discord.ui.Embed: 캐릭터 어빌리티 정보를 담은 Embed 객체 (add_field 사용)
+
+    Raises:
+        Exception: 캐릭터 정보 조회 실패 시 발생
+    """
+    try:
+        ocid = get_ocid(character_name)
+        if ocid is not None:
+            ability_info: dict = get_character_ability_info(ocid)
+            basic_info_service_url: str = f"/maplestory/v1/character/basic"
+            basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={ocid}"
+            basic_info: dict = general_request_handler(basic_info_request_url)
+            character_name: str = basic_info.get('character_name', character_name)
+            character_world: str = (
+                str(basic_info.get('world_name')).strip()
+                if basic_info.get('world_name') is not None else '모르는'
+            )
+            character_img_url: str = (
+                str(basic_info.get('character_image')).strip()
+                if basic_info.get('character_image') is not None else '몰라양'
+            )
+    except NexonAPIOCIDNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
+        return
+    except Exception as e:
+        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 가져오는 중에 오류가 발생했어양!")
+        return
+
+
+    # 캐릭터의 남은 명성 조회
+    ability_fame: int = (
+        int(ability_info.get('remain_fame'))
+        if ability_info.get('remain_fame') is not None else 0
+    )
+
+    # 캐릭터가 현재 사용중인 어빌리티 정보 조회
+    current_ability_info: list[dict] = ability_info.get("ability_info")
+    if current_ability_info is None or len(current_ability_info) == 0:
+        await ctx.send(f"아직 어빌리티를 획득하지 않았거나 정보를 조회할 수 없어양!")
+        return
+    else:
+        # 어빌리티 전체 등급
+        current_ability_grade: str = (
+            str(ability_info.get('ability_grade')).strip()
+            if ability_info.get('ability_grade') is not None else "몰라양"
+        )
+        current_ability_grade_symbol: str = convert_grade_text(current_ability_grade)
+        current_ability_preset_no: int = (
+            int(ability_info.get('preset_no'))
+            if ability_info.get('preset_no') is not None else 0
+        )
+        current_ability_text = ability_info_parse(ability_info=current_ability_info)
+
+        # embed 객체 생성
+        if current_ability_grade == "레전드리":
+            embed_color: discord.Color = discord.Color.green()
+        elif current_ability_grade == "유니크":
+            embed_color: discord.Color = discord.Color.orange()
+        elif current_ability_grade == "에픽":
+            embed_color: discord.Color = discord.Color.purple()
+        elif current_ability_grade == "레어":
+            embed_color: discord.Color = discord.Color.blue()
+
+        embed = discord.Embed(
+            title=f"{character_world}월드 '{character_name}' 어빌리티 정보에양",
+            description=f"현재 보유 명성: {ability_fame:,} \n",
+            color=embed_color
+        )
+
+        # embed에 현재 사용중인 어빌리티 정보 추가
+        current_embed_value: str = f"{current_ability_text}"
+        embed.add_field(
+            name=(
+                f"현재 사용중인 어빌리티에양\n"
+                f"({current_ability_grade_symbol} {current_ability_preset_no}번 프리셋 사용중)"
+            ),
+            value=current_embed_value
+        )
+        # # 캐릭터 이미지 썸네일 추출
+        # if character_img_url != '몰라양':
+        #     character_image_url: str = f"{character_img_url}?action=A00.2&emotion=E00&wmotion=W00"
+        #     embed.set_image(url=character_image_url)
+
+        # current_ability_preset_no번 프리셋를 제외한 다른 프리셋 호출
+        preset_idx_list = [1, 2, 3]
+        preset_idx_list.remove(current_ability_preset_no)
+        for preset_idx in preset_idx_list:
+            preset_ability: dict = ability_info.get(f'ability_preset_{preset_idx}')
+            preset_ability_grade: str = (
+                str(preset_ability.get('ability_preset_grade')).strip()
+                if preset_ability.get('ability_preset_grade') is not None else "몰라양"
+            )
+            preset_ability_grade_symbol: str = convert_grade_text(preset_ability_grade)
+            preset_ability_info: list[dict] = preset_ability.get('ability_info')
+            preset_ability_text: str = ability_info_parse(ability_info=preset_ability_info)
+            preset_embed_name = f"\[{preset_ability_grade_symbol} 프리셋 {preset_idx}번 어빌리티 정보\]"
+            preset_embed_value = preset_ability_text
+            embed.add_field(name=preset_embed_name, value=preset_embed_value, inline=False)
+
+        embed.set_footer(text=f"캐릭터 어빌리티 최대값은 숫자 뒤 괄호안에 표시되어 있어양")
+        await ctx.send(embed=embed)
+
+@log_command
+async def api_weather_v1(ctx: commands.Context, location_name: str):
     """현재 지역의 날씨 정보를 가져오는 명령어 v1
 
     Args:
@@ -581,11 +946,8 @@ async def api_weather_v1(message: discord.Message):
         [날씨 조회 API (Data.go.kr)](https://www.data.go.kr/data/15084084/openapi.do)
     """
     command_prefix: str = "븜 날씨 "
-    if message.author.bot:
+    if ctx.message.author.bot:
         return
-    
-    if message.content.startswith(command_prefix):
-        location_name: str = message.content[len(command_prefix):]
     
     try:
         # 지역 정보 조회
@@ -604,45 +966,45 @@ async def api_weather_v1(message: discord.Message):
             local_x: str = local_road_address.get('x')
             local_y: str = local_road_address.get('y')
     except KKO_LOCAL_API_ERROR as e:
-        await message.channel.send(f"해당 지역의 정보를 검색하는 중에 오류가 발생했어양!")
+        await ctx.send(f"해당 지역의 정보를 검색하는 중에 오류가 발생했어양!")
         raise KakaoAPIError(str(e))
     except KKO_NO_LOCAL_INFO as e:
-        await message.channel.send(f"해당 지역의 정보를 찾을 수 없어양!")
+        await ctx.send(f"해당 지역의 정보를 찾을 수 없어양!")
         raise KakaoAPIError(str(e))
 
     try:
         # 날씨 정보 조회
         weather_info = get_weather_info(local_x, local_y)
     except WTH_API_INTERNAL_ERROR:
-        await message.channel.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
+        await ctx.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
     except WTH_API_DATA_ERROR:
-        await message.channel.send(f"날씨 API 데이터에 문제가 발생했어양!")
+        await ctx.send(f"날씨 API 데이터에 문제가 발생했어양!")
     except WTH_API_DATA_NOT_FOUND:
-        await message.channel.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
+        await ctx.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
     except WTH_API_HTTP_ERROR:
-        await message.channel.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+        await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
     except WTH_API_TIMEOUT:
-        await message.channel.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
+        await ctx.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
     except WTH_API_INVALID_PARAMS:
-        await message.channel.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
+        await ctx.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
     except WTH_API_INVALID_REGION:
-        await message.channel.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
+        await ctx.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
     except WTH_API_DEPRECATED:
-        await message.channel.send(f"더 이상 지원되지 않는 기능이에양!")
+        await ctx.send(f"더 이상 지원되지 않는 기능이에양!")
     except WTH_API_UNAUTHORIZED:
-        await message.channel.send(f"날씨 API 서비스 접근 권한이 없어양!")
+        await ctx.send(f"날씨 API 서비스 접근 권한이 없어양!")
     except WTH_API_KEY_TEMP_ERROR:
-        await message.channel.send(f"날씨 API 키가 임시로 제한되었어양!")
+        await ctx.send(f"날씨 API 키가 임시로 제한되었어양!")
     except WTH_API_KEY_LIMIT_EXCEEDED:
-        await message.channel.send(f"날씨 API 키의 요청 한도를 초과했어양!")
+        await ctx.send(f"날씨 API 키의 요청 한도를 초과했어양!")
     except WTH_API_KEY_INVALID:
-        await message.channel.send(f"날씨 API 키가 유효하지 않아양!")
+        await ctx.send(f"날씨 API 키가 유효하지 않아양!")
     except WTH_API_KEY_EXPIRED:
-        await message.channel.send(f"날씨 API 키가 만료되었어양!")
+        await ctx.send(f"날씨 API 키가 만료되었어양!")
     except WeatherAPIError:
-        await message.channel.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+        await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
     except Exception as e:
-        await message.channel.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
+        await ctx.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
         raise WeatherAPIError(str(e))
 
     # 날씨 데이터 전처리
@@ -676,7 +1038,7 @@ async def api_weather_v1(message: discord.Message):
             f"{current_rain_float_text}"
         )
         current_rain: str = (
-            f"**1시간 강수량**: {current_rain_type} ({current_rain_show})\n"
+            f"**1시간 강수량**: {current_rain_show} ({current_rain_type})\n"
         )
     else:
         current_rain_desc: str = ""
@@ -704,6 +1066,6 @@ async def api_weather_v1(message: discord.Message):
     embed.set_footer(text=embed_footer)
     
     if current_rain_flag:
-        await message.channel.send(embed=embed, content=current_rain_desc)
+        await ctx.send(embed=embed, content=current_rain_desc)
     else:
-        await message.channel.send(embed=embed)
+        await ctx.send(embed=embed)
