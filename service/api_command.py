@@ -842,10 +842,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str):
                 str(basic_info.get('world_name')).strip()
                 if basic_info.get('world_name') is not None else '모르는'
             )
-            character_img_url: str = (
-                str(basic_info.get('character_image')).strip()
-                if basic_info.get('character_image') is not None else '몰라양'
-            )
+
     except NexonAPIOCIDNotFound:
         await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
         return
@@ -924,7 +921,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str):
             preset_embed_value = preset_ability_text
             embed.add_field(name=preset_embed_name, value=preset_embed_value, inline=False)
 
-        embed.set_footer(text=f"캐릭터 어빌리티 최대값은 숫자 뒤 괄호안에 표시되어 있어양")
+        embed.set_footer(text=f"어빌리티 최대값은 숫자 뒤 괄호안에 표시되어 있어양")
         await ctx.send(embed=embed)
 
 @log_command

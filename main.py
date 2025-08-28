@@ -81,10 +81,20 @@ async def run_api_weather(ctx: commands.Context, location: str):
 async def run_stk_us_stock(ctx: commands.Context, ticker: str):
     await stk_command.stk_us_stock_price(ctx, ticker)
 
+# 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
+@bot.command(name="help")
+async def run_msg_handle_help_redirection(ctx: commands.Context):
+    await msg_command.msg_handle_help_redirection(ctx)
+
+@bot.command(name="도움말")
+async def run_msg_handle_help_redirection(ctx: commands.Context):
+    await msg_command.msg_handle_help_redirection(ctx)
+
 @bot.event
 async def on_message(message: discord.Message):
     # 봇 명령어 처리
     await bot.process_commands(message)
+    
 
 # 봇 실행!
 bot.run(str(BOT_TOKEN))

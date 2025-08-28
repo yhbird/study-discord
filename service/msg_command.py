@@ -195,6 +195,26 @@ async def msg_handle_blinkbang(ctx: commands.Context):
 
         await ctx.message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
 
+# "븜 명령어" 리다이렉트
+@log_command
+async def msg_handle_help_redirection(ctx: commands.Context):
+    """사용자에게 도움말을 리다이렉트하는 기능
+
+    Args:
+        ctx(commands.Context): 도움말 요청이 포함된 디스코드 메세지
+    """
+    # 봇 메시지 무시
+    if ctx.message.author.bot:
+        return
+
+    else:
+        # 리다이렉트 명령어 확인
+        await msg_handle_help(ctx)
+
+        # 리다이렉트 명령어 안내
+        mention = ctx.message.author.mention
+        await ctx.message.channel.send(f"{mention} '븜 명령어'를 입력하세양!")
+
 # 명령어 "븜 명령어" 사용
 @log_command
 async def msg_handle_help(ctx: commands.Context):
@@ -208,75 +228,78 @@ async def msg_handle_help(ctx: commands.Context):
     Returns:
         None: 사용법 안내 메시지를 채널에 전송
     """
-    command_prefix: str = "븜 명령어"
 
     if ctx.message.author.bot:
         return
 
-    if ctx.message.content.startswith(command_prefix):
-        embed_description: str = (
-            "봇 개발자: yhbird ([github.com](https://github.com/yhbird))\n"
-            "Data based on NEXON Open API\n"
-            "븜끼 봇 사용법을 알려드릴게양!\n"
-        )
-        embed = discord.Embed(
-            title=f"븜끼 사용설명서 ({BOT_VERSION})",
-            description=embed_description,
-            color=discord.Color.blue()
-        )
-        embed.add_field(
-            name="븜 이미지 <검색어>",
-            value="이미지를 검색해서 최대 10개의 이미지를 보여줍니다.\n(사용하는 검색엔진: https://duckduckgo.com/)\n***참고로, 야한건... 안돼양!!!***\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 따라해 <메세지>",
-            value="입력한 메세지를 그대로 따라합니다. \n*마크다운을 지원해양*\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 날씨 <지역명 혹은 주소> (v1)",
-            value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
-        )
-        embed.add_field(
-            name="븜 블링크빵",
-            value="랜덤한 자연수 1~100 랜덤 추출합니다. \n*결과는 날아간 거리로 보여줘양*\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 기본정보 <캐릭터 이름>",
-            value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 기본 정보를 조회합니다.\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 상세정보 <캐릭터 이름>",
-            value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 피씨방",
-            value="**[Nexon OPEN API 연동]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 썬데이",
-            value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 미국주식 <티커>",
-            value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
-            inline=False
-        )
-        embed.add_field(
-            name="븜 명령어",
-            value="명령어 목록을 표시합니다. \n*도움이 필요하면 언제든지 불러양!!*\n ",
-            inline=False
-        )
-        embed_footer:str = (
-            f"봇 이름: {ctx.guild.me.name}\n"
-            f"봇 버전: {BOT_VERSION}\n"
-            f"소스코드: https://github.com/yhbird/study-discord"
-        )
-        embed.set_footer(text=embed_footer)
-        await ctx.send(embed=embed)
+    embed_description: str = (
+        "봇 개발자: yhbird ([github.com](https://github.com/yhbird))\n"
+        "Data based on NEXON Open API\n"
+        "븜끼 봇 사용법을 알려드릴게양!\n"
+    )
+    embed = discord.Embed(
+        title=f"븜끼봇 명령어 목록이에양",
+        description=embed_description,
+        color=discord.Color.blue()
+    )
+    embed.add_field(
+        name="븜 이미지 <검색어>",
+        value="이미지를 검색해서 최대 10개의 이미지를 보여줍니다.\n(사용하는 검색엔진: https://duckduckgo.com/)\n***참고로, 야한건... 안돼양!!!***\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 따라해 <메세지>",
+        value="입력한 메세지를 그대로 따라합니다. \n*마크다운을 지원해양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 날씨 <지역명 혹은 주소> (v1)",
+        value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+    )
+    embed.add_field(
+        name="븜 블링크빵",
+        value="랜덤한 자연수 1~100 랜덤 추출합니다. \n*결과는 날아간 거리로 보여줘양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 기본정보 <캐릭터 이름>",
+        value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 기본 정보를 조회합니다.\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 상세정보 <캐릭터 이름>",
+        value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 어빌리티 <캐릭터 이름>",
+        value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 어빌리티 정보를 조회합니다.\n*사용중인 어빌리티와 프리셋 정보를 제공해양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 피씨방",
+        value="**[Nexon OPEN API 연동]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 썬데이",
+        value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 미국주식 <티커>",
+        value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 명령어",
+        value="명령어 목록을 표시합니다. \n*도움이 필요하면 언제든지 불러양!!*\n ",
+        inline=False
+    )
+    embed_footer:str = (
+        f"봇 이름: {ctx.guild.me.name}\n"
+        f"봇 버전: {BOT_VERSION}\n"
+        f"소스코드: https://github.com/yhbird/study-discord"
+    )
+    embed.set_footer(text=embed_footer)
+    await ctx.send(embed=embed)
