@@ -126,6 +126,9 @@ async def msg_handle_image(ctx: commands.Context, search_term: str):
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
         Exception: 이미지 검색 API 호출 실패시 발생
         Warning: 이미지를 찾을 수 없을 때 발생
+    
+    Note:
+        검색 지역 일본(ja-jp)으로 변경 (2025.09.01)
     """
     command_prefix: str = "븜 이미지 "
 
@@ -142,7 +145,8 @@ async def msg_handle_image(ctx: commands.Context, search_term: str):
             results = ddgs.images(
                 query=image_search_keyword,
                 safesearch="off",
-                num_results=10,
+                region="ja-jp",
+                num_results=20,
             )
         except DDGSException as e:
             await ctx.message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
@@ -154,8 +158,10 @@ async def msg_handle_image(ctx: commands.Context, search_term: str):
     if not results:
         await ctx.message.channel.send("이미지를 찾을 수 없어양!!")
         return
+    else:
+        images = [r for r in results if "image" in r and "url" in r]
 
-    image_results = [r for r in results if "image" in r and "url" in r]
+    image_results = images[0:10]  # 최대 10개 이미지
     view_owner: discord.User = ctx.message.author
     view = ImageViewer(images=image_results, search_keyword=image_search_keyword, requester=view_owner)
     index_indicator: str = f"{view.current_index + 1}/{len(view.images)}"
@@ -233,8 +239,7 @@ async def msg_handle_help(ctx: commands.Context):
         return
 
     embed_description: str = (
-        "봇 개발자: yhbird ([github.com](https://github.com/yhbird))\n"
-        "Data based on NEXON Open API\n"
+        "봇 개발자: 크로아 마법사악 ([github.com](https://github.com/yhbird))\n"
         "븜끼 봇 사용법을 알려드릴게양!\n"
     )
     embed = discord.Embed(
@@ -254,7 +259,7 @@ async def msg_handle_help(ctx: commands.Context):
     )
     embed.add_field(
         name="븜 날씨 <지역명 혹은 주소> (v1)",
-        value="**[Kakao / 기상청 API 연동]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+        value="**[Kakao / 기상청 API]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
     )
     embed.add_field(
         name="븜 블링크빵",
@@ -263,32 +268,37 @@ async def msg_handle_help(ctx: commands.Context):
     )
     embed.add_field(
         name="븜 기본정보 <캐릭터 이름>",
-        value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 기본 정보를 조회합니다.\n ",
+        value="**[넥슨 API]**\n 메이플스토리 캐릭터의 기본 정보를 조회합니다.\n ",
         inline=False
     )
     embed.add_field(
         name="븜 상세정보 <캐릭터 이름>",
-        value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
+        value="**[넥슨 API]**\n 메이플스토리 캐릭터의 상세 정보를 조회합니다.\n*기본 정보보다 더 많은 정보를 제공해양*\n ",
         inline=False
     )
     embed.add_field(
         name="븜 어빌리티 <캐릭터 이름>",
-        value="**[Nexon OPEN API 연동]**\n 메이플스토리 캐릭터의 어빌리티 정보를 조회합니다.\n*사용중인 어빌리티와 프리셋 정보를 제공해양*\n ",
+        value="**[넥슨 API]**\n 메이플스토리 캐릭터의 어빌리티 정보를 조회합니다.\n*사용중인 어빌리티와 프리셋 정보를 제공해양*\n ",
         inline=False
     )
     embed.add_field(
         name="븜 피씨방",
-        value="**[Nexon OPEN API 연동]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
+        value="**[넥슨 API]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
         inline=False
     )
     embed.add_field(
         name="븜 썬데이",
-        value="**[Nexon OPEN API 연동]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n ",
+        value="**[넥슨 API]**\n 썬데이 메이플 공지사항을 조회합니다.\n*매주 금요일 오전에 업데이트돼양*\n ",
+        inline=False
+    )
+    embed.add_field(
+        name="븜 던파정보 <서버이름> <캐릭터이름>",
+        value="**[네오플 API]**\n 던전앤파이터 캐릭터의 정보를 조회합니다.\n*한글로 서버 이름과 캐릭터 이름을 입력해양*\n*참고) 븜 던파정보 카인 마법사악*\n ",
         inline=False
     )
     embed.add_field(
         name="븜 미국주식 <티커>",
-        value="**[yahoo finance API 연동]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
+        value="**[yahoo finance]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
         inline=False
     )
     embed.add_field(
@@ -299,7 +309,9 @@ async def msg_handle_help(ctx: commands.Context):
     embed_footer:str = (
         f"봇 이름: {ctx.guild.me.name}\n"
         f"봇 버전: {BOT_VERSION}\n"
-        f"소스코드: https://github.com/yhbird/study-discord"
+        f"소스코드: https://github.com/yhbird/study-discord\n"
+        "Data based on NEXON Open API\n"
+        "Powered by Neople Open API\n"
     )
     embed.set_footer(text=embed_footer)
     await ctx.send(embed=embed)

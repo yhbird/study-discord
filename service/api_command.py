@@ -17,7 +17,7 @@ from service.api_utils import *
 from config import NEXON_API_HOME
 
 @log_command
-async def api_basic_info(ctx: commands.Context, character_name: str):
+async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터의 기본 정보(basic_info) 를 가져오는 명령어
 
     Args:
@@ -51,7 +51,7 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
     # 예외 처리 (자세한 내용은 Reference 참고)
     try:
-        response_data: dict = general_request_handler(request_url)
+        response_data: dict = general_request_handler_nexon(request_url)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
     except NexonAPIForbidden:
@@ -202,7 +202,7 @@ async def api_basic_info(ctx: commands.Context, character_name: str):
     await ctx.send(embed=embed)
 
 @log_command
-async def api_pcbang_notice(ctx: commands.Context):
+async def api_pcbang_notice(ctx: commands.Context) -> None:
     """메이플스토리 PC방 이벤트 공지사항을 가져오는 명령어
 
     Args:
@@ -315,7 +315,7 @@ async def api_pcbang_notice(ctx: commands.Context):
         await ctx.send("PC방 이벤트 공지사항이 없어양!")
 
 @log_command
-async def api_sunday_notice(ctx: commands.Context):
+async def api_sunday_notice(ctx: commands.Context) -> None:
     """메이플스토리 썬데이 이벤트 공지사항을 가져오는 명령어
 
     Args:
@@ -428,7 +428,7 @@ async def api_sunday_notice(ctx: commands.Context):
         await ctx.send("썬데이 이벤트 공지사항이 아직 없어양!!\n매주 금요일 오전 10시에 업데이트 되니 참고해양!!")
 
 @log_command
-async def api_detail_info(ctx: commands.Context, character_name: str):
+async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터의 상세 정보(detail_info)를 가져오는 명령어
 
     <수집 항목>
@@ -489,8 +489,8 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
 
     # 예외 처리 (자세한 내용은 Reference 참고)
     try:
-        basic_info_response_data: dict = general_request_handler(basic_info_request_url)
-        detail_info_response_data: dict = general_request_handler(detail_info_request_url)
+        basic_info_response_data: dict = general_request_handler_nexon(basic_info_request_url)
+        detail_info_response_data: dict = general_request_handler_nexon(detail_info_request_url)
     except Exception as e:
         if '400' in str(e):
             await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
@@ -787,6 +787,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
         f"**보스 공격력**: {character_stat_boss_attack}\n"
         f"**크리티컬 데미지**: {character_stat_critical_damage}\n"
         f"**방어율 무시**: {character_stat_ignore_defense}\n"
+        f"**드롭율 / 메소획득량 증가**: {character_stat_drop} / {character_stat_meso}\n"
         f"\n**\-\-\- 능력치 \-\-\-**\n"
         f"**STR**: {character_stat_str} ({character_stat_ap_str})\n"
         f"**DEX**: {character_stat_dex} ({character_stat_ap_dex})\n"
@@ -817,7 +818,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str):
     await ctx.send(embed=embed)
 
 @log_command
-async def api_ability_info(ctx: commands.Context, character_name: str):
+async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
     """캐릭터의 어빌리티 정보 조회
 
     Args:
@@ -836,7 +837,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str):
             ability_info: dict = get_character_ability_info(ocid)
             basic_info_service_url: str = f"/maplestory/v1/character/basic"
             basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={ocid}"
-            basic_info: dict = general_request_handler(basic_info_request_url)
+            basic_info: dict = general_request_handler_nexon(basic_info_request_url)
             character_name: str = basic_info.get('character_name', character_name)
             character_world: str = (
                 str(basic_info.get('world_name')).strip()
@@ -925,7 +926,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str):
         await ctx.send(embed=embed)
 
 @log_command
-async def api_weather_v1(ctx: commands.Context, location_name: str):
+async def api_weather_v1(ctx: commands.Context, location_name: str) -> commands.Context.send:
     """현재 지역의 날씨 정보를 가져오는 명령어 v1
 
     Args:
@@ -1066,3 +1067,155 @@ async def api_weather_v1(ctx: commands.Context, location_name: str):
         await ctx.send(embed=embed, content=current_rain_desc)
     else:
         await ctx.send(embed=embed)
+
+@log_command
+async def api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str) -> None:
+    """던전앤파이터 캐릭터 정보 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        server_name (str): 서버 이름 (한글)
+        character_name (str): 캐릭터 이름 (특수문자 가능)
+
+    Returns:
+        던전앤파이터 캐릭터 정보 (dict) -> Embed 생성
+
+    Raises:
+        NeopleAPIError: 던전앤파이터 API 요청 중 발생하는 오류
+    """
+    # 캐릭터 고유 ID 조회
+    try:
+        character_id = neople_dnf_get_character_id(server_name, character_name)
+        server_id = neople_dnf_server_parse(server_name)
+    except NeopleAPIError as e:
+        if "API001" in str(e):
+            await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        elif "API002" in str(e):
+            await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
+        elif "API006" in str(e):
+            await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
+        elif "DNF000" in str(e):
+            await ctx.send(f"서버명이 잘못 입력 되었어양...")
+        elif "DNF001" in str(e):
+            await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
+        elif "DNF900" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        elif "DNF901" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        elif "DNF980" in str(e):
+            await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
+        elif "DNF999" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        else:
+            await ctx.send(f"던전앤파이터 API에서 알 수 없는 오류가 발생했어양!")
+        raise NeopleAPIError(str(e))
+
+    # 캐릭터 정보 조회
+    try:
+        print(f"{character_id=}")
+        request_url = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters/{character_id}?apikey={NEOPLE_API_KEY}"
+        character_info: dict = general_request_handler_neople(request_url)
+    except NeopleAPIError as e:
+        if "API001" in str(e):
+            await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        elif "API002" in str(e):
+            await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
+        elif "API006" in str(e):
+            await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
+        elif "DNF000" in str(e):
+            await ctx.send(f"서버명이 잘못 입력 되었어양...")
+        elif "DNF001" in str(e):
+            await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
+        elif "DNF900" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        elif "DNF901" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        elif "DNF980" in str(e):
+            await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
+        elif "DNF999" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        else:
+            await ctx.send(f"던전앤파이터 API에서 알 수 없는 오류가 발생했어양!")
+        raise NeopleAPIError(str(e))
+
+    # 모험단 이름 추출
+    adventure_name: str = (
+        str(character_info.get("adventureName")).strip()
+        if character_info.get("adventureName") is not None
+        else "adventureNameNotFound"
+    )
+    # 캐릭터 레벨 추출
+    character_level: int = (
+        int(character_info.get("level"))
+        if character_info.get("level") is not None
+        else 0
+    )
+    # 캐릭터 클래스 추출
+    character_job_name: str = (
+        str(character_info.get("jobName")).strip()
+        if character_info.get("jobName") is not None
+        else "몰라양"
+    )
+    # 캐릭터 전직명 추출
+    character_job_grow_name: str = (
+        str(character_info.get("jobGrowName")).strip()
+        if character_info.get("jobGrowName") is not None
+        else "몰라양"
+    )
+    # 캐릭터 명성 추출
+    character_fame: int = (
+        int(character_info.get("fame"))
+        if character_info.get("fame") is not None
+        else 0
+    )
+    # 캐릭터 길드 추출
+    character_guild: str = (
+        str(character_info.get("guildName")).strip()
+        if character_info.get("guildName") is not None
+        else "길드가 없어양"
+    )
+
+    dundam_url = f"https://dundam.xyz/character?server={server_id}&key={character_id}"
+    dfgear_url_c = f"https://dfgear.xyz/character/sId={server_id}&cId={character_id}&cName={character_name}"
+    if adventure_name != "adventureNameNotFound":
+        dfgear_url_a = f"https://dfgear.xyz/adventure?cName={adventure_name}"
+        dfgear_url_desc = (
+            f"[🔗 DFGEAR 사이트 이동 (캐릭터)]({dfgear_url_c})\n"
+            f"[🔗 DFGEAR 사이트 이동 (모험단)]({dfgear_url_a})\n"
+        )
+    else:
+        dfgear_url_desc = f"[🔗 DFGEAR 사이트 이동]({dfgear_url_c})\n"
+
+    embed_description: str = (
+        f"[🔗 던담 사이트 이동]({dundam_url})\n"
+        f"{dfgear_url_desc}"
+        f"**모험단:** {adventure_name}\n"
+        f"**레벨:** {character_level}\n"
+        f"**직업:** {character_job_name}\n"
+        f"**전직:** {character_job_grow_name}\n"
+        f"**명성:** {character_fame}\n"
+        f"**길드:** {character_guild}\n"
+    )
+    embed_footer: str = (
+        f"캐릭터 선택창에 나갔다 오면 빨리 갱신되양!\n"
+        f"powered by Neople API"
+    )
+
+    # 캐릭터 이미지 URL추출
+    character_image_url = f"https://img-api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?zoom=1"
+
+    # Discord Embed 객체 생성
+    if character_job_name == "마법사(여)":
+        embed_color = discord.Colour.from_rgb(255, 0, 0)  # red
+    else:
+        embed_color = discord.Colour.from_rgb(128, 128, 128)  # grey
+    embed = discord.Embed(
+        title=f"{server_name}서버 '{character_name}' 모험가님의 정보에양!",
+        description=embed_description
+    )
+    embed.set_footer(text=embed_footer)
+    embed.colour = embed_color
+    embed.set_image(url=character_image_url)
+
+    # Discord Embed 전송
+    await ctx.send(embed=embed)

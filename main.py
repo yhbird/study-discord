@@ -19,7 +19,7 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
 # 디버그용 명령어
-@bot.command(name="debug")
+@bot.command(name="디버그")
 async def bot_debug(ctx: commands.Context, arg: str = None):
     if arg == "mem":
         await deb_command.deb_memory_usage(ctx)
@@ -75,6 +75,10 @@ async def run_api_ability_info(ctx: commands.Context, character_name: str):
 @bot.command(name="날씨")
 async def run_api_weather(ctx: commands.Context, location: str):
     await api_command.api_weather_v1(ctx, location)
+
+@bot.command(name="던파정보")
+async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):
+    await api_command.api_dnf_characters(ctx, server_name, character_name)
 
 # 명령어 등록 from service.stk_command
 @bot.command(name="미국주식")

@@ -38,7 +38,9 @@ try:
     else:
         NEXON_API_RUN_ENV = 'LIVE'
     NEXON_API_KEY: str = os.getenv(f'NEXON_API_TOKEN_{NEXON_API_RUN_ENV}', None)
+    NEOPLE_API_KEY: str = os.getenv(f'NEOPLE_API_TOKEN_{NEXON_API_RUN_ENV}', None)
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
+    NEOPLE_API_HOME: str = os.getenv('NEOPLE_API_HOME')
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed loading Nexon API key!!: {e}")
@@ -78,7 +80,7 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20250822-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20250902-{BOT_TOKEN_RUN}"
 
 # 디버그 모드 설정
 if BOT_TOKEN_RUN == 'dev':

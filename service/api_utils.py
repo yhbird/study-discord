@@ -9,54 +9,48 @@ from pytz import timezone
 from config import NEXON_API_HOME, NEXON_API_KEY # NEXON OPEN API
 from config import KKO_LOCAL_API_KEY, KKO_API_HOME # KAKAO Local API
 from config import WTH_DATA_API_KEY, WTH_API_HOME # Weather API
+from config import NEOPLE_API_KEY, NEOPLE_API_HOME # Neople Developers API
 from service.api_exception import *
 
 from typing import Optional, Dict, List
 
 
-def general_request_error_handler(response: requests.Response) -> None:
-    """Nexon Open API의 일반적인 요청 오류를 처리하는 함수  
-    특수한 오류가 있는 경우를 제외하고, 일반적인 오류에 대한 예외를 발생시킴  
-    예외 처리 기준은 아래 Reference 링크를 참고
+def general_request_handler_neople(request_url: str, headers: Optional[dict] = None, params: Optional[dict] = None) -> dict:
+    """Neople API의 일반적인 요청을 처리하는 함수
 
     Args:
-        res (requests.Response): 요청 응답 객체
+        request_url (str): 요청할 URL
+        headers (Optional[dict], optional): 요청 헤더 (기본값 None)
+        params (Optional[dict], optional): 요청 파라미터 (기본값 None)
+
+    Returns:
+        dict: 응답 데이터
 
     Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
+        Exception: 요청 오류에 대한 예외를 발생
 
     Reference:
-        https://openapi.nexon.com/ko/game/maplestory/?id=14
+        https://developers.neople.co.kr/contents/guide/pages/all  
+        Neople API의 경우 response_status마다 세부적인 error_code가 존재
     """
-    response_status_code: str = str(response.status_code)
-    exception_msg_prefix: str = f"{response_status_code} : "
-    response_data: dict = response.json()
-    exception_msg: dict = response_data.get('error')
-    if response.status_code == 400:
-        default_exception_msg = "Bad Request"
-        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-        raise NexonAPIBadRequest(exception_msg)
-    elif response.status_code == 403:
-        default_exception_msg = "Forbidden"
-        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-        raise NexonAPIForbidden(exception_msg)
-    elif response.status_code == 429:
-        default_exception_msg = "Too Many Requests"
-        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-        raise NexonAPITooManyRequests(exception_msg)
-    elif response.status_code == 500:
-        default_exception_msg = "Internal Server Error"
-        exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-        raise NexonAPIServiceUnavailable(exception_msg)
+    if headers is None:
+        headers = {
+            "apikey": f"{NEOPLE_API_KEY}",
+        }
+
+    response: requests.Response = requests.get(url=request_url, headers=headers)
+
+    if response.status_code != 200:
+        response_data: dict = response.json()
+        error_data: dict = response_data.get('error', {})
+        neople_api_error_code: str = str(error_data.get('code', 'Unknown'))
+        neople_api_error_handler(error_code=neople_api_error_code)
     else:
-        if not exception_msg.get('message'):
-            raise NexonAPIError
-        else :
-            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message')}"
-            raise NexonAPIError(exception_msg)
+        response_data: dict = response.json()
+        return response_data
 
 
-def general_request_handler(request_url: str, headers: Optional[dict] = None) -> dict:
+def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
     """Nexon Open API의 일반적인 요청을 처리하는 함수  
     요청 URL과 헤더를 받아서 GET 요청을 수행하고, 응답 데이터를 반환함
 
@@ -74,11 +68,37 @@ def general_request_handler(request_url: str, headers: Optional[dict] = None) ->
         headers = {
             "x-nxopen-api-key": NEXON_API_KEY,
         }
-    
-    response = requests.get(url=request_url, headers=headers)
-    
+
+    response: requests.Response = requests.get(url=request_url, headers=headers)
+
+    # general_request_error_handler 함수 통합 (2025.09.01)
     if response.status_code != 200:
-        general_request_error_handler(response)
+        response_status_code: str = str(response.status_code)
+        exception_msg_prefix: str = f"{response_status_code} : "
+        response_data: dict = response.json()
+        exception_msg: dict = response_data.get('error')
+        if response.status_code == 400:
+            default_exception_msg = "Bad Request"
+            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+            raise NexonAPIBadRequest(exception_msg)
+        elif response.status_code == 403:
+            default_exception_msg = "Forbidden"
+            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+            raise NexonAPIForbidden(exception_msg)
+        elif response.status_code == 429:
+            default_exception_msg = "Too Many Requests"
+            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+            raise NexonAPITooManyRequests(exception_msg)
+        elif response.status_code == 500:
+            default_exception_msg = "Internal Server Error"
+            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
+            raise NexonAPIServiceUnavailable(exception_msg)
+        else:
+            if not exception_msg.get('message'):
+                raise NexonAPIError
+            else :
+                exception_msg = f"{exception_msg_prefix}{exception_msg.get('message')}"
+                raise NexonAPIError(exception_msg)
     return response.json()
 
 
@@ -102,7 +122,7 @@ def get_ocid(character_name: str) -> str:
     service_url = f"/maplestory/v1/id"
     url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
-    response_data: dict = general_request_handler(request_url)
+    response_data: dict = general_request_handler_nexon(request_url)
     
     # 정상적으로 OCID를 찾았을 때
     ocid: str = str(response_data.get('ocid'))
@@ -127,7 +147,7 @@ def get_character_popularity(ocid: str) -> str:
     service_url = f"/maplestory/v1/character/popularity"
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     try:
-        response_data: dict = general_request_handler(request_url)
+        response_data: dict = general_request_handler_nexon(request_url)
         popularity: int = response_data.get('popularity', "몰라양")
         return popularity
     except NexonAPIError:
@@ -145,7 +165,7 @@ def get_character_ability_info(ocid: str) -> dict:
     """
     service_url = f"/maplestory/v1/character/ability"
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
-    response_data: dict = general_request_handler(request_url)
+    response_data: dict = general_request_handler_nexon(request_url)
     return response_data
 
 
@@ -349,7 +369,7 @@ def get_notice(target_event: str = None) -> list[dict]:
     """
     service_url = f"/maplestory/v1/notice-event"
     request_url = f"{NEXON_API_HOME}{service_url}"
-    response_data: dict = general_request_handler(request_url)
+    response_data: dict = general_request_handler_nexon(request_url)
     notices: list = response_data.get('event_notice', [])
     if target_event is None:
         notice_filter = None
@@ -379,7 +399,7 @@ def get_notice_details(notice_id: str) -> dict:
     """
     service_url = f"/maplestory/v1/notice-event/detail"
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
-    response_data: dict = general_request_handler(request_url)
+    response_data: dict = general_request_handler_nexon(request_url)
     return response_data
 
 
@@ -687,4 +707,67 @@ def process_weather_data(weather_data: dict) -> dict:
     return return_data
 
 
+def neople_dnf_server_parse(server_name: str) -> str:
+    """네오플 API 연동하여 dnf 서버 name - code 변환
 
+    Args:
+        server_name (str): dnf 서버 이름 (한글)
+
+    Returns:
+        str: dnf 서버 코드 (쿼리에 사용할 영어명)
+
+    Reference:
+        https://developers.neople.co.kr/contents/apiDocs/df
+    """
+    request_url = f"{NEOPLE_API_HOME}/df/servers?apikey={NEOPLE_API_KEY}"
+    response_data: dict = general_request_handler_neople(request_url)
+    
+    search_server_name = server_name.strip()
+    return_server_id: str = ""
+    dnf_server_list: List[dict] = response_data.get("rows", [])
+
+    # ServerId 조회
+    if dnf_server_list:
+        dnf_server_dict: dict = {}
+        for server in dnf_server_list:
+            server_name_kr = server.get("serverName", "")
+            server_name_en = server.get("serverId", "")
+            dnf_server_dict[server_name_kr] = server_name_en
+        return_server_id = dnf_server_dict.get(search_server_name, "")
+    else:
+        raise NeopleAPIError(f"던전앤파이터 서버 정보를 찾을 수 없어양")
+
+    # ServerId 조회를 못한 경우
+    if return_server_id == "":
+        raise NeopleAPIError(f"던파에 {search_server_name} 서버가 없어양")
+
+    return return_server_id
+
+
+def neople_dnf_get_character_id(server_name: str, character_name: str) -> str:
+    """던전앤파이터 캐릭터의 고유 ID를 가져오는 함수
+
+    Args:
+        server_name (str): 서버 이름
+        character_name (str): 캐릭터 이름
+
+    Returns:
+        str: 캐릭터 코드
+
+    Raises:
+        NeopleAPIError: API 호출 오류
+    """
+    server_id = neople_dnf_server_parse(server_name)
+    character_name = quote(character_name.strip())
+    request_url = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters?characterName={character_name}&apikey={NEOPLE_API_KEY}"
+    response_data: dict = general_request_handler_neople(request_url)
+    character_list: List[dict] = response_data.get("rows", [])
+    character_info = character_list[0] if character_list else None
+    if character_info:
+        character_code = character_info.get("characterId", "")
+        if character_code:
+            return character_code
+        else:
+            raise NeopleAPIError(f"모험가 정보를 찾는데 실패했어양...")
+    else:
+        raise NeopleAPIError(f"{server_name}서버 {character_name}모험가 정보를 찾을 수 없어양")
