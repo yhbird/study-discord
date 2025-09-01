@@ -787,7 +787,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
         f"**보스 공격력**: {character_stat_boss_attack}\n"
         f"**크리티컬 데미지**: {character_stat_critical_damage}\n"
         f"**방어율 무시**: {character_stat_ignore_defense}\n"
-        f"**드롭율 / 메소획득량 증가**: {character_stat_drop} / {character_stat_meso}\n"
+        f"**드랍/메획 증가**: {character_stat_drop} / {character_stat_meso}\n"
         f"\n**\-\-\- 능력치 \-\-\-**\n"
         f"**STR**: {character_stat_str} ({character_stat_ap_str})\n"
         f"**DEX**: {character_stat_dex} ({character_stat_ap_dex})\n"
@@ -1176,7 +1176,7 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     )
 
     dundam_url = f"https://dundam.xyz/character?server={server_id}&key={character_id}"
-    dfgear_url_c = f"https://dfgear.xyz/character/sId={server_id}&cId={character_id}&cName={character_name}"
+    dfgear_url_c = f"https://dfgear.xyz/character?sId={server_id}&cId={character_id}&cName={character_name}"
     if adventure_name != "adventureNameNotFound":
         dfgear_url_a = f"https://dfgear.xyz/adventure?cName={adventure_name}"
         dfgear_url_desc = (
