@@ -19,7 +19,7 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
 # 디버그용 명령어
-@bot.command(name="debug")
+@bot.command(name="디버그")
 async def bot_debug(ctx: commands.Context, arg: str = None):
     if arg == "mem":
         await deb_command.deb_memory_usage(ctx)
@@ -72,19 +72,37 @@ async def run_api_sunday_notice(ctx: commands.Context):
 async def run_api_ability_info(ctx: commands.Context, character_name: str):
     await api_command.api_ability_info(ctx, character_name)
 
+@bot.command(name="운세")
+async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str):
+    await api_command.api_maple_fortune_today(ctx, character_name)
+
 @bot.command(name="날씨")
 async def run_api_weather(ctx: commands.Context, location: str):
     await api_command.api_weather_v1(ctx, location)
+
+@bot.command(name="던파정보")
+async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):
+    await api_command.api_dnf_characters(ctx, server_name, character_name)
 
 # 명령어 등록 from service.stk_command
 @bot.command(name="미국주식")
 async def run_stk_us_stock(ctx: commands.Context, ticker: str):
     await stk_command.stk_us_stock_price(ctx, ticker)
 
+# 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
+@bot.command(name="help")
+async def run_msg_handle_help_redirection(ctx: commands.Context):
+    await msg_command.msg_handle_help_redirection(ctx)
+
+@bot.command(name="도움말")
+async def run_msg_handle_help_redirection(ctx: commands.Context):
+    await msg_command.msg_handle_help_redirection(ctx)
+
 @bot.event
 async def on_message(message: discord.Message):
     # 봇 명령어 처리
     await bot.process_commands(message)
+    
 
 # 봇 실행!
 bot.run(str(BOT_TOKEN))
