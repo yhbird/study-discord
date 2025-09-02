@@ -282,6 +282,11 @@ async def msg_handle_help(ctx: commands.Context):
         inline=False
     )
     embed.add_field(
+        name="븜 운세 <캐릭터 이름>",
+        value="**[넥슨 API]**\n 오늘의 메이플스토리 캐릭터 운세를 조회합니다.\n*재미로만 봐주세양!!*\n*참고) 5성:5%, 4성:20%, 3성:30%, 2성:40%, 1성:5% 확률로 나와양*\n ",
+        inline=False
+    )
+    embed.add_field(
         name="븜 피씨방",
         value="**[넥슨 API]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
         inline=False

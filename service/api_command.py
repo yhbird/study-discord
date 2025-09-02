@@ -7,6 +7,7 @@ Reference: https://openapi.nexon.com/
 """
 
 import discord
+import hashlib
 from discord.ext import commands
 
 from bs4 import BeautifulSoup
@@ -1218,4 +1219,98 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     embed.set_image(url=character_image_url)
 
     # Discord Embed 전송
+    await ctx.send(embed=embed)
+
+@log_command
+async def api_maple_fortune_today(ctx: commands.Context, character_name: str) -> None:
+    """MapleStory 오늘의 운세 기능
+
+    Args:
+        ctx (commands.Context): Discord context
+        character_name (str): 캐릭터 이름 -> OCID 변환
+
+    Note:
+        - today + OCID 조합으로 랜덤 고정 시드를 생성합니다
+    """
+    # 캐릭터 OCID 조회
+    try:
+        character_ocid: str = get_ocid(character_name)
+    except NexonAPIError as e:
+        if '400' in str(e):
+            await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+            raise NexonAPIBadRequest(f"Character '{character_name}' not found")
+        if '403' in str(e):
+            await ctx.send("Nexon Open API 접근 권한이 없어양!")
+            raise NexonAPIForbidden("Forbidden access to API")
+        if '429' in str(e):
+            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+            raise Exception("Too many requests to API")
+        if '500' in str(e):
+            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+            raise Exception("Nexon Open API Internal server error")
+    
+    # OCID 데이터값 검증
+    if not character_ocid:
+        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
+        raise Exception(f"OCID not found for character: {character_name}")
+    
+    # 캐릭터 월드/생성일 확인
+    try:
+        basic_info_service_url: str = f"/maplestory/v1/character/basic"
+        basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={character_ocid}"
+        basic_info_response_data: dict = general_request_handler_nexon(basic_info_request_url)
+    except Exception as e:
+        if '400' in str(e):
+            await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
+            raise Exception(f"Character '{character_name}' detail info not found")
+        if '403' in str(e):
+            await ctx.send("Nexon Open API 접근 권한이 없어양!")
+            raise Exception("Forbidden access to API")
+        if '429' in str(e):
+            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+            raise Exception("Too many requests to API")
+        if '500' in str(e):
+            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+            raise Exception("Nexon Open API Internal server error")
+    character_world: str = (
+        str(basic_info_response_data.get('world_name')).strip()
+        if basic_info_response_data.get('world_name') is not None
+        else '알 수 없음'
+    )
+    character_date_create: str = (
+        str(basic_info_response_data.get('character_date_create')).strip()
+        if basic_info_response_data.get('character_date_create') is not None
+        else '알 수 없음'
+    )
+    if character_date_create != '알 수 없음':
+        character_date_create = character_date_create.split("T")[0]  # "2023-12-21" 형태로 변환
+        character_date_create_ymd = character_date_create.split("-")
+        character_date_create_str: str = (
+            f"{int(character_date_create_ymd[0])}년 "
+            f"{int(character_date_create_ymd[1])}월 "
+            f"{int(character_date_create_ymd[2])}일"
+        )
+
+    # 시드 생성
+    base_today_text: str = f"{datetime.now().strftime('%Y-%m-%d')}"
+    base_ocid: str = character_ocid
+    base_seed: str = f"{base_today_text}-{base_ocid}".encode('utf-8')
+    h = hashlib.md5(base_seed).hexdigest()
+    seed = int(h, 16) # 128-bit 정수형 변환
+
+    embed_title: str = f"{character_world}월드 '{character_name}' 용사님의 오늘의 운세에양!"
+    fortune_text: str = maple_pick_fortune(seed=seed)
+    embed_description: str = (
+        f"오늘 날짜: {datetime.now().strftime('%Y년 %m월 %d일')}\n"
+        f"캐릭터 생성일: {character_date_create_str}\n"
+        f"\n{fortune_text}"
+    )
+    embed_footer: str = f"---\n운세는 재미로만 확인해주세양!"
+
+    embed = discord.Embed(
+        title=embed_title,
+        description=embed_description,
+        color=discord.Colour.from_rgb(255, 215, 0)  # gold
+    )
+    embed.set_footer(text=embed_footer)
     await ctx.send(embed=embed)

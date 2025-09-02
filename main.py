@@ -72,6 +72,10 @@ async def run_api_sunday_notice(ctx: commands.Context):
 async def run_api_ability_info(ctx: commands.Context, character_name: str):
     await api_command.api_ability_info(ctx, character_name)
 
+@bot.command(name="운세")
+async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str):
+    await api_command.api_maple_fortune_today(ctx, character_name)
+
 @bot.command(name="날씨")
 async def run_api_weather(ctx: commands.Context, location: str):
     await api_command.api_weather_v1(ctx, location)
