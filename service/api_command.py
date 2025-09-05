@@ -1302,10 +1302,10 @@ async def api_maple_fortune_today(ctx: commands.Context, character_name: str) ->
     fortune_text: str = maple_pick_fortune(seed=seed)
     embed_description: str = (
         f"캐릭터 생년월일: {character_date_create_str}생\n"
-        f"오늘 날짜: {datetime.now().strftime('%Y년 %m월 %d일')}\n"
+        f"오늘의 날짜: {datetime.now().strftime('%Y년 %m월 %d일')}\n"
         f"\n{fortune_text}"
     )
-    embed_footer: str = f"---주의---\n운세는 재미로만 확인해주세양!"
+    embed_footer: str = f"--- 주의 ---\n운세는 재미로만 확인해주세양!"
 
     embed = discord.Embed(
         title=embed_title,
