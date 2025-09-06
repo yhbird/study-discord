@@ -12,6 +12,9 @@ from discord.ext import commands
 
 from bs4 import BeautifulSoup
 from urllib.parse import quote
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 from service.common import log_command, parse_iso_string, preprocess_int_with_korean
 from service.api_utils import *
@@ -1314,3 +1317,136 @@ async def api_maple_fortune_today(ctx: commands.Context, character_name: str) ->
     )
     embed.set_footer(text=embed_footer)
     await ctx.send(embed=embed)
+
+@log_command
+async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> None:
+    """MapleStory 캐릭터 경험치 히스토리 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 메이플스토리 캐릭터 이름
+
+    Returns:
+        ctx.send: matplotlib로 생성한 경험치 히스토리 그래프 이미지 첨부
+
+    Raises:
+        Exception: 캐릭터 정보 조회 실패 시 발생
+    """
+    # 캐릭터 OCID 조회
+    try:
+        character_ocid: str = get_ocid(character_name)
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+    except NexonAPIOCIDNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
+
+    xp_history_data: List[Tuple[str, int, str]] = []
+    service_url: str = f"/maplestory/v1/character/basic"
+    request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
+
+    try:
+        response_data: dict = general_request_handler_nexon(request_url)
+        xp_history_data: List[Tuple[str, int, str]] = get_weekly_xp_history(character_ocid)
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+
+    # 캐릭터의 이름, 월드, 생성일 추출
+    character_world: str = (
+        str(response_data.get('world_name')).strip()
+        if response_data.get('world_name') is not None
+        else '알 수 없음'
+    )
+    character_date_create: str = (
+        str(response_data.get('character_date_create')).strip()
+        if response_data.get('character_date_create') is not None
+        else '알 수 없음'
+    )
+    if character_date_create != '알 수 없음':
+        character_date_create = character_date_create.split("T")[0]
+        character_date_create_ymd = character_date_create.split("-")
+        character_date_create_str: str = (
+            f"{int(character_date_create_ymd[0])}년 "
+            f"{int(character_date_create_ymd[1])}월 "
+            f"{int(character_date_create_ymd[2])}일"
+        )
+    else:
+        character_date_create_str = "알 수 없음"
+
+    if not xp_history_data or len(xp_history_data) == 0:
+        await ctx.send(f"캐릭터 '{character_name}'의 경험치 히스토리 정보를 찾을 수 없어양!")
+        return
+    
+    else:
+        # 경험치 히스토리 그래프 제목 생성
+        plot_title: str = f"{character_world}월드 '{character_name}' 용사님의 1주간 경험치 추세"
+
+        # 경험치 히스토리 데이터 전처리
+        plot_data = []
+        for date, lvl, exp in xp_history_data:
+            exp_rate = float(exp.replace("%", ""))
+            plot_data.append({"date": date, "level": lvl, "exp_rate": exp_rate})
+
+        df = pd.DataFrame(plot_data)
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+        df = df.sort_values("date")
+
+        # label 설정
+        labels = [f"{d.month}월 {d.day}일" for d in df["date"]]
+        x = np.arange(len(df))
+        y = df["exp_rate"].astype(float).to_numpy()
+        lv = df["level"].astype(int).to_numpy()
+
+        fig = plt.figure(figsize=(8, 3), dpi=160)
+        ax = plt.gca()
+
+        for xi, yi, lvl in zip(x, y, lv):
+            bar_h = max(10.0, yi)
+
+            # bar 생성
+            ax.bar(xi, bar_h, width=0.6, linewidth=0, zorder=2, alpha=0.7, color='#8FD19E')
+
+            # 경험치 퍼센트 라벨 (실제 값 표시)
+            ax.annotate(f"{yi:.3f}%", xy=(xi, bar_h), xytext=(0, 5),
+                        textcoords="offset points",
+                        ha="center", va="bottom",
+                        fontsize=8, weight='bold', zorder=3)
+            
+            # 레벨 라벨
+            ax.annotate(f"Lv.{lvl}", xy=(xi, bar_h), xytext=(0, -11),
+                        textcoords="offset points",
+                        ha="center", va="bottom",
+                fontsize=7, zorder=3)
+            
+        # 축/격자 스타일 설정
+        ax.set_xticks(x, labels, fontsize=9)
+        ax.set_ylim(0, float(y.max()) * 1.45)
+        ax.set_yticks([])
+        ax.grid(axis="y", which="major", linewidth=0.6, alpha= 0.15, zorder=1)
+        ax.axhline(0, linewidth=0.8, color="#666666", alpha=0.4)
+
+        # 프레임 스타일 설정
+        for spine in ["top","right", "left"]:
+            ax.spines[spine].set_visible(False)
+        ax.spines["bottom"].set_alpha(0.4)
+        ax.set_title(plot_title, fontsize=12, pad=8)
+
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format="png", bbox_inches="tight")
+        plt.close(fig)
+        buffer.seek(0)
+
+        # Discord Embed 메시지 생성
+        file = discord.File(buffer, filename=f"{character_ocid}.png")
+        await ctx.send(content=f"캐릭터 생성일: {character_date_create_str}", file=file)

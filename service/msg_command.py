@@ -287,6 +287,11 @@ async def msg_handle_help(ctx: commands.Context):
         inline=False
     )
     embed.add_field(
+        name="븜 경험치 <캐릭터 이름>",
+        value="**[넥슨 API]**\n 메이플스토리 캐릭터의 경험치 그래프를 조회합니다.\n*최근 7일간 경험치 변화를 그래프로 보여줘양*\n ",
+        inline=False
+    )
+    embed.add_field(
         name="븜 피씨방",
         value="**[넥슨 API]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
         inline=False

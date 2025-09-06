@@ -1,9 +1,12 @@
 import hashlib
 import math
 import random
+from matplotlib import patches
+import matplotlib.axes
 import requests
 import io
 import re
+import time
 from urllib.parse import quote
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -1158,3 +1161,38 @@ def maple_pick_fortune(seed: int) -> str:
         fortune_result.append(f_text)
 
     return "\n".join(fortune_result)
+
+def get_weekly_xp_history(character_ocid: str) -> Tuple[str, int, str]:
+    """메이플 스토리 캐릭터의 1주일 간 경험치 추세 데이터 수집
+    
+    Args:
+        character_ocid (str): 캐릭터 고유 ID
+
+    Returns:
+        List[Tuple[str, int, float]]: 날짜, 레벨, 경험치 퍼센트 데이터 (1주일치)
+        (예: ("2023-10-01", 250, "75.321%"))
+
+    Raises:
+        NexonAPIError: API 호출 오류
+    """
+
+    start_date = datetime.now(tz=timezone("Asia/Seoul")).date()
+    date_list: List[str] = [(start_date - timedelta(days=2+i)).strftime("%Y-%m-%d") for i in range(7)]
+    return_data: List[Tuple[str, int, str]] = []
+    for param_date in date_list:
+        request_service_url: str = f"/maplestory/v1/character/basic"
+        request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
+        time.sleep(0.34)  # API Rate Limit 방지
+        response_data: dict = general_request_handler_nexon(request_url)
+        character_level: int = (
+            int(response_data.get("character_level", -1))
+            if response_data.get("character_level") is not None
+            else -1
+        )
+        character_exp_rate: str = (
+            str(response_data.get("character_exp_rate")).strip()
+            if response_data.get("character_exp_rate") is not None
+            else "0.000%"
+        )
+        return_data.append((param_date, character_level, character_exp_rate))
+    return return_data
