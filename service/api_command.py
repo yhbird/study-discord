@@ -1412,7 +1412,7 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
         ax = plt.gca()
 
         for xi, yi, lvl in zip(x, y, lv):
-            bar_h = max(10.0, yi)
+            bar_h = yi + 10.0
 
             # bar 생성
             ax.bar(xi, bar_h, width=0.6, linewidth=0, zorder=2, alpha=0.7, color='#8FD19E')
@@ -1427,11 +1427,11 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
             ax.annotate(f"Lv.{lvl}", xy=(xi, bar_h), xytext=(0, -11),
                         textcoords="offset points",
                         ha="center", va="bottom",
-                fontsize=7, zorder=3)
+                        fontsize=7, zorder=3)
             
         # 축/격자 스타일 설정
         ax.set_xticks(x, labels, fontsize=9)
-        ax.set_ylim(0, float(y.max()) * 1.45)
+        ax.set_ylim(0, float(y.max()) * 1.45 + 10.0)
         ax.set_yticks([])
         ax.grid(axis="y", which="major", linewidth=0.6, alpha= 0.15, zorder=1)
         ax.axhline(0, linewidth=0.8, color="#666666", alpha=0.4)
