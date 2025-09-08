@@ -1,9 +1,13 @@
 import discord
 import gc
-from discord.ext import commands, tasks
+from discord.ext import commands
 
-from config import BOT_TOKEN, MEMORY_CLEAR_INTERVAL
+from config import BOT_TOKEN
 from service.common import logger
+
+# Matplotlib 한글 폰트 설정
+from config import set_up_matploylib_korean
+applied = set_up_matploylib_korean("assets/font/NanumGothic.ttf")
 
 # 디스코드 메세지 관련 명령어
 import service.msg_command as msg_command
@@ -75,6 +79,10 @@ async def run_api_ability_info(ctx: commands.Context, character_name: str):
 @bot.command(name="운세")
 async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str):
     await api_command.api_maple_fortune_today(ctx, character_name)
+
+@bot.command(name="경험치")
+async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
+    await api_command.api_maple_xp_history(ctx, character_name)
 
 @bot.command(name="날씨")
 async def run_api_weather(ctx: commands.Context, location: str):
