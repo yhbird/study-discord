@@ -7,7 +7,11 @@ from service.common import BotConfigFailed
 
 from datetime import datetime
 from pytz import timezone
-    
+
+import matplotlib
+from matplotlib import font_manager
+from pathlib import Path
+
 def kst_format_now() -> str:
     """현재 시각을 KST로 포맷팅
 
@@ -80,7 +84,38 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20250902-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20250907-{BOT_TOKEN_RUN}"
+
+# matplotlib 한글 폰트 설정
+def set_up_matploylib_korean(font_path: str = "assets/font/NanumGothic.ttf"):
+    """matplotlib에서 한글 폰트를 설정하는 함수
+
+    Args:
+        font_path (str, optional): 한글 폰트 파일 경로. Defaults to "assets/font/NanumGothic.ttf".
+    """
+    os.environ.setdefault("MPLCONFIGDIR", "./tmp/matplotlib")
+    font_path = Path(font_path).resolve()
+
+    if not Path(font_path).is_file():
+        print(f"Font file not found: {font_path}")
+        sys.exit(1)
+
+    # 런타임 등록
+    font_manager.fontManager.addfont(str(font_path))
+    prop = font_manager.FontProperties(fname=str(font_path))
+    family = prop.get_name()
+
+    # 전역 설정
+    matplotlib.rcParams['font.family'] = family
+    matplotlib.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
+
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        matplotlib.use('Agg')
+
+    return family
+
 
 # 디버그 모드 설정
 if BOT_TOKEN_RUN == 'dev':

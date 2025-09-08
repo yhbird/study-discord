@@ -243,7 +243,7 @@ async def msg_handle_help(ctx: commands.Context):
         "븜끼 봇 사용법을 알려드릴게양!\n"
     )
     embed = discord.Embed(
-        title=f"븜끼봇 명령어 목록이에양",
+        title=f"븜끼봇 명령어 목록 (븜 명령어)",
         description=embed_description,
         color=discord.Color.blue()
     )
@@ -287,6 +287,11 @@ async def msg_handle_help(ctx: commands.Context):
         inline=False
     )
     embed.add_field(
+        name="븜 경험치 <캐릭터 이름>",
+        value="**[넥슨 API]**\n 메이플스토리 캐릭터의 경험치 그래프를 조회합니다.\n*최근 7일간 경험치 변화를 그래프로 보여줘양*\n ",
+        inline=False
+    )
+    embed.add_field(
         name="븜 피씨방",
         value="**[넥슨 API]**\n 최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
         inline=False
@@ -298,7 +303,7 @@ async def msg_handle_help(ctx: commands.Context):
     )
     embed.add_field(
         name="븜 던파정보 <서버이름> <캐릭터이름>",
-        value="**[네오플 API]**\n 던전앤파이터 캐릭터의 정보를 조회합니다.\n*한글로 서버 이름과 캐릭터 이름을 입력해양*\n*참고) 븜 던파정보 카인 마법사악*\n ",
+        value="**[네오플 API]**\n 던전앤파이터 캐릭터의 정보를 조회합니다.\n*한글로 서버 이름과 캐릭터 이름을 입력해양*\n*예시) 븜 던파정보 카인 마법사악*\n ",
         inline=False
     )
     embed.add_field(

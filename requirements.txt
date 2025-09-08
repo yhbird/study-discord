@@ -12,6 +12,7 @@ frozendict==2.4.6
 frozenlist==1.7.0
 idna==3.10
 lxml==6.0.0
+matplotlib==3.9.2
 multidict==6.6.3
 multitasking==0.0.12
 numpy==2.3.2
