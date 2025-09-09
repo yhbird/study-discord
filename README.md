@@ -67,3 +67,11 @@ bash deploy.sh
 ```bash
 docker save -o discord-bot-img.tar discord-bot-img:latest
 ```
+
+---
+## 패치노트
+### dev/cmd/msg/feat
+- 도움말 기능별 분리 (븜 도움말 메이플, 븜 도움말 던파 등)
+### dev/api/msg/feat
+- "븜 경험치 <캐릭터이름>": 그래프 최대 높이 세부 설정
+---
