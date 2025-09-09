@@ -22,6 +22,9 @@ async def deb_clear_memory():
 # 메모리 사용량 조회
 @log_command
 async def deb_memory_usage(ctx: commands.Context):
+    # 채팅창에 명령어가 노출되지 않도록 삭제
+    await ctx.message.delete()
+
     mem_usage: float = config.get_memory_usage_mb()
     logger.debug(f"Current memory usage: {mem_usage:.2f} MB")
     await ctx.send(f"현재 메모리 사용량: {mem_usage:.2f} MB")
@@ -29,6 +32,9 @@ async def deb_memory_usage(ctx: commands.Context):
  # 봇 정보 조회
 @log_command
 async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
+    # 채팅창에 명령어가 노출되지 않도록 삭제
+    await ctx.message.delete()
+
     if bot_name is None:
         bot_name = "Unknown Bot"
     bot_info: str = (
@@ -61,6 +67,10 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
 # 디버그 모드 ON/OFF
 @log_command
 async def deb_switch(ctx: commands.Context):
+    # 채팅창에 명령어가 노출되지 않도록 삭제
+    await ctx.message.delete()
+
+    # 디버그 모드 토글
     config.DEBUG_MODE = not config.DEBUG_MODE
     debug_status = "ON" if config.DEBUG_MODE else "OFF"
     await ctx.send(f"디버그 모드가 {debug_status}으로 설정되었어양!")

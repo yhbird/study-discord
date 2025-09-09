@@ -25,12 +25,17 @@ bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
 # 디버그용 명령어
 @bot.command(name="디버그")
 async def bot_debug(ctx: commands.Context, arg: str = None):
-    if arg == "mem":
-        await deb_command.deb_memory_usage(ctx)
-    if arg == "info":
-        await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
-    if arg == "switch":
-        await deb_command.deb_switch(ctx)
+    # 사용자 권한 검사
+    if not ctx.message.author.guild_permissions.administrator:
+        await ctx.send(f"{ctx.message.author.mention}님은 관리자 권한이 없어양! 이 명령어는 관리자만 사용할 수 있어양!")
+        return
+    else:
+        if arg == "mem":
+            await deb_command.deb_memory_usage(ctx)
+        if arg == "info":
+            await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
+        if arg == "switch":
+            await deb_command.deb_switch(ctx)
 
 # 봇 실행 + 메모리 정리 반복 작업 시작
 @bot.event
@@ -52,8 +57,8 @@ async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
     await msg_command.msg_handle_image(ctx, search_term)
 
 @bot.command(name="명령어")
-async def run_msg_handle_help(ctx: commands.Context):
-    await msg_command.msg_handle_help(ctx)
+async def run_msg_handle_help(ctx: commands.Context, category: str = None):
+    await msg_command.msg_handle_help_v2(ctx, category)
 
 # 명령어 등록 from service.api_command
 @bot.command(name="기본정보")
@@ -99,12 +104,12 @@ async def run_stk_us_stock(ctx: commands.Context, ticker: str):
 
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
 @bot.command(name="help")
-async def run_msg_handle_help_redirection(ctx: commands.Context):
-    await msg_command.msg_handle_help_redirection(ctx)
+async def run_msg_handle_help_redirection(ctx: commands.Context, category: str = None):
+    await msg_command.msg_handle_help_redirection(ctx, category)
 
 @bot.command(name="도움말")
-async def run_msg_handle_help_redirection(ctx: commands.Context):
-    await msg_command.msg_handle_help_redirection(ctx)
+async def run_msg_handle_help_redirection(ctx: commands.Context, category: str = None):
+    await msg_command.msg_handle_help_redirection(ctx, category)
 
 @bot.event
 async def on_message(message: discord.Message):
