@@ -1410,9 +1410,10 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
 
         fig = plt.figure(figsize=(8, 3), dpi=160)
         ax = plt.gca()
+        ylim_btm: float = 12.5  # 최소 높이 보정용 픽셀값
 
         for xi, yi, lvl in zip(x, y, lv):
-            bar_h = yi + 10.0
+            bar_h = yi + ylim_btm
 
             # bar 생성
             ax.bar(xi, bar_h, width=0.6, linewidth=0, zorder=2, alpha=0.7, color='#8FD19E')
@@ -1431,13 +1432,14 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
             
         # 축/격자 스타일 설정
         ax.set_xticks(x, labels, fontsize=9)
-        ax.set_ylim(0, float(y.max()) * 1.45 + 10.0)
+        ylim_top = max(75.0, float(y.max())) * 1.35 + ylim_btm
+        ax.set_ylim(0, ylim_top)
         ax.set_yticks([])
         ax.grid(axis="y", which="major", linewidth=0.6, alpha= 0.15, zorder=1)
         ax.axhline(0, linewidth=0.8, color="#666666", alpha=0.4)
 
         # 프레임 스타일 설정
-        for spine in ["top","right", "left"]:
+        for spine in ["top", "right", "left"]:
             ax.spines[spine].set_visible(False)
         ax.spines["bottom"].set_alpha(0.4)
         ax.set_title(plot_title, fontsize=12, pad=8)
