@@ -113,7 +113,7 @@ async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
     # 캐릭터 기본 정보 7 - 소속길드
     character_guild_name_json = response_data.get('character_guild_name')
     if character_guild_name_json is None:
-        character_guild_name = '길드가 없어양'
+        character_guild_name = '길드가 없어양!'
     else:
         character_guild_name = character_guild_name_json
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
@@ -300,7 +300,7 @@ async def api_pcbang_notice(ctx: commands.Context) -> None:
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            notice_image_bytes: bytes = get_image_bytes(image_url)
+            notice_image_bytes: io.BytesIO = get_image_bytes(image_url)
             notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
         notice_embed = discord.Embed(
             url=notice_url,
@@ -313,6 +313,7 @@ async def api_pcbang_notice(ctx: commands.Context) -> None:
             file=notice_image_file if image_url != '알 수 없음' else None,
             content=content_text
         )
+        notice_image_bytes.close()
 
     # 공지사항이 없을 때
     else:
@@ -413,7 +414,7 @@ async def api_sunday_notice(ctx: commands.Context) -> None:
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            notice_image_bytes: bytes = get_image_bytes(image_url)
+            notice_image_bytes: io.BytesIO = get_image_bytes(image_url)
             notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
         notice_embed = discord.Embed(
             url=notice_url,
@@ -426,6 +427,7 @@ async def api_sunday_notice(ctx: commands.Context) -> None:
             file=notice_image_file if image_url != '알 수 없음' else None,
             content=content_text
         )
+        notice_image_bytes.close()
 
     # 공지사항이 없을 때
     else:
@@ -558,7 +560,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
     character_guild_name: str = (
         str(basic_info_response_data.get('character_guild_name')).strip()
         if basic_info_response_data.get('character_guild_name') is not None
-        else '길드가 없어양'
+        else '길드가 없어양!'
     )
     # 캐릭터 상세 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str = (
@@ -1176,7 +1178,7 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     character_guild: str = (
         str(character_info.get("guildName")).strip()
         if character_info.get("guildName") is not None
-        else "길드가 없어양"
+        else "길드가 없어양!"
     )
 
     dundam_url = f"https://dundam.xyz/character?server={server_id}&key={character_id}"
@@ -1207,7 +1209,10 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
 
     # 캐릭터 이미지 URL추출
     character_image_url = f"https://img-api.neople.co.kr/df/servers/{server_id}/characters/{character_id}?zoom=1"
-
+    character_image_bytes: io.BytesIO = get_image_bytes(character_image_url)
+    today_date_str: str = datetime.now().strftime("%Y%m%d%H%M")
+    character_image_filename = f"{server_id}_{character_id}_{today_date_str}.png"
+    buffer = discord.File(character_image_bytes, filename=character_image_filename)
     # Discord Embed 객체 생성
     if character_job_name == "마법사(여)":
         embed_color = discord.Colour.from_rgb(255, 0, 0)  # red
@@ -1219,10 +1224,11 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     )
     embed.set_footer(text=embed_footer)
     embed.colour = embed_color
-    embed.set_image(url=character_image_url)
+    embed.set_image(url=f"attachment://{character_image_filename}")
 
     # Discord Embed 전송
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, file=buffer)
+    buffer.close()
 
 @log_command
 async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str) -> None:
@@ -1669,5 +1675,7 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
         buffer.seek(0)
 
         # Discord Embed 메시지 생성
-        file = discord.File(buffer, filename=f"{character_ocid}.png")
+        now_kst: str = datetime.now(tz="Asia/Seoul").strftime("%Y%m%d")
+        file = discord.File(buffer, filename=f"{character_ocid}_{now_kst}.png")
         await ctx.send(content=f"캐릭터 생성일: {character_date_create_str}", file=file)
+        buffer.close()
