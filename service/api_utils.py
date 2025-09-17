@@ -17,7 +17,7 @@ from config import WTH_DATA_API_KEY, WTH_API_HOME # Weather API
 from config import NEOPLE_API_KEY, NEOPLE_API_HOME # Neople Developers API
 from service.api_exception import *
 
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Any
 
 
 def general_request_handler_neople(request_url: str, headers: Optional[dict] = None, params: Optional[dict] = None) -> dict:
@@ -329,13 +329,13 @@ def ability_info_parse(ability_info: List[Dict]) -> str:
             ability_grade=ability_grade,
             ability_value=ability_value
         )
-        ability_grade_symbol: str = convert_grade_text(ability_grade)
+        ability_grade_symbol: str = maple_convert_grade_text(ability_grade)
         result_ability_text += f"{ability_grade_symbol} {ability_text}\n"
 
     return result_ability_text.strip() if result_ability_text else "몰라양"
 
 
-def convert_grade_text(grade_text: str) -> str:
+def maple_convert_grade_text(grade_text: str) -> str:
     """메이플 스토리 등급 텍스트를 이모티콘으로 변환하는 함수
 
     Args:
@@ -1082,6 +1082,7 @@ def maple_pick_fortune(seed: int) -> str:
             ("사냥터에서 븜미 대신 이상한 사람을 만날 수도 있어양...💔", 1),
         ],
     }
+    
     # 운세 메세지 list 생성 (가중치 반영)
     def generate_fortune_messages(table_name: str) -> List[str]:
         msg_table = fortune_message_table.get(table_name, {})
@@ -1196,3 +1197,95 @@ def get_weekly_xp_history(character_ocid: str) -> Tuple[str, int, str]:
         )
         return_data.append((param_date, character_level, character_exp_rate))
     return return_data
+
+
+def get_dnf_weekly_timeline(server_name: str, character_name: str) -> Dict[str, Any]:
+    """던전앤파이터 캐릭터의 주간 타임라인 정보 조회
+
+    Args:
+        server_name (str): dnf 서버 이름 (한글)
+        character_name (str): dnf 캐릭터 이름 (한글)
+
+    Returns:
+        dict: 던전앤파이터 캐릭터 타임라인 정보
+
+    Notes:
+        수집할 타임라인 정보
+        - 획득한 아이템
+        - 클리어한 던전/레이드/레기온
+        - 강화/증폭/제련 성공 및 내역
+        타임라인 범위: 지난주 목요일 6시 부터 ~ 현재시간 까지
+    """
+    # 타임라인 조회 대상
+    server_id: str = neople_dnf_server_parse(server_name)
+    character_id: str = neople_dnf_get_character_id(server_name, character_name)
+
+    # 목요일 6시 부터 ~ 현재시간 까지 범위 설정
+    now_kst: datetime = datetime.now(tz=timezone("Asia/Seoul"))
+    if now_kst.weekday() == 3 and now_kst.hour < 6:
+        # 오늘이 목요일인데, 6시 이전인 경우 -> 지난주 목요일로 설정
+        timeline_date_start: datetime = now_kst - timedelta(days=7 + 4)  # 지난주 목요일
+    elif now_kst.weekday() == 3 and now_kst.hour >= 6:
+        # 오늘이 목요일이고, 6시 이후인 경우 -> 오늘 목요일로 설정
+        timeline_date_start: datetime = now_kst
+    elif now_kst.weekday() < 3:
+        # 오늘이 월,화,수 인 경우 -> 지난주 목요일로 설정
+        timeline_date_start: datetime = now_kst - timedelta(days=now_kst.weekday() + 4)  # 지난주 목요일
+    else:
+        # 오늘이 금,토,일 인 경우 -> 이번주 목요일로 설정
+        timeline_date_start: datetime = now_kst - timedelta(days=now_kst.weekday() - 3)  # 이번주 목요일
+    timeline_date_end: datetime = now_kst
+
+    # 타임라인 조회 쿼리 생성
+    start_date_str: str = timeline_date_start.strftime("%Y%m%dT0600")
+    end_date_str: str = timeline_date_end.strftime("%Y%m%dT%H%M")
+    timeline_date_query: str = f"&startDate={start_date_str}&endDate={end_date_str}"
+
+    # 타임라인 조회 (API 호출)
+    base_request_url: str = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters/{character_id}/timeline"
+    request_url: str = f"{base_request_url}?limit=100{timeline_date_query}&apikey={NEOPLE_API_KEY}"
+    response_data: dict = general_request_handler_neople(request_url)
+
+    # 타임라인 데이터 반환
+    return response_data
+
+
+def dnf_get_clear_flag(flag: bool, clear_date: Optional[str] = None) -> str:
+    """클리어 여부 및 클리어 날짜 반환
+
+    Args:
+        flag (bool): 클리어 여부
+        clear_date (str): 클리어 시간 (YYYY-MM-DD HH:MM 형식)
+
+    Returns:
+        str: 클리어 여부 및 날짜 문자열
+    """
+    if flag:
+        if clear_date is None:
+            return f"✅ 완료"
+        else:
+            return f"✅ 완료 ({clear_date})"
+    else:
+        return "❌ 미완료"
+    
+
+def dnf_convert_grade_text(grade: str) -> str:
+    """던전앤파이터 아이템 한글 등급을 이모지로 변환
+
+    Args:
+        grade (str): 아이템 등급 (한글)
+
+    Returns:
+        str: 아이템 등급 (둥그라미 이모티콘)
+    """
+    grade_mapping: Dict[str, str] = {
+        "태초" : "🟢",
+        "신화" : "🟢",
+        "에픽" : "🟡",
+        "레전더리" : "🟠",
+        "유니크" : "🟣",
+        "크로니클" : "🔴",
+        "언커먼" : "🔵",
+        "커먼" : "⚪",
+    }
+    return grade_mapping.get(grade.lower(), grade)
