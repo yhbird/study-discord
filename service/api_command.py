@@ -873,7 +873,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
             str(ability_info.get('ability_grade')).strip()
             if ability_info.get('ability_grade') is not None else "몰라양"
         )
-        current_ability_grade_symbol: str = convert_grade_text(current_ability_grade)
+        current_ability_grade_symbol: str = maple_convert_grade_text(current_ability_grade)
         current_ability_preset_no: int = (
             int(ability_info.get('preset_no'))
             if ability_info.get('preset_no') is not None else 0
@@ -919,7 +919,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
                 str(preset_ability.get('ability_preset_grade')).strip()
                 if preset_ability.get('ability_preset_grade') is not None else "몰라양"
             )
-            preset_ability_grade_symbol: str = convert_grade_text(preset_ability_grade)
+            preset_ability_grade_symbol: str = maple_convert_grade_text(preset_ability_grade)
             preset_ability_info: list[dict] = preset_ability.get('ability_info')
             preset_ability_text: str = ability_info_parse(ability_info=preset_ability_info)
             preset_embed_name = f"\[{preset_ability_grade_symbol} 프리셋 {preset_idx}번 어빌리티 정보\]"
@@ -1223,6 +1223,225 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
 
     # Discord Embed 전송
     await ctx.send(embed=embed)
+
+@log_command
+async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str) -> None:
+    """던전앤파이터 캐릭터 주간 타임라인 조회 (이번주 기준)
+
+    Args:
+        ctx (commands.Context): Discord context
+        server_name (str): 서버 이름
+        character_name (str): 캐릭터 이름
+
+    Raises:
+        NexonAPIBadRequest: 잘못된 요청
+        NexonAPIForbidden: 접근 금지
+        Exception: API 요청 오류
+        Exception: API 응답 오류
+        Exception: 데이터 처리 오류
+        Exception: 기타 오류
+        Exception: 알 수 없는 오류
+
+    Note:
+        타임라인 기간: 이번주 목요일 오전 6시 ~ 현재시간 (최대 차주 목요일까지)
+    """
+    try:
+        timeline_data: dict = get_dnf_weekly_timeline(server_name, character_name)
+    except NeopleAPIError as e:
+        if "API001" in str(e):
+            await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        elif "API002" in str(e):
+            await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
+        elif "API006" in str(e):
+            await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
+        elif "DNF000" in str(e):
+            await ctx.send(f"서버명이 잘못 입력 되었어양...")
+        elif "DNF001" in str(e):
+            await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
+        elif "DNF900" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        elif "DNF901" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        elif "DNF980" in str(e):
+            await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
+        elif "DNF999" in str(e):
+            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        else:
+            await ctx.send(f"던전앤파이터 API에서 알 수 없는 오류가 발생했어양!")
+        raise NeopleAPIError(str(e))
+    except NeopleDNFInvalidTimelineParams as e:
+        await ctx.send(f"타임라인을 불러오는데 문제가 발생했어양!")
+        raise Exception(str(e))
+
+    character_timeline: dict = timeline_data.get("timeline")
+    if character_timeline.get("rows") == []:
+        await ctx.send(f"이번주에 레전더리 이상 등급의 득템 기록이나, 레이드/레기온 클리어 기록이 없어양!")
+        return
+    
+    else:
+        # timeline 시간 내림차순으로 데이터가 정렬되어 있음
+        timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
+
+        # 캐릭터 기본 정보 추출
+        adventure_name: str = timeline_data.get("adventureName", "몰라양")
+        level: int = timeline_data.get("level", 0)
+        job_name: str = timeline_data.get("jobName", "몰라양")
+        job_grow_name: str = timeline_data.get("jobGrowName", "몰라양")
+
+        # timeline 데이터 생성
+        timeline_title: str = f"{server_name}서버 '{character_name}' 모험가님의 이번주 주간던파에양!"
+        timeline_highlight: str = ""
+        get_legendary_count: int = 0
+        get_epic_count: int = 0
+        get_epic_up_count: int = 0 # 융합석 장비 업그레이드 횟수
+        get_primeval_count: int = 0
+        clear_raid_twilight_flag: bool = False
+        clear_raid_nabel_flag: bool = False
+        clear_raid_mu_flag: bool = False
+        clear_raid_region_flag: bool = False
+
+        # 타임라인 데이터 파싱
+        for row in timeline_rows:
+            timeline_code: int = row.get("code")
+            timeline_name: str = row.get("name")
+            timeline_date: str = row.get("date") #YYYY-MM-DD HH:MM
+            timeline_data: dict[str, Any] = row.get("data")
+
+            # 아이템 획득
+            if 600 > timeline_code >= 500:
+                item_name: str = timeline_data.get("itemName", "몰라양")
+                item_rare: str = timeline_data.get("itemRarity", "몰라양")
+
+                # 태초 아이템 획득 시 하이라이트 메시지 생성
+                if timeline_code != 513 and item_rare == "태초":
+                    channel_name = timeline_data.get("channelName", "알수없음")
+                    channel_no = timeline_data.get("channelNo", "알수없음")
+                    get_primeval_count += 1
+                    timeline_highlight += (
+                        f"{channel_name} {channel_no}채널에서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                    )
+
+                if timeline_code == 513 and item_rare == "태초":
+                    # 던전 카드 보상에서 태초 아이템 획득 시
+                    dungeon_name: str = timeline_data.get("dungeonName", "몰라양")
+                    get_primeval_count += 1
+                    timeline_highlight += (
+                        f"던전 {dungeon_name}에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                    )
+
+                # 융합석 업그레이드 획득 시 (에픽 획득 집계 미포함)
+                if timeline_code == 511 and item_rare == "에픽":
+                    get_epic_up_count += 1
+                    timeline_highlight += (
+                        f"융합석 업글레이드를 통해 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                    )
+                
+                # 에픽 아이템 획득
+                if item_rare == "에픽":
+                    get_epic_count += 1
+
+                # 레전더리 아이템 획득
+                if item_rare == "레전더리":
+                    get_legendary_count += 1
+
+            if timeline_code == 209:
+                # 레기온 클리어
+                region_name: str = timeline_data.get("regionName", "몰라양")
+                if region_name == "베누스":
+                    clear_raid_region_flag = True
+                    clear_raid_region_date = timeline_date
+
+            if timeline_code == 201:
+                # 레이드 클리어
+                raid_name: str = timeline_data.get("raidName", "몰라양")
+                if raid_name == "이내 황혼전":
+                    clear_raid_twilight_flag = True
+                    clear_raid_twilight_date = timeline_date
+                if raid_name == "만들어진 신 나벨":
+                    clear_raid_nabel_flag = True
+                    clear_raid_nabel_date = timeline_date
+                if raid_name == "안개의 신 무":
+                    clear_raid_mu_flag = True
+                    clear_raid_mu_date = timeline_date
+
+            # 아이템 증폭
+            if timeline_code == 402:
+                if "증폭" in timeline_name:
+                    up_type = "증폭"
+                elif "강화" in timeline_name:
+                    up_type = "강화"
+                elif "제련" in timeline_name:
+                    up_type = "제련"
+                else:
+                    raise Exception("Invalid upgrade type in timeline data")
+                
+                up_item_rare: str = timeline_data.get("itemRarity", "몰라양")
+                up_item_name: str = timeline_data.get("itemName", "몰라양")
+                up_item_before: int = timeline_data.get("before", 0)
+                up_item_after: int = timeline_data.get("after", 0)
+                up_item_result: bool = timeline_data.get("result", False)
+                up_item_safe: bool = timeline_data.get("safe", False)
+
+                # 보호권 사용 여부 텍스트
+                if up_item_safe:
+                    up_safe_text: str = "증폭/강화 보호권 사용"
+                else:
+                    up_safe_text: str = "증폭/강화 보호권 미사용"
+
+                if up_item_before >= 10:
+                    # 10강 이상 증폭/강화 시 하이라이트 메시지 생성
+                    timeline_highlight += (
+                        f"{dnf_convert_grade_text(up_item_rare)} {up_item_name} {up_item_after} {up_type}에 "
+                        f"{'성공' if up_item_result else '실패'} 했어양! ({timeline_date})\n"
+                    )
+                
+                if up_item_after == 8 and up_type =="제련" and up_item_result:
+                    # 8제련 성공 시 하이라이트 메시지 생성
+                    timeline_highlight += (
+                        f"{dnf_convert_grade_text(up_item_rare)} {up_item_name} 8 제련에 "
+                        f"성공 했어양! ({timeline_date})\n"
+                    )
+
+        # 타임라인 요약 메시지 생성
+        if timeline_highlight != "":
+            timeline_highlight_str: str = f"**\-\-\- 주간 하이라이트 \-\-\-**\n{timeline_highlight}\n"
+
+        clear_raid_twilight = dnf_get_clear_flag(clear_raid_twilight_flag, locals().get('clear_raid_twilight_date'))
+        clear_raid_nabel = dnf_get_clear_flag(clear_raid_nabel_flag, locals().get('clear_raid_nabel_date'))
+        clear_raid_mu = dnf_get_clear_flag(clear_raid_mu_flag, locals().get('clear_raid_mu_date'))
+        clear_raid_region = dnf_get_clear_flag(clear_raid_region_flag, locals().get('clear_raid_region_date'))
+
+        timeline_summary: str = (
+            f"모험단명: {adventure_name}\n"
+            f"레벨: {level}\n"
+            f"직업: {job_name}, {job_grow_name}\n\n"
+            f"**\-\-\- 이번주 장비 획득 \-\-\-**\n"
+            f"🟢 태초 획득: {get_primeval_count}개\n"
+            f"🟡 에픽 획득: {get_epic_count}개 (융합석 업글 {get_epic_up_count}회)\n"
+            f"🟠 레전 획득: {get_legendary_count}개\n\n"
+            f"**\-\-\- 레이드 및 레기온 클리어 현황 \-\-\-**\n"
+            f"이내 황혼전 클리어: {clear_raid_twilight}\n"
+            f"만들어진 신 나벨 클리어: {clear_raid_nabel}\n"
+            f"안개의 신 무 클리어: {clear_raid_mu}\n"
+            f"베누스 레기온 클리어: {clear_raid_region}\n"
+            f"\n{timeline_highlight_str}" if timeline_highlight != "" else ""
+        )
+
+        timeline_footer: str = (
+            f"목요일 오전 6시 이후 집계\n"
+            f"융합석 업그레이드는 에픽 획득에 포함되지 않아양\n"
+            f"powered by Neople API"
+        )
+
+        # Discord Embed 객체 생성
+        embed = discord.Embed(
+            title=timeline_title,
+            description=timeline_summary
+        )
+        embed.set_footer(text=timeline_footer)
+        embed.colour = discord.Colour.from_rgb(128, 0, 128)  # purple
+        await ctx.send(embed=embed)
+
 
 @log_command
 async def api_maple_fortune_today(ctx: commands.Context, character_name: str) -> None:

@@ -92,9 +92,13 @@ async def run_api_weather(ctx: commands.Context, location: str):
 async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):
     await api_command.api_dnf_characters(ctx, server_name, character_name)
 
+@bot.command(name="주간던파")
+async def run_api_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str):
+    await api_command.api_dnf_timeline_weekly(ctx, server_name, character_name)
+
 # 명령어 등록 from service.stk_command
 @bot.command(name="미국주식")
-async def run_stk_us_stock(ctx: commands.Context, ticker: str):
+async def run_stk_us_stock_price(ctx: commands.Context, ticker: str):
     await stk_command.stk_us_stock_price(ctx, ticker)
 
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
