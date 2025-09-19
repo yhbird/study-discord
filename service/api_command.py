@@ -1278,6 +1278,8 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
     except NeopleDNFInvalidTimelineParams as e:
         await ctx.send(f"타임라인을 불러오는데 문제가 발생했어양!")
         raise Exception(str(e))
+    except NeopleDNFInvalidCharacterInfo as e:
+        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
 
     character_timeline: dict = timeline_data.get("timeline")
     timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
@@ -1677,7 +1679,7 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
         buffer.seek(0)
 
         # Discord Embed 메시지 생성
-        now_kst: str = datetime.now(tz="Asia/Seoul").strftime("%Y%m%d")
+        now_kst: str = datetime.now(tz=timezone("Asia/Seoul")).strftime("%Y%m%d")
         file = discord.File(buffer, filename=f"{character_ocid}_{now_kst}.png")
         await ctx.send(content=f"캐릭터 생성일: {character_date_create_str}", file=file)
         buffer.close()

@@ -763,8 +763,8 @@ def neople_dnf_get_character_id(server_name: str, character_name: str) -> str:
         NeopleAPIError: API 호출 오류
     """
     server_id = neople_dnf_server_parse(server_name)
-    character_name = quote(character_name.strip())
-    request_url = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters?characterName={character_name}&apikey={NEOPLE_API_KEY}"
+    character_name_encode = quote(character_name.strip())
+    request_url = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters?characterName={character_name_encode}&apikey={NEOPLE_API_KEY}"
     response_data: dict = general_request_handler_neople(request_url)
     character_list: List[dict] = response_data.get("rows", [])
     character_info = character_list[0] if character_list else None
@@ -775,7 +775,7 @@ def neople_dnf_get_character_id(server_name: str, character_name: str) -> str:
         else:
             raise NeopleAPIError(f"모험가 정보를 찾는데 실패했어양...")
     else:
-        raise NeopleAPIError(f"{server_name}서버 {character_name}모험가 정보를 찾을 수 없어양")
+        raise NeopleDNFInvalidCharacterInfo(f"{server_name}서버 {character_name}모험가 정보를 찾을 수 없어양")
     
 def _mix_seed(base_seed: int, f_cate: str, salt: str) -> int:
     h = hashlib.md5(f"{base_seed}|{f_cate}|{salt}".encode('utf-8')).hexdigest()
