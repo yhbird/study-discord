@@ -1278,15 +1278,17 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
     except NeopleDNFInvalidTimelineParams as e:
         await ctx.send(f"타임라인을 불러오는데 문제가 발생했어양!")
         raise Exception(str(e))
+    except NeopleDNFInvalidCharacterInfo as e:
+        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
 
     character_timeline: dict = timeline_data.get("timeline")
-    if character_timeline.get("rows") == []:
+    timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
+    if len(timeline_rows) == 0:
         await ctx.send(f"이번주에 레전더리 이상 등급의 득템 기록이나, 레이드/레기온 클리어 기록이 없어양!")
         return
     
     else:
         # timeline 시간 내림차순으로 데이터가 정렬되어 있음
-        timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
 
         # 캐릭터 기본 정보 추출
         adventure_name: str = timeline_data.get("adventureName", "몰라양")
@@ -1366,7 +1368,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                 if raid_name == "만들어진 신 나벨":
                     clear_raid_nabel_flag = True
                     clear_raid_nabel_date = timeline_date
-                if raid_name == "안개의 신 무":
+                if raid_name == "아스라한":
                     clear_raid_mu_flag = True
                     clear_raid_mu_date = timeline_date
 
@@ -1411,6 +1413,8 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         # 타임라인 요약 메시지 생성
         if timeline_highlight != "":
             timeline_highlight_str: str = f"**\-\-\- 주간 하이라이트 \-\-\-**\n{timeline_highlight}\n"
+        else:
+            timeline_highlight_str: str = ""
 
         clear_raid_twilight = dnf_get_clear_flag(clear_raid_twilight_flag, locals().get('clear_raid_twilight_date'))
         clear_raid_nabel = dnf_get_clear_flag(clear_raid_nabel_flag, locals().get('clear_raid_nabel_date'))
@@ -1428,9 +1432,9 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
             f"**\-\-\- 레이드 및 레기온 클리어 현황 \-\-\-**\n"
             f"이내 황혼전 클리어: {clear_raid_twilight}\n"
             f"만들어진 신 나벨 클리어: {clear_raid_nabel}\n"
-            f"안개의 신 무 클리어: {clear_raid_mu}\n"
+            f"아스라한 클리어: {clear_raid_mu}\n"
             f"베누스 레기온 클리어: {clear_raid_region}\n"
-            f"\n{timeline_highlight_str}" if timeline_highlight != "" else ""
+            f"\n{timeline_highlight_str}"
         )
 
         timeline_footer: str = (
@@ -1675,7 +1679,7 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
         buffer.seek(0)
 
         # Discord Embed 메시지 생성
-        now_kst: str = datetime.now(tz="Asia/Seoul").strftime("%Y%m%d")
+        now_kst: str = datetime.now(tz=timezone("Asia/Seoul")).strftime("%Y%m%d")
         file = discord.File(buffer, filename=f"{character_ocid}_{now_kst}.png")
         await ctx.send(content=f"캐릭터 생성일: {character_date_create_str}", file=file)
         buffer.close()

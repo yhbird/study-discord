@@ -84,7 +84,8 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20250911-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20250920-{BOT_TOKEN_RUN}"
+BOT_DEVELOPER_ID: int = int(os.getenv('bot_developer_id', '0'))
 
 # matplotlib 한글 폰트 설정
 def set_up_matploylib_korean(font_path: str = "assets/font/NanumGothic.ttf"):

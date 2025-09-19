@@ -2,7 +2,7 @@ import discord
 import gc
 from discord.ext import commands
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, BOT_DEVELOPER_ID
 from service.common import logger
 
 # Matplotlib 한글 폰트 설정
@@ -26,7 +26,8 @@ bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
 @bot.command(name="디버그")
 async def bot_debug(ctx: commands.Context, arg: str = None):
     # 사용자 권한 검사
-    if not ctx.message.author.guild_permissions.administrator:
+    author_info: discord.Member = ctx.message.author
+    if not author_info.guild_permissions.administrator and author_info.id != BOT_DEVELOPER_ID:  # 특정 사용자 예외
         await ctx.send(f"{ctx.message.author.mention}님은 관리자 권한이 없어양! 이 명령어는 관리자만 사용할 수 있어양!")
         return
     else:
