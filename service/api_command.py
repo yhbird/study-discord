@@ -837,6 +837,9 @@ async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
     Raises:
         Exception: 캐릭터 정보 조회 실패 시 발생
     """
+    if ctx.message.author.bot:
+        return
+    
     try:
         ocid = get_ocid(character_name)
         if ocid is not None:
@@ -932,15 +935,12 @@ async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
         await ctx.send(embed=embed)
 
 @log_command
-async def api_weather_v1(ctx: commands.Context, location_name: str) -> commands.Context.send:
-    """현재 지역의 날씨 정보를 가져오는 명령어 v1
+async def api_weather(ctx: commands.Context, location_name: str) -> None:
+    """현재 지역의 날씨 정보, 예보 정보를 가져오는 명령어
 
     Args:
         ctx (commands.Context): Discord 명령어 컨텍스트
-        location_name (str): 날씨 정보를 가져올 지역명/주소
-
-    Returns:
-        discord.ui.Embed: 날씨 정보를 담은 Embed 객체
+        location_name (str): 지역 이름/주소
 
     Raises:
         Exception : 지역정보 조회, 날씨 조회 실패 시 발생
@@ -949,7 +949,6 @@ async def api_weather_v1(ctx: commands.Context, location_name: str) -> commands.
         [지역 정보 조회 API (KAKAO developers)](https://developers.kakao.com/docs/latest/ko/local/dev-guide#search-by-address)
         [날씨 조회 API (Data.go.kr)](https://www.data.go.kr/data/15084084/openapi.do)
     """
-    command_prefix: str = "븜 날씨 "
     if ctx.message.author.bot:
         return
     
@@ -975,91 +974,302 @@ async def api_weather_v1(ctx: commands.Context, location_name: str) -> commands.
     except KKO_NO_LOCAL_INFO as e:
         await ctx.send(f"해당 지역의 정보를 찾을 수 없어양!")
         raise KakaoAPIError(str(e))
-
+    
     try:
         # 날씨 정보 조회
         weather_info = get_weather_info(local_x, local_y)
     except WTH_API_INTERNAL_ERROR:
         await ctx.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
+        raise WeatherAPIError("Internal server error")
     except WTH_API_DATA_ERROR:
         await ctx.send(f"날씨 API 데이터에 문제가 발생했어양!")
+        raise WeatherAPIError("Data error")
     except WTH_API_DATA_NOT_FOUND:
         await ctx.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
+        raise WeatherAPIError("Data not found")
     except WTH_API_HTTP_ERROR:
         await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+        raise WeatherAPIError("HTTP error")
     except WTH_API_TIMEOUT:
         await ctx.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
+        raise WeatherAPIError("Timeout error")
     except WTH_API_INVALID_PARAMS:
         await ctx.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
+        raise WeatherAPIError("Invalid params")
     except WTH_API_INVALID_REGION:
         await ctx.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
+        raise WeatherAPIError("Invalid region")
     except WTH_API_DEPRECATED:
         await ctx.send(f"더 이상 지원되지 않는 기능이에양!")
+        raise WeatherAPIError("Deprecated feature")
     except WTH_API_UNAUTHORIZED:
         await ctx.send(f"날씨 API 서비스 접근 권한이 없어양!")
+        raise WeatherAPIError("Unauthorized access to API")
     except WTH_API_KEY_TEMP_ERROR:
         await ctx.send(f"날씨 API 키가 임시로 제한되었어양!")
+        raise WeatherAPIError("Temporary API key restriction")
     except WTH_API_KEY_LIMIT_EXCEEDED:
         await ctx.send(f"날씨 API 키의 요청 한도를 초과했어양!")
+        raise WeatherAPIError("API key request limit exceeded")
     except WTH_API_KEY_INVALID:
         await ctx.send(f"날씨 API 키가 유효하지 않아양!")
+        raise WeatherAPIError("Invalid API key")
     except WTH_API_KEY_EXPIRED:
         await ctx.send(f"날씨 API 키가 만료되었어양!")
+        raise WeatherAPIError("Expired API key")
     except WeatherAPIError:
         await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
+        raise WeatherAPIError("Weather API error")
     except Exception as e:
         await ctx.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
         raise WeatherAPIError(str(e))
 
-    # 날씨 데이터 전처리
-    weather_data = process_weather_data(weather_info)
-    current_date = weather_data.get('기준시간', '몰라양')
-    current_temp = weather_data.get('기온', '몰라양')
-    current_humidity = weather_data.get('습도', '몰라양')
-    current_wind_speed = weather_data.get('풍속', '몰라양')
-    current_wind_direction = weather_data.get('풍향', '몰라양')
-    current_rain_1h = weather_data.get('1시간강수량_수치')
-    if current_rain_1h == "0":
+    # 날씨 데이터 전처리 - 실황 정보
+    kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))
+    ncst_info: dict = weather_info.get("ncst")
+    ncst_time: str = ncst_info.get("ncst_time", "몰라양")
+
+    # 현재 온도
+    val_temperature: str = ncst_info.get("temperature")
+    if "알수없음" in val_temperature:
+        current_temp: str = "몰라양"
+    else:
+        current_temp: str = f"{val_temperature.strip()}"
+    
+    # 현재 습도
+    val_humidity: str = ncst_info.get("humidity")
+    if "알수없음" in val_humidity:
+        current_humidity: str = "몰라양"
+    else:
+        current_humidity: str = f"{val_humidity.strip()}"
+
+    # 현재 풍속
+    val_wind_speed: str = ncst_info.get("wind_speed") # 0.0 m/s
+    if "알수없음" in val_wind_speed:
+        wind_speed_text: str = "몰라양"
+    else:
+        wind_speed_text: str = f"{val_wind_speed.strip()}"
+        val_wind_speed_float: float = float(val_wind_speed.replace("m/s", "").strip())
+        if val_wind_speed_float >= 4.0 and val_wind_speed_float < 9.0:
+            wind_speed_text: str = f"{val_wind_speed.strip()} (약간 강한 바람)"
+        elif val_wind_speed_float >= 9.0 and val_wind_speed_float < 14.0:
+            wind_speed_text: str = f"{val_wind_speed.strip()} (강한 바람)"
+        elif val_wind_speed_float >= 14.0 and val_wind_speed_float < 20.0:
+            wind_speed_text: str = f"{val_wind_speed.strip()} (매우 강한 바람)"
+        elif val_wind_speed_float >= 20.0:
+            wind_speed_text: str = f"{val_wind_speed.strip()} (폭풍 수준의 바람)"
+            
+    # 현재 풍향
+    val_wind_direction: str = ncst_info.get("wind_direction")
+    if "알수없음" in val_wind_direction:
+        current_wind_direction: str = "몰라양"
+    else:
+        current_wind_direction: str = f"{val_wind_direction.strip()}"
+
+    # 현재 강수 형태
+    val_rain_type: str = ncst_info.get("rainsnow_type")
+    if "알수없음" in val_rain_type:
+        current_rain_type: str = "몰라양"
+    else:
+        current_rain_type: str = f"{val_rain_type.strip()}"
+
+    # 현재 1시간 강수량 (비 또는 눈이 오는 경우 제공)
+    if val_rain_type in ["없음", "알수없음"]:
         current_rain_flag: bool = False
     else:
         current_rain_flag: bool = True
-    
-    # 비가오는 경우 강수 정보 메세지 생성
-    if current_rain_flag:
-        current_rain_type: str = weather_data.get('1시간강수량_정성')
-        current_rain_show: str = weather_data.get('1시간강수량_표시')
-        current_rain_float: float = float(current_rain_1h)
-        if current_rain_float >= 30.0 and current_rain_float < 50.0:
-            current_rain_float_text = "들풍과 천둥, 번개를 동반한 비가 내릴 수 있어양."
-        elif current_rain_float >= 50.0 and current_rain_float < 70.0:
-            current_rain_float_text = "도로가 침수될 수 있고, 차량 운행이 어려울 수 있어양."
-        elif current_rain_float >= 70.0:
-            current_rain_float_text = "심각한 피해가 발생할 수 있어양. 이불 밖은 위험해양!"
-        else:
-            current_rain_float_text = "우산을 챙기세양. 비가 내릴 수 있어양."
-        current_rain_desc: str = (
-            f"현재 1시간 강수량이 {current_rain_1h}mm 이에양.\n"
-            f"{current_rain_float_text}"
-        )
-        current_rain: str = (
-            f"**1시간 강수량**: {current_rain_show} ({current_rain_type})\n"
-        )
-    else:
-        current_rain_desc: str = ""
-        current_rain: str = f""
 
-    # Embed 메시지 생성
-    embed_title: str = f"{local_address_name}의 현재 날씨 정보에양!"
-    embed_description: str = (
+    if current_rain_flag:
+        val_rain_1h: str = ncst_info.get("rain_1h_value")
+        val_rain_1h_desc: str = ncst_info.get("rain_1h_desc")
+        val_rain_1h_float: float = float(val_rain_1h)
+        if val_rain_1h_float >= 30.0 and val_rain_1h_float < 50.0:
+            val_rain_1h_float_text = "들풍과 천둥, 번개를 동반한 비가 내릴 수 있어양."
+        elif val_rain_1h_float >= 50.0 and val_rain_1h_float < 70.0:
+            val_rain_1h_float_text = "도로가 침수될 수 있고, 차량 운행이 어려울 수 있어양."
+        elif val_rain_1h_float >= 70.0:
+            val_rain_1h_float_text = "심각한 피해가 발생할 수 있어양. 이불 밖은 위험해양!"
+        else:
+            val_rain_1h_float_text = "우산을 챙기세양. 비가 내릴 수 있어양."
+
+        current_rain_text: str = (
+            f"현재 1시간 강수량이 {val_rain_1h}mm 이에양.\n"
+            f"{val_rain_1h_float_text}"
+        )
+        current_rain_type: str = f"비 ({val_rain_1h_desc})"
+    else:
+        current_rain_text: str = ""
+    # 실황 정보 메세지 생성
+    ncst_hhmm: str = kst_now.strftime("%H:%M")
+    ncst_head: str = f"📍 현재 날씨 정보 ({ncst_hhmm})\n" # HH:MM
+    ncst_text: str = (
+        f"{ncst_head}"
         f"**현재 기온**: {current_temp}\n"
         f"**현재 습도**: {current_humidity}\n"
-        f"**현재 풍속**: ({current_wind_direction}풍) {current_wind_speed}\n"
-        f"**강수 여부**: {weather_data['강수형태']}\n"
-        f"{current_rain}"
+        f"**현재 풍속**: {current_wind_direction}풍 {wind_speed_text}\n"
+        f"**강수 형태**: {current_rain_type}\n"
+    )
+
+    # 날씨 데이터 전처리 - 예보 정보
+    fcst_info: dict = weather_info.get("fcst")
+    fcst_time: str = fcst_info.get("fcst_time", "몰라양")
+
+    # N시간 후 예보 정보 설정
+    time_interval_hour_t1: int = 2
+    time_interval_hour_t2: int = 4
+
+    fcst_base_time: datetime = kst_now.replace(minute=0, second=0, microsecond=0)
+    after_t1_time: datetime = fcst_base_time + timedelta(hours=time_interval_hour_t1)
+    after_t1_time_str: str = after_t1_time.strftime("%Y%m%d-%H%M")
+    after_t2_time: datetime = fcst_base_time + timedelta(hours=time_interval_hour_t2)
+    after_t2_time_str: str = after_t2_time.strftime("%Y%m%d-%H%M")
+
+    # "SKY" : 하늘상태 (0~5: 맑음, 6~8: 구름많음, 9~10: 흐림)
+    fcst_sky: list[dict] = fcst_info.get("SKY", [])
+    if fcst_sky:
+        fcst_sky_text_t1: str = ""
+        fcst_sky_text_t2: str = ""
+        for sky in fcst_sky:
+            fcst_datetime_str: str = sky.get("fcst_datetime_str")
+            # t1/t2 시간 후 예보만 추출
+            if fcst_datetime_str == after_t1_time_str:
+                val_sky_t1: str = sky.get("value", "몰라양")
+                imo_sky_t1: str = get_sky_icon(val_sky_t1)
+                fcst_sky_text_t1: str = f"**하늘 상태**: {imo_sky_t1}\n"
+            elif fcst_datetime_str == after_t2_time_str:
+                val_sky_t2: str = sky.get("value", "몰라양")
+                imo_sky_t2: str = get_sky_icon(val_sky_t2)
+                fcst_sky_text_t2: str = f"**하늘 상태**: {imo_sky_t2}\n"
+    else:
+        fcst_sky_text_t1: str = ""
+        fcst_sky_text_t2: str = ""
+
+    # T1H : 기온 (단위: ℃)
+    fcst_t1h: list[dict] = fcst_info.get("T1H", [])
+    if fcst_t1h:
+        fcst_t1h_text_t1: str = ""
+        fcst_t1h_text_t2: str = ""
+        for t1h in fcst_t1h:
+            fcst_datetime_str: str = t1h.get("fcst_datetime_str")
+            # t1/t2 시간 후 예보만 추출
+            if fcst_datetime_str == after_t1_time_str:
+                val_t1h_t1: str = t1h.get("value", "몰라양")
+                fcst_t1h_text_t1 = f"**기온**: {val_t1h_t1}℃\n"
+            elif fcst_datetime_str == after_t2_time_str:
+                val_t1h_t2: str = t1h.get("value", "몰라양")
+                fcst_t1h_text_t2 = f"**기온**: {val_t1h_t2}℃\n"
+    else:
+        fcst_t1h_text_t1: str = ""
+        fcst_t1h_text_t2: str = ""
+
+    # REH : 습도 (단위: %)
+    fcst_reh: list[dict] = fcst_info.get("REH", [])
+    if fcst_reh:
+        fcst_reh_text_t1: str = ""
+        fcst_reh_text_t2: str = ""
+        for reh in fcst_reh:
+            fcst_datetime_str: str = reh.get("fcst_datetime_str")
+            # t1/t2 시간 후 예보만 추출
+            if fcst_datetime_str == after_t1_time_str:
+                val_reh_t1: str = reh.get("value", "몰라양")
+                fcst_reh_text_t1 = f"**습도**: {val_reh_t1}%\n"
+            elif fcst_datetime_str == after_t2_time_str:
+                val_reh_t2: str = reh.get("value", "몰라양")
+                fcst_reh_text_t2 = f"**습도**: {val_reh_t2}%\n"
+    else:
+        fcst_reh_text_t1: str = ""
+        fcst_reh_text_t2: str = ""
+
+    # VEC / WSD : 풍향 / 풍속
+    fcst_vec: list[dict] = fcst_info.get("VEC", [])
+    fcst_wsd: list[dict] = fcst_info.get("WSD", [])
+    if fcst_vec and fcst_wsd:
+        fcst_wind_text_t1: str = ""
+        fcst_wind_text_t2: str = ""
+        for vec, wsd in zip(fcst_vec, fcst_wsd):
+            fcst_datetime_str: str = vec.get("fcst_datetime_str")
+            # t1/t2 시간 후 예보만 추출
+            if fcst_datetime_str == after_t1_time_str:
+                val_vec_t1: str = vec.get("value", "몰라양")
+                val_vec_t1_text: str = f"{get_wind_direction(val_vec_t1)}"
+                val_wsd_t1: str = wsd.get("value", "몰라양") # 단위: m/s
+                val_wsd_t1_float: float = float(val_wsd_t1)
+                if val_wsd_t1_float >= 4.0 and val_wsd_t1_float < 9.0:
+                    val_wsd_t1_text: str = f"{val_wsd_t1}m/s (약간 강한 바람)"
+                elif val_wsd_t1_float >= 9.0 and val_wsd_t1_float < 14.0:
+                    val_wsd_t1_text: str = f"{val_wsd_t1}m/s (강한 바람)"
+                elif val_wsd_t1_float >= 14.0 and val_wsd_t1_float < 20.0:
+                    val_wsd_t1_text: str = f"{val_wsd_t1}m/s (매우 강한 바람)"
+                elif val_wsd_t1_float >= 20.0:
+                    val_wsd_t1_text: str = f"{val_wsd_t1}m/s (폭풍 수준의 바람)"
+                else:
+                    val_wsd_t1_text: str = f"{val_wsd_t1}m/s"
+                fcst_wind_text_t1 = f"**풍속**: {val_vec_t1_text}풍 {val_wsd_t1_text}\n"
+            elif fcst_datetime_str == after_t2_time_str:
+                val_vec_t2: str = vec.get("value", "몰라양")
+                val_vec_t2_text: str = f"{get_wind_direction(val_vec_t2)}"
+                val_wsd_t2: str = wsd.get("value", "몰라양")
+                val_wsd_t2_float: float = float(val_wsd_t2)
+                if val_wsd_t2_float >= 4.0 and val_wsd_t2_float < 9.0:
+                    val_wsd_t2_text: str = f"{val_wsd_t2}m/s (약간 강한 바람)"
+                elif val_wsd_t2_float >= 9.0 and val_wsd_t2_float < 14.0:
+                    val_wsd_t2_text: str = f"{val_wsd_t2}m/s (강한 바람)"
+                elif val_wsd_t2_float >= 14.0 and val_wsd_t2_float < 20.0:
+                    val_wsd_t2_text: str = f"{val_wsd_t2}m/s (매우 강한 바람)"
+                elif val_wsd_t2_float >= 20.0:
+                    val_wsd_t2_text: str = f"{val_wsd_t2}m/s (폭풍 수준의 바람)"
+                else:
+                    val_wsd_t2_text: str = f"{val_wsd_t2}m/s"
+                fcst_wind_text_t2 += f"**풍속**: {val_vec_t2_text}풍 {val_wsd_t2_text}\n"
+    else:
+        fcst_wind_text_t1: str = ""
+        fcst_wind_text_t2: str = ""
+
+    if fcst_sky_text_t1 == "" and fcst_t1h_text_t1 == "" and fcst_reh_text_t1 == "" and fcst_wind_text_t1 == "":
+        after_text_t1: str = f"--- {time_interval_hour_t1}시간 후 예보 정보가 없어양 ---\n"
+    else:
+        after_head_t1_time: str = (
+            after_t1_time.strftime("%H:%M") 
+            if fcst_base_time.day == after_t1_time.day
+            else after_t1_time.strftime("%m/%d %H:%M")
+        )
+        after_head_t1: str = f"--- {time_interval_hour_t1}시간 후 예보 ({after_head_t1_time}) ---\n"
+        after_text_t1: str = (
+            f"{after_head_t1}"
+            f"{get_fcst_text(fcst_sky_text_t1)}"
+            f"{get_fcst_text(fcst_t1h_text_t1)}"
+            f"{get_fcst_text(fcst_reh_text_t1)}"
+            f"{get_fcst_text(fcst_wind_text_t1)}"
+        )
+    if fcst_sky_text_t2 == "" and fcst_t1h_text_t2 == "" and fcst_reh_text_t2 == "" and fcst_wind_text_t2 == "":
+        after_text_t2: str = f"--- {time_interval_hour_t2}시간 후 예보 정보가 없어양 ---\n"
+    else:
+        after_head_t2_time: str = (
+            after_t2_time.strftime("%H:%M") 
+            if fcst_base_time.day == after_t2_time.day
+            else after_t2_time.strftime("%m/%d %H:%M")
+        )
+        after_head_t2: str = f"--- {time_interval_hour_t2}시간 후 예보 ({after_head_t2_time}) ---\n"
+        after_text_t2: str = (
+            f"{after_head_t2}"
+            f"{get_fcst_text(fcst_sky_text_t2)}"
+            f"{get_fcst_text(fcst_t1h_text_t2)}"
+            f"{get_fcst_text(fcst_reh_text_t2)}"
+            f"{get_fcst_text(fcst_wind_text_t2)}"
+        )
+
+    # embed 메시지 생성
+    embed_title: str = f"{local_address_name}의 날씨 정보에양!"
+    embed_description: str = (
+        f"{ncst_text}\n"
+        f"{after_text_t1}\n"
+        f"{after_text_t2}"
     )
     embed_footer: str = (
-        f"정보 제공: Kakao Local API | Data.go.kr\n"
-        f"제공 날짜: {current_date}\n(날씨 정보 10분 단위 갱신)\n"
+        f"위치/날씨 정보 제공: Kakao Local API / 기상청 API (Data.go.kr)\n"
+        f"현재 날씨 시간: {ncst_time}\n"
+        f"예보 발표 시간: {fcst_time}\n"
+        "(날씨 정보는 10분 단위, 예보 정보는 30분 단위로 갱신해양)"
     )
 
     embed = discord.Embed(
@@ -1068,9 +1278,9 @@ async def api_weather_v1(ctx: commands.Context, location_name: str) -> commands.
         color=discord.Colour.from_rgb(135, 206, 235)  # 하늘색
     )
     embed.set_footer(text=embed_footer)
-    
+
     if current_rain_flag:
-        await ctx.send(embed=embed, content=current_rain_desc)
+        await ctx.send(embed=embed, content=current_rain_text)
     else:
         await ctx.send(embed=embed)
 
@@ -1089,6 +1299,9 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     Raises:
         NeopleAPIError: 던전앤파이터 API 요청 중 발생하는 오류
     """
+    if ctx.message.author.bot:
+        return
+    
     # 캐릭터 고유 ID 조회
     try:
         character_id = neople_dnf_get_character_id(server_name, character_name)
@@ -1118,7 +1331,6 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
 
     # 캐릭터 정보 조회
     try:
-        print(f"{character_id=}")
         request_url = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters/{character_id}?apikey={NEOPLE_API_KEY}"
         character_info: dict = general_request_handler_neople(request_url)
     except NeopleAPIError as e:
@@ -1295,6 +1507,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         level: int = timeline_data.get("level", 0)
         job_name: str = timeline_data.get("jobName", "몰라양")
         job_grow_name: str = timeline_data.get("jobGrowName", "몰라양")
+        fame: int = timeline_data.get("fame", 0)
 
         # timeline 데이터 생성
         timeline_title: str = f"{server_name}서버 '{character_name}' 모험가님의 이번주 주간던파에양!"
@@ -1424,7 +1637,8 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         timeline_summary: str = (
             f"모험단명: {adventure_name}\n"
             f"레벨: {level}\n"
-            f"직업: {job_name}, {job_grow_name}\n\n"
+            f"직업: {job_name}, {job_grow_name}\n"
+            f"명성: {fame:,}\n\n"
             f"**\-\-\- 이번주 장비 획득 \-\-\-**\n"
             f"🟢 태초 획득: {get_primeval_count}개\n"
             f"🟡 에픽 획득: {get_epic_count}개 (융합석 업글 {get_epic_up_count}회)\n"
