@@ -1,118 +1,24 @@
-import inspect
 import logging
-from logging import Logger
-from functools import wraps
-
-from datetime import datetime
-from dateutil import parser
-from pytz import timezone
-
 import time
 import traceback
-import config 
 
-class kst_formatter(logging.Formatter):
-    """logging.Formatter이 KST 포맷을 사용하도록 커스텀
+from logging import Logger
+from functools import wraps
+import inspect
 
-    Args:
-        logging (Formatter): 기본 logging.Formatter 클래스
-        dtformat (str): 날짜 포맷 문자열, 기본값은 '%Y-%md-%d %H:%M:%S'
+import config as config 
+from utils.time import KstFormatter
+from exceptions.base import BotWarning
 
-    Returns:
-        str: KST로 포맷된 날짜 문자열
-    """
-    def format_time(self, record, dtformat=None):
-        kst = timezone('Asia/Seoul')
-        dt = datetime.fromtimestamp(record.created, tz=kst)
-        if dtformat:
-            return dt.strftime(dtformat)
-        else:
-            return dt.strftime('%Y-%m-%d %H:%M:%S')
-    
 # Logger configuration
 logger: Logger = logging.getLogger('discord_bot_logger')
 logger.setLevel(logging.INFO)
-formatter = kst_formatter('[%(asctime)s] %(levelname)s : %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+formatter = KstFormatter('[%(asctime)s] %(levelname)s : %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Base Exception Class
-class BotBaseException(Exception):
-    """Bot 기본 예외 클래스"""
-    def __init__(self, message: str = "알수 없는 오류가 발생 했어양"):
-        super().__init__(message)
-        self.message = message
-
-class BotConfigFailed(BotBaseException):
-    """봇 설정 실패"""
-    def __init__(self, message: str = "봇 설정을 불러오는 데 실패했어양"):
-        super().__init__(message)
-        self.message = message
-
-class BotCommandError(BotBaseException):
-    """명령어 실행 중 오류 발생"""
-    def __init__(self, message: str = "명령어 실행 중 오류가 발생 했어양"):
-        super().__init__(message)
-        self.message = message
-
-class BotCommandInvalidError(BotBaseException):
-    """명령어 유효성 검사 실패"""
-    def __init__(self, message: str = "명령어를 잘못 사용했어양"):
-        super().__init__(message)
-        self.message = message
-
-class BotCommandResponseError(BotBaseException):
-    """명령어 응답 처리 중 오류 발생"""
-    def __init__(self, message: str = "명령어 응답 처리 중 오류가 발생 했어양"):
-        super().__init__(message)
-        self.message = message
-
-class BotWarning(Exception):
-    """작업을 중단하지 않고 경고 메시지를 표시할 때 사용"""
-    pass
-
-def safe_float(input_val, digits: int = 2) -> str:
-    try:
-        return f"{float(input_val):.{digits}f}"
-    except (ValueError, TypeError):
-        return "몰라양"
-    
-def safe_percent(input_val, digits: int = 2) -> str:
-    try:
-        return f"{float(input_val) * 100:.{digits}f} %"
-    except (ValueError, TypeError):
-        return "몰라양"
-    
-def preprocess_int_with_korean(input_val: str) -> str:
-    """숫자로된 문자열을 한글 단위로 변환
-
-    Args:
-        input_val (str): 숫자로된 문자열, 예: "209558569"
-
-    Returns:
-        str: 한글 단위로 변환된 문자열, 예: "2억 9558만 8569"
-    """
-    if isinstance(input_val, str):
-        input_val: str = input_val.replace(',', '').replace(' ', '')
-    if int(input_val) >= 100_000_000:
-        str_100m: str = f"{input_val[:-8]}억" # 억
-        str_10k: str = f"{input_val[-8:-4]}만" # 만
-        str_floor: str = f"{input_val[-4:]}" # 그 이하
-        if str_10k == "0000만":
-            str_10k = ""
-        if str_floor == "0000":
-            str_floor = ""
-        return f"{str_100m} {str_10k} {str_floor}".strip()
-    elif int(input_val) >= 10_000:
-        str_10k: str = f"{input_val[:-4]}만"
-        str_floor: str = f"{input_val[-4:]}" # 그 이하
-        if str_floor == "0000":
-            str_floor = ""
-        return f"{str_10k} {str_floor}".strip()
-    else:
-        return input_val
 
 SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
 
@@ -256,24 +162,3 @@ def log_command(func):
             logger.error(f"{errr_log}")
             raise
     return wrapper
-
-def parse_iso_string(iso_string: str) -> str:
-    """국제기준(ISO) 날짜 문자열을 KST로 변환
-
-    Args:
-        date_str (str): 변환할 날짜 문자열
-
-    Returns:
-        str: KST로 변환된 날짜 문자열
-
-    Example:
-        ```python
-        date_str = "2025-07-21T17:30+09:00"
-        kst_date = date_to_kst(date_str)
-        print(kst_date)  # "2025-07-21 17:30:00"
-        ```"
-    """
-    dt = parser.isoparse(iso_string)
-    kst = timezone('Asia/Seoul')
-    return_string = f"{dt.year}년 {dt.month}월 {dt.day}일 {dt.hour}:{dt.minute:02d} (KST)"
-    return return_string

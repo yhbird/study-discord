@@ -1,194 +1,183 @@
-"""api_exceptions.py
+from exceptions.base import ClientBaseException
 
-API 관련 예외 처리 모듈
-
-api_command.py / api_utils.py에서 사용되는 예외 클래스 정의
-
-"""
-from service.common import (
-    BotBaseException, 
-    BotCommandError, 
-    BotCommandInvalidError, 
-    BotCommandResponseError
-)
-
-class NexonAPIError(BotBaseException):
+class NexonAPIError(ClientBaseException):
     """Nexon API 사용 중 발생하는 오류"""
     pass
 
-class NexonAPIBadRequest(NexonAPIError):
+class NexonAPIBadRequest(ClientBaseException):
     """Nexon API Bad Request 오류"""
     def __init__(self, message: str = "Nexon API 요청이 잘못 되었어양"):
         super().__init__(message)
         self.message = message
 
-class NexonAPIForbidden(NexonAPIError):
+class NexonAPIForbidden(ClientBaseException):
     """Nexon API Forbidden 오류"""
     def __init__(self, message: str = "Nexon API 접근 권한이 없어양"):
         super().__init__(message)
         self.message = message
 
-class NexonAPITooManyRequests(NexonAPIError):
+class NexonAPITooManyRequests(ClientBaseException):
     """Nexon API Too Many Requests 오류"""
     def __init__(self, message: str = "Nexon API 요청이 너무 많아양"):
         super().__init__(message)
         self.message = message
 
-class NexonAPIServiceUnavailable(NexonAPIError):
+class NexonAPIServiceUnavailable(ClientBaseException):
     """Nexon API Service Unavailable 오류"""
     def __init__(self, message: str = "Nexon API 서비스가 사용 불가능 해양"):
         super().__init__(message)
         self.message = message
 
-class NexonAPIOCIDNotFound(NexonAPIError):
+class NexonAPIOCIDNotFound(ClientBaseException):
     """Nexon API OCID Not Found 오류"""
     def __init__(self, message: str = "Nexon API에서 OCID를 찾을 수 없어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIError(BotBaseException):
+
+class NeopleAPIError(ClientBaseException):
     """Neople API 사용 중 발생하는 오류"""
     pass
 
-class NeopleAPIKeyMissing(NeopleAPIError):
+class NeopleAPIKeyMissing(ClientBaseException):
     """Neople API Key 미입력 (API000)"""
     def __init__(self, message: str = "네오플 API 키가 입력되지 않거나 잘못되었어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIInvalidId(NeopleAPIError):
+class NeopleAPIInvalidId(ClientBaseException):
     """Neople API 유효하지 않은 게임아이디 (API001)"""
     def __init__(self, message: str = "유효하지 않은 게임아이디를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPILimitExceed(NeopleAPIError):
+class NeopleAPILimitExceed(ClientBaseException):
     """Neople API 요청 제한 초과 (API002)"""
     def __init__(self, message: str = "네오플 API 요청 제한을 초과했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIInvalidAPIkey(NeopleAPIError):
+class NeopleAPIInvalidAPIkey(ClientBaseException):
     """Neople API 잘못된 API 키 (API003)"""
     def __init__(self, message: str = "유효하지 않은 API 키를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIBlockedAPIKey(NeopleAPIError):
+class NeopleAPIBlockedAPIKey(ClientBaseException):
     """Neople API 차단된 API 키 (API004)"""
     def __init__(self, message: str = "차단된 네오플 API 키를 사용하고 있어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIWrongGameKey(NeopleAPIError):
+class NeopleAPIWrongGameKey(ClientBaseException):
     """Neople API 잘못된 게임 키 (API005)"""
     def __init__(self, message: str = "다른 게임의 네오플 API를 호출했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIInvalidParams(NeopleAPIError):
+class NeopleAPIInvalidParams(ClientBaseException):
     """Neople API 잘못된 파라미터 (API006)"""
     def __init__(self, message: str = "잘못된 API 요청 파라미터를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIClientSocketError(NeopleAPIError):
+class NeopleAPIClientSocketError(ClientBaseException):
     """Neople API 클라이언트 소켓 오류 (API007)"""
     def __init__(self, message: str = "네오플 API와 통신 중에 오류가 발생했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIInvalidURL(NeopleAPIError):
+class NeopleAPIInvalidURL(ClientBaseException):
     """Neople API 잘못된 URL (API900)"""
     def __init__(self, message: str = "잘못된 API 요청 URL을 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPIInvalidRequestParams(NeopleAPIError):
+class NeopleAPIInvalidRequestParams(ClientBaseException):
     """Neople API 잘못된 요청 파라미터 (API901)"""
     def __init__(self, message: str = "잘못된 API 요청 파라미터를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleAPISystemError(NeopleAPIError):
+class NeopleAPISystemError(ClientBaseException):
     """Neople API 시스템 오류 (API999)"""
     def __init__(self, message: str = "네오플 API 시스템 오류가 발생했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidServerID(NeopleAPIError):
+class NeopleDNFInvalidServerID(ClientBaseException):
     """Neople API 유효하지 않은 서버 ID (DNF000)"""
     def __init__(self, message: str = "잘못된 서버명(ID)를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidCharacterInfo(NeopleAPIError):
+class NeopleDNFInvalidCharacterInfo(ClientBaseException):
     """Neople API 유효하지 않은 캐릭터 정보 (DNF001)"""
     def __init__(self, message: str = "잘못된 캐릭터 정보를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidItemInfo(NeopleAPIError):
+class NeopleDNFInvalidItemInfo(ClientBaseException):
     """Neople API 유효하지 않은 아이템 정보 (DNF003)"""
     def __init__(self, message: str = "잘못된 아이템 정보를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidAuctionInfo(NeopleAPIError):
+class NeopleDNFInvalidAuctionInfo(ClientBaseException):
     """Neople API 유효하지 않은 경매장 정보 (DNF004)"""
     def __init__(self, message: str = "잘못된 경매장 정보를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidSkillInfo(NeopleAPIError):
+class NeopleDNFInvalidSkillInfo(ClientBaseException):
     """Neople API 유효하지 않은 스킬 정보 (DNF005)"""
     def __init__(self, message: str = "잘못된 스킬 정보를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidTimelineParams(NeopleAPIError):
+class NeopleDNFInvalidTimelineParams(ClientBaseException):
     """Neople API 유효하지 않은 타임라인 검색 시간 파라미터 (DNF006)"""
     def __init__(self, message: str = "타임라인을 불러오는데 문제가 발생했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFSearchAuctionItemOptionException(NeopleAPIError):
+class NeopleDNFSearchAuctionItemOptionException(ClientBaseException):
     """Neople API 경매장 아이템 검색 갯수 제한 (DNF007)"""
     def __init__(self, message: str = "경매장 아이템 검색 갯수 제한에 걸렸어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFSearchAuctionMultipleItemOptionException(NeopleAPIError):
+class NeopleDNFSearchAuctionMultipleItemOptionException(ClientBaseException):
     """Neople API 다중 아이템 검색 갯수 제한 (DNF008)"""
     def __init__(self, message: str = "다중 아이템 검색 갯수 제한에 걸렸어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFSearchAvatarMarketOptionException(NeopleAPIError):
+class NeopleDNFSearchAvatarMarketOptionException(ClientBaseException):
     """Neople API 아바타 마켓 검색 갯수 제한 (DNF009)"""
     def __init__(self, message: str = "아바타 마켓 검색 갯수 제한에 걸렸어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidURL(NeopleAPIError):
+class NeopleDNFInvalidURL(ClientBaseException):
     """Neople API 유효하지 않은 URL (DNF900)"""
     def __init__(self, message: str = "잘못된 API 요청 URL을 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFInvalidRequestParams(NeopleAPIError):
+class NeopleDNFInvalidRequestParams(ClientBaseException):
     """Neople API 유효하지 않은 요청 파라미터 (DNF901)"""
     def __init__(self, message: str = "잘못된 API 요청 파라미터를 입력했어양"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFSystemMaintenance(NeopleAPIError):
+class NeopleDNFSystemMaintenance(ClientBaseException):
     """Neople API 서비스 점검중 (DNF980)"""
     def __init__(self, message: str = "던파 서비스 점검 중이에양!"):
         super().__init__(message)
         self.message = message
 
-class NeopleDNFSystemError(NeopleAPIError):
+class NeopleDNFSystemError(ClientBaseException):
     """Neople API 시스템 오류 (DNF999)"""
     def __init__(self, message: str = "던파 API 시스템 오류가 발생했어양"):
         super().__init__(message)
@@ -262,81 +251,81 @@ def neople_api_error_handler(error_code: str) -> None:
         raise NeopleDNFSystemError(error_code)
     else:
         raise NeopleAPIError(f"Unknown Neople API error code: {error_code}")
+    
 
-class KakaoAPIError(BotBaseException):
+class KakaoAPIError(ClientBaseException):
     """Kakao API 사용 중 발생하는 오류"""
     pass
 
-class KKO_NO_LOCAL_INFO(KakaoAPIError):
+class KakaoNoLocalInfo(ClientBaseException):
     """카카오 로컬 API 지역정보 검색결과 없음"""
     def __init__(self, message: str = "Kakao API에서 지역 정보를 찾을 수 없어양"):
         super().__init__(message)
         self.message = message
 
-class KKO_LOCAL_API_ERROR(KakaoAPIError):
+class KKO_LOCAL_API_ERROR(ClientBaseException):
     """카카오 로컬 API 관련 오류"""
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
 
-
-class WeatherAPIError(BotBaseException):
+class WeatherAPIError(ClientBaseException):
     """날씨 API 사용 중 발생하는 오류"""
     pass
 
-class WTH_API_INTERNAL_ERROR(WeatherAPIError):
+class WTH_API_INTERNAL_ERROR(ClientBaseException):
     """날씨 API 내부 오류"""
     pass
 
-class WTH_API_DATA_ERROR(WeatherAPIError):
+class WTH_API_DATA_ERROR(ClientBaseException):
     """날씨 API 데이터 오류"""
     pass
 
-class WTH_API_DATA_NOT_FOUND(WeatherAPIError):
+class WTH_API_DATA_NOT_FOUND(ClientBaseException):
     """날씨 API 데이터 없음"""
     pass
 
-class WTH_API_HTTP_ERROR(WeatherAPIError):
+class WTH_API_HTTP_ERROR(ClientBaseException):
     """날씨 API 잘못된 요청"""
     pass
 
-class WTH_API_TIMEOUT(WeatherAPIError):
+class WTH_API_TIMEOUT(ClientBaseException):
     """날씨 API 타임아웃 오류"""
     pass
 
-class WTH_API_INVALID_PARAMS(WeatherAPIError):
+class WTH_API_INVALID_PARAMS(ClientBaseException):
     """날씨 API 잘못된 파라미터"""
     pass
 
-class WTH_API_INVALID_REGION(WeatherAPIError):
+class WTH_API_INVALID_REGION(ClientBaseException):
     """날씨 API 잘못된 지역"""
     pass
 
-class WTH_API_DEPRECATED(WeatherAPIError):
+class WTH_API_DEPRECATED(ClientBaseException):
     """날씨 API 사용 중단"""
     pass
 
-class WTH_API_UNAUTHORIZED(WeatherAPIError):
+class WTH_API_UNAUTHORIZED(ClientBaseException):
     """날씨 API 서비스 접근 거부"""
     pass
 
-class WTH_API_KEY_TEMP_ERROR(WeatherAPIError):
+class WTH_API_KEY_TEMP_ERROR(ClientBaseException):
     """날씨 API 키 일시적 오류"""
     pass
 
-class WTH_API_KEY_LIMIT_EXCEEDED(WTH_API_KEY_TEMP_ERROR):
+class WTH_API_KEY_LIMIT_EXCEEDED(ClientBaseException):
     """날씨 API 키 요청 제한 초과"""
     pass
 
-class WTH_API_KEY_INVALID(WeatherAPIError):
+class WTH_API_KEY_INVALID(ClientBaseException):
     """날씨 API 잘못된 API 키 사용"""
     pass
 
-class WTH_API_KEY_EXPIRED(WeatherAPIError):
+class WTH_API_KEY_EXPIRED(ClientBaseException):
     """날씨 API API 키 만료"""
     pass
 
-class WTH_API_OTHER_ERROR(WeatherAPIError):
+class WTH_API_OTHER_ERROR(ClientBaseException):
     """날씨 API 기타 오류"""
     pass
 
@@ -396,3 +385,31 @@ def weather_exception_handler(error_code: str, exception_msg: str) -> None:
         raise WTH_API_OTHER_ERROR(exception_msg)
     else:
         raise WeatherAPIError(f"Unknown error code: {error_code}, message: {exception_msg}")
+    
+class YFinanceAPIError(ClientBaseException):
+    """YFinance API 사용 중 발생하는 오류"""
+    pass
+
+class STKException(YFinanceAPIError):
+    """주식 관련 예외 클래스"""
+    def __init__(self, message: str = "주식 관련 오류가 발생했어양"):
+        super().__init__(message)
+        self.message = message
+
+class YFI_NO_RATE_WARNING(YFinanceAPIError):
+    """환율 정보를 찾을 수 없는 예외
+    
+    경고 메시지로 처리되며, 명령어 실행을 중단하지 않음
+    """
+    pass
+
+class YFI_STOCK_FETCH_RATE(YFinanceAPIError):
+    """환율 정보를 가져오는 데 실패한 예외
+    
+    경고 메시지로 처리되며, 명령어 실행을 중단하지 않음
+    """
+    pass
+
+class YFI_NO_TICKER(YFinanceAPIError):
+    """티커 정보를 찾을 수 없는 예외"""
+    pass
