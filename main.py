@@ -92,7 +92,7 @@ async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
 
 @bot.command(name="날씨")
 async def run_api_weather(ctx: commands.Context, location: str):
-    await api_command.api_weather_v1(ctx, location)
+    await api_command.api_weather(ctx, location)
 
 @bot.command(name="던파정보")
 async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):
