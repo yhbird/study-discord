@@ -519,15 +519,161 @@ def get_local_info(local_name: str) -> dict:
             return local_info[0]
         
 
+def process_weather_ncst(raw: dict) -> dict:
+    """기상청 API로부터 받은 초단기실황 데이터를 전처리하는 함수
+
+    Args:
+        raw (dict): 기상청 API로부터 받은 초단기실황 데이터
+
+    Returns:
+        dict: 전처리된 날씨 정보
+    """
+    ncst_local_data: List[dict] = raw.get("item", [])
+    ncst_data: dict = {}
+
+    for item in ncst_local_data:
+        # 자료구분 코드 (PTY, REH, RN1, T1H, UUU, VVV, VEC, WSD)
+        category: str = item.get("category")
+        value: str = item.get("obsrValue")
+        ncst_data[category] = value
+
+    # 발표일자 및 시각
+    base_date: str = (
+        str(item.get('baseDate'))
+        if item.get('baseDate') is not None
+        else '알수없음'
+    )
+    base_time: str = (
+        str(item.get('baseTime'))
+        if item.get('baseTime') is not None
+        else '알수없음'
+    )
+    base_date_ymd: str = f"{base_date[:4]}년 {base_date[4:6]}월 {base_date[6:]}일"
+    base_time_hm: str = f"{base_time[:2]}시 {base_time[2:]}분"
+
+    # 전처리 결과 데이터 생성
+    return_data: dict = {}
+    return_data["ncst_time"] = f"{base_date_ymd} {base_time_hm}"
+
+    # PTY: 강수 형태 코드
+    rainsnow_flag: str = ncst_data.get("PTY", "몰라양")
+    return_data["rainsnow_type"] = rainsnow_flag
+    if rainsnow_flag == "0":
+        return_data["rainsnow_type"] = "없음"
+    elif rainsnow_flag == "1":
+        return_data["rainsnow_type"] = "비"
+    elif rainsnow_flag == "2":
+        return_data["rainsnow_type"] = "비/눈"
+    elif rainsnow_flag == "3":
+        return_data["rainsnow_type"] = "눈"
+    elif rainsnow_flag == "5":
+        return_data["rainsnow_type"] = "빗방울"
+    elif rainsnow_flag == "6":
+        return_data["rainsnow_type"] = "빗방울/눈날림"
+    elif rainsnow_flag == "7":
+        return_data["rainsnow_type"] = "눈날림"
+    else:
+        return_data["rainsnow_type"] = "알수없음"
+
+    # REH: 습도 (%)
+    return_data["humidity"] = f"{ncst_data.get('REH', '알수없음')}%"
+
+    # RN1: 1시간 강수량 (mm)
+    rains: str = ncst_data.get('RN1', '알수없음')
+    return_data["rain_1h_value"] = rains
+
+    if rains == "0":
+        return_data["rain_1h_desc"] = "없음"
+    else:
+        rains_float: float = float(rains)
+        if rains_float < 3.0:
+            return_data["rain_1h_desc"] = "약한 비"
+        elif rains_float < 15.0:
+            return_data["rain_1h_desc"] = "보통 비"
+        elif rains_float < 30.0:
+            return_data["rain_1h_desc"] = "강한 비"
+        elif rains_float < 50.0:
+            return_data["rain_1h_desc"] = "매우 강한 비"
+        else:
+            return_data["rain_1h_desc"] = "⚠️ 폭우 ⚠️"
+
+    # T1H: 기온 (℃)
+    return_data["temperature"] = f"{ncst_data.get('T1H', '알수없음')}℃"
+
+    # VEC: 풍향 (도, deg), WSD: 풍속 (m/s)
+    vec: str = ncst_data.get('VEC', '알수없음')
+    wsd: str = ncst_data.get('WSD', '알수없음')
+    if vec == "999":
+        return_data["wind_direction"] = "알수없음"
+    else:
+        return_data["wind_direction"] = get_wind_direction(wind_degree=float(vec))
+
+    if wsd == "-998.9":
+        return_data["wind_speed"] = "알수없음"
+    else:
+        return_data["wind_speed"] = f"{wsd} m/s"
+
+    return return_data
+
+
+def process_weather_fcst(raw: dict) -> dict:
+    """기상청 API로부터 받은 초단기예보 데이터를 전처리하는 함수
+
+    Args:
+        raw (dict): 기상청 API로부터 받은 초단기예보 데이터
+
+    Returns:
+        dict: 전처리된 날씨 정보
+    """
+    fcst_local_data: List[dict] = raw.get("item", [])
+    fcst_data: dict = {}
+
+    for item in fcst_local_data:
+        # 자료구분 코드 (PTY, REH, RN1, T1H, UUU, VVV, VEC, WSD, SKY)
+        catgeory_check: str = item.get("category")
+        if not fcst_data or catgeory_check not in fcst_data:
+            fcst_data[catgeory_check] = []
+        
+        value: str = item.get("fcstValue")
+        fcst_datetime_str: str = f"{item.get('fcstDate')}-{item.get('fcstTime')}"
+        fcst_datetime: datetime = datetime.strptime(fcst_datetime_str, '%Y%m%d-%H%M')
+        item_data: dict = {
+            "fcst_datetime_str": fcst_datetime_str,
+            "fcst_datetime": fcst_datetime,
+            "value": value
+        }
+        try:
+            fcst_data[catgeory_check].append(item_data)
+        except KeyError:
+            fcst_data[catgeory_check] = [item_data]
+
+    # 기준 일자 및 시각
+    base_date: str = (
+        str(item.get('baseDate'))
+        if item.get('baseDate') is not None
+        else '알수없음'
+    )
+    base_time: str = (
+        str(item.get('baseTime'))
+        if item.get('baseTime') is not None
+        else '알수없음'
+    )
+    base_date_ymd: str = f"{base_date[:4]}년 {base_date[4:6]}월 {base_date[6:]}일"
+    base_time_hm: str = f"{base_time[:2]}시 {base_time[2:]}분"
+    fcst_data["fcst_time"] = f"{base_date_ymd} {base_time_hm}"
+
+    return fcst_data
+
+
 def get_weather_info(local_x: str, local_y: str) -> dict:
     """기상청 API를 통해 지역의 날씨 정보 조회
 
     Args:
-        local_x (str): 지역의 x 좌표 (경도)
-        local_y (str): 지역의 y 좌표 (위도)
+        local_x (str): weather API용 지역의 x 좌표 (경도)
+        local_y (str): weather API용 지역의 y 좌표 (위도)
 
     Returns:
-        dict: 지역의 날씨 정보
+        dict: weather API를 통해 조회한 지역의 날씨 정보
 
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
@@ -538,48 +684,111 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
     local_x: float = round(float(local_x), 6)
     local_y: float = round(float(local_y), 6)
     nx, ny = convert_grid(lat=local_y, lon=local_x)
+    kst_now: datetime = datetime.now(timezone('Asia/Seoul'))
 
-    query_date: datetime = datetime.now(timezone('Asia/Seoul')) - timedelta(minutes=30)
-    base_date: str = query_date.strftime('%Y%m%d')
-    base_time: str = query_date.strftime('%H%M')
-    request_url = f"{WTH_API_HOME}/getUltraSrtNcst"
-    request_params = {
+    # ncst 시간 보정 (15분 전)
+    ncst_base_date: datetime = kst_now - timedelta(minutes=15)
+    ncst_query_base_date: datetime = ncst_base_date.replace(second=0, microsecond=0)
+    ncst_query_date: str = ncst_query_base_date.strftime('%Y%m%d')
+    ncst_query_time: str = ncst_query_base_date.strftime('%H%M')
+
+    # 초단기실황 조회 (getUltraSrtNcst)
+    ncst_request_url = f"{WTH_API_HOME}/getUltraSrtNcst"
+    ncst_request_params = {
         'ServiceKey': WTH_DATA_API_KEY,
         'numOfRows': 1000,
         'pageNo': 1,
         'dataType': 'JSON',
-        'base_date': base_date,
-        'base_time': base_time,
+        'base_date': ncst_query_date,
+        'base_time': ncst_query_time,
         'nx': nx,
         'ny': ny
     }
-    
-    response = requests.get(request_url, params=request_params)
+    ncst_response = requests.get(ncst_request_url, params=ncst_request_params)
     # 에러가 발생한 경우 (기상청은 에러가 발생해도 200을 반환함)
-    response_json: dict = response.json()
-    response_content: dict = response_json.get('response')
-    response_result: dict = response_content.get('header')
-    if response_result.get('resultCode') != '00':
+    ncst_response_json: dict = ncst_response.json()
+    ncst_response_content: dict = ncst_response_json.get('response')
+    ncst_response_result: dict = ncst_response_content.get('header')
+
+    if ncst_response_result.get('resultCode') != '00':
         error_code: str = (
-            str(response_result.get('resultCode').strip())
-            if response_result.get('resultCode') is not None
+            str(ncst_response_result.get('resultCode')).strip()
+            if ncst_response_result.get('resultCode') is not None
             else 'Unknown Error'
         )
         error_text: str = (
-            str(response_result.get('resultMsg').strip())
-            if response_result.get('resultMsg') is not None
+            str(ncst_response_result.get('resultMsg')).strip()
+            if ncst_response_result.get('resultMsg') is not None
             else 'Unknown Error'
         )
         weather_exception_handler(error_code, error_text)
     else:
         # 정상적으로 응답이 온 경우
-        response_data: dict = response_content.get("body")
-        weather_data: dict = response_data.get("items", {})
-        if weather_data:
-            return weather_data
+        ncst_response_data: dict = ncst_response_content.get("body")
+        ncst_weather_data: dict = ncst_response_data.get("items", {})
+        if ncst_weather_data:
+            ncst_raw_data: dict = ncst_weather_data 
+        else:
+            raise WeatherAPIError("WTH_NO_WEATHER_DATA")
+
+    # fcst 시간 보정 (30분 전, 30분 단위 절사)
+    fcst_base_date: datetime = kst_now - timedelta(minutes=30)
+    min_value: int = (fcst_base_date.minute // 30) * 30
+    fcst_query_base_date: datetime = fcst_base_date.replace(minute=min_value, second=0, microsecond=0)
+    fcst_query_date: str = fcst_query_base_date.strftime('%Y%m%d')
+    fcst_query_time: str = fcst_query_base_date.strftime('%H%M')
+
+    # 초단기예보 조회 (getUltraSrtFcst)
+    fcst_request_url = f"{WTH_API_HOME}/getUltraSrtFcst"
+    fcst_request_params = {
+        'ServiceKey': WTH_DATA_API_KEY,
+        'numOfRows': 1000,
+        'pageNo': 1,
+        'dataType': 'JSON',
+        'base_date': fcst_query_date,
+        'base_time': fcst_query_time,
+        'nx': nx,
+        'ny': ny
+    }
+    fcst_response = requests.get(fcst_request_url, params=fcst_request_params)
+    # 에러가 발생한 경우 (기상청은 에러가 발생해도 200을 반환함)
+    fcst_response_json: dict = fcst_response.json()
+    fcst_response_content: dict = fcst_response_json.get('response')
+    fcst_response_result: dict = fcst_response_content.get('header')
+
+    if fcst_response_result.get('resultCode') != '00':
+        error_code: str = (
+            str(fcst_response_result.get('resultCode')).strip()
+            if fcst_response_result.get('resultCode') is not None
+            else 'Unknown Error'
+        )
+        error_text: str = (
+            str(fcst_response_result.get('resultMsg')).strip()
+            if fcst_response_result.get('resultMsg') is not None
+            else 'Unknown Error'
+        )
+        weather_exception_handler(error_code, error_text)
+    else:
+        # 정상적으로 응답이 온 경우
+        fcst_response_data: dict = fcst_response_content.get("body")
+        fcst_weather_data: dict = fcst_response_data.get("items", {})
+        if fcst_weather_data:
+            fcst_raw_data: dict = fcst_weather_data
         else:
             raise WeatherAPIError("WTH_NO_WEATHER_DATA")
         
+    # 초단기실황과 초단기예보 데이터를 전처리, 병합하여 반환
+    ncst_data = process_weather_ncst(raw=ncst_raw_data)
+    ncst_data["ncst_datetime_str"] = f"{ncst_query_base_date.strftime('%Y%m%d-%H%M')}"
+    ncst_data["ncst_datetime"] = ncst_query_base_date
+    fcst_data = process_weather_fcst(raw=fcst_raw_data)
+
+    weather_data: dict = {
+        "ncst": ncst_data,
+        "fcst": fcst_data
+    }
+    return weather_data
+
 
 def get_wind_direction(wind_degree: float) -> str:
     """기상청 API로부터 얻은 풍향 데이터 변환
@@ -590,126 +799,51 @@ def get_wind_direction(wind_degree: float) -> str:
     Returns:
         str: 풍향 (북, 북동, 동, 남동, 남, 남서, 서, 북서)
     """
+    if isinstance(wind_degree, str):
+        wind_degree = wind_degree.replace("m/s", "").strip()
+        wind_degree = float(wind_degree)
+
     wind_directions = [
         "북", "북동", "동", "남동",
         "남", "남서", "서", "북서"
     ]
+
     idx = int((wind_degree + 22.5) % 360 // 45)
     return wind_directions[idx]
 
-def process_weather_data(weather_data: dict) -> dict:
-    """기상청 API로부터 받은 날씨 데이터를 전처리하는 함수
+
+def get_sky_icon(sky_code: str) -> str:
+    """기상청 API로부터 얻은 하늘 상태 코드에 따른 이모티콘 반환
 
     Args:
-        weather_data (dict): 기상청 API로부터 받은 날씨 데이터
+        sky_code (str): 하늘 상태 코드 (0~5: 맑음, 6~8: 구름많음, 9~10: 흐림)
 
     Returns:
-        dict: 전처리된 날씨 데이터  
-        {  
-            "PTY" -> 강수 형태 코드 (0: 없음, 1: 비, 2: 비/눈, 3: 눈, 5: 빗방울, 6: 빗방울/눈날림, 7: 눈날림)  
-            "REH" -> 습도 (%)  
-            "RN1" -> 1시간 강수량 (mm)  
-            "T1H" -> 기온 (℃)  
-            "UUU" -> 동서풍속 (m/s)  
-            "VVV" -> 남북풍속 (m/s)  
-            "VEC" -> 풍향 (도, deg)  
-            "WSD" -> 풍속 (m/s)  
-        }  
-
-    Reference:
-        https://www.data.go.kr/data/15084084/openapi.do
+        str: 하늘 상태에 따른 이모티콘
     """
-    local_weather_data: list[dict] = weather_data.get('item', [])
-    result_data: dict = {}
-    for item in local_weather_data:
-        category: str = item.get('category')
-        value: str = item.get('obsrValue')
-        result_data[category] = value
-    basedate: str = (
-        str(item.get('baseDate'))
-        if item.get('baseDate') is not None
-        else '알수없음'
-    )
-    basetime: str = (
-        str(item.get('baseTime'))
-        if item.get('baseTime') is not None
-        else '알수없음'
-    )
-    base_date_ymd: str = f"{basedate[:4]}년 {basedate[4:6]}월 {basedate[6:]}일"
-    base_time_hm: str = f"{basetime[:2]}시 {basetime[2:]}분"
+    if not isinstance(sky_code, int):
+        sky_code: int = int(sky_code)
 
-    # 날씨정보 1 - PTY: 강수 형태 코드
-    return_data: dict = {}
-    return_data["기준시간"] = f"{base_date_ymd} {base_time_hm}"
-    rainsnow_flag = result_data.get("PTY", "몰라양")
-    return_data["강수형태"] = rainsnow_flag
-    if rainsnow_flag == "0":
-        return_data["강수형태"] = "없음"
-    elif rainsnow_flag == "1":
-        return_data["강수형태"] = "비"
-    elif rainsnow_flag == "2":
-        return_data["강수형태"] = "비/눈"
-    elif rainsnow_flag == "3":
-        return_data["강수형태"] = "눈"
-    elif rainsnow_flag == "5":
-        return_data["강수형태"] = "빗방울"
-    elif rainsnow_flag == "6":
-        return_data["강수형태"] = "빗방울/눈날림"
-    elif rainsnow_flag == "7":
-        return_data["강수형태"] = "눈날림"
+    if 0 <= sky_code <= 5:
+        return "맑음 ☀️"  # 맑음
+    elif 6 <= sky_code <= 8:
+        return "구름많음 ⛅"  # 구름많음
+    elif 9 <= sky_code <= 10:
+        return "흐림 ☁️"  # 흐림
     else:
-        return_data["강수형태"] = "몰라양"
-
-    # 날씨정보 2 - REH: 습도 (%)
-    return_data["습도"] = f"{result_data.get('REH', '알수없음')}%"
-
-    # 날씨정보 3 - RN1: 1시간 강수량 (mm)
-    r1n = result_data.get('RN1', '알수없음')
-    return_data["1시간강수량_수치"] = r1n
-    
-    if r1n == "0":
-        return_data["1시간강수량_표시"] = "없음"
-        return_data["1시간강수량_정성"] = "없음"
-    else:
-        r1n_float: float = float(r1n)
-        if r1n_float < 3.0:
-            return_data["1시간강수량_정성"] = "약한 비"
-        elif r1n_float < 15.0:
-            return_data["1시간강수량_정성"] = "보통 비"
-        elif r1n_float < 30.0:
-            return_data["1시간강수량_정성"] = "강한 비"
-        elif r1n_float < 50.0:
-            return_data["1시간강수량_정성"] = "매우 강한 비"
-        else:
-            return_data["1시간강수량_정성"] = "⚠️ 폭우 ⚠️"
-
-        if r1n_float < 1.0:
-            return_data["1시간강수량_표시"] = "1mm 미만"
-        elif r1n_float < 30.0:
-            return_data["1시간강수량_표시"] = f"{r1n}mm"
-        elif r1n_float < 50.0:
-            return_data["1시간강수량_표시"] = f"30.0mm ~ 50.0mm ({r1n}mm)"
-        else:
-            return_data["1시간강수량_표시"] = f"50.0mm 이상 ({r1n}mm)"
+        return f"알수없음 ❓ ({sky_code})"  # 알수없음
 
 
-    # 날씨정보 4 - 기온 (℃)
-    return_data["기온"] = f"{result_data.get('T1H', '알수없음')}℃"
+def get_fcst_text(fcst_text: str) -> str:
+    """기상청 API로부터 얻은 예보 텍스트 변환
 
-    # 날씨정보 5 - 풍속 (m/s)
-    vec = result_data.get('VEC', '몰라양')
-    wsd = result_data.get('WSD', '몰라양')
-    if vec == "999":
-        return_data["풍향"] = "몰라양"
-    else:
-        return_data["풍향"] = get_wind_direction(wind_degree=float(vec))
+    Args:
+        fcst_text (str): 예보 텍스트
 
-    if wsd ==  "-998.9":
-        return_data["풍속"] = "몰라양"
-    else:
-        return_data["풍속"] = f"{wsd} m/s"
-
-    return return_data
+    Returns:
+        str: 변환된 예보 텍스트
+    """
+    return f"{fcst_text.strip()}\n" if fcst_text else ""
 
 
 def neople_dnf_server_parse(server_name: str) -> str:
@@ -1180,6 +1314,7 @@ def get_weekly_xp_history(character_ocid: str) -> Tuple[str, int, str]:
     start_date = datetime.now(tz=timezone("Asia/Seoul")).date()
     date_list: List[str] = [(start_date - timedelta(days=2+i)).strftime("%Y-%m-%d") for i in range(7)]
     return_data: List[Tuple[str, int, str]] = []
+
     for param_date in date_list:
         request_service_url: str = f"/maplestory/v1/character/basic"
         request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
@@ -1196,6 +1331,7 @@ def get_weekly_xp_history(character_ocid: str) -> Tuple[str, int, str]:
             else "0.000%"
         )
         return_data.append((param_date, character_level, character_exp_rate))
+
     return return_data
 
 
