@@ -54,7 +54,7 @@ python -m discord --version #설치확인
 
 ### discord 봇 직접 실행 및 테스트 (가상환경 active 확인!)
 ```bash
-python main.py
+python /bot/main.py
 ```
 
 ### discord 봇 컨테이너 실행 (Docker 설치 확인!)
@@ -69,9 +69,64 @@ docker save -o discord-bot-img.tar discord-bot-img:latest
 ```
 
 ---
-## 패치노트
-### dev/cmd/msg/feat
-- 도움말 기능별 분리 (븜 도움말 메이플, 븜 도움말 던파 등)
-### dev/api/msg/feat
-- "븜 경험치 <캐릭터이름>": 그래프 최대 높이 세부 설정
----
+
+### 프로젝트 OOP 구조 (Chat GPT로부터 받은 초안을 다듬어서 제작, 리팩토리 작업 후 변경 예정)
+```bash
+project-root/
+├─ pyproject.toml / requirements.txt
+├─ .env / .env.example
+├─ asset/font/…                 # matplotlib 폰트 파일
+├─ docker/…
+├─ bot/                         # 애플리케이션 루트 패키지
+│  ├─ __init__.py
+│  ├─ main.py                   # 엔트리포인트 (봇 시작)
+│  ├─ config.py                 # 전역 설정 파일
+│  ├─ logging.py                # 로깅 초기화 (log파일, 데이터 수집, 서버로그조회)
+│  ├─ app.py                    # Bot 인스턴스 생성, Clients 로딩
+│  │
+│  ├─ clients/                  # 외부 API 어댑터(저수준 IO, 호출 토큰/키 , 요청/재시도/리밋트)
+│  │  ├─ __init__.py
+│  │  ├─ maplestory_client.py      # Maplestory API 호출 역할 (Nexon Oepn API)
+│  │  ├─ neoplednf_client.py
+│  │  ├─ weather_client.py
+│  │  └─ yfinance_client.py
+│  │
+│  ├─ services/                  # 도메인 서비스(비즈니스 규칙, 캐싱, 조합 로직)
+│  │  ├─ __init__.py
+│  │  ├─ maplestory/
+│  │  │  ├─ __init__.py
+│  │  │  ├─ service.py          # Discord 명령어 레이어(표현 계층)
+│  │  │  ├─ models.py           # 추가예정) Pydantic 모델/타입
+│  │  │  ├─ mappers.py          # API 어댑터가 가져온 데이터를 내부모델로 변환/전처리
+│  │  │  └─ cache.py            # 선택: 캐시 전략
+│  │  ├─ neoplednf/
+│  │  │  ├─ service.py
+│  │  │  ├─ models.py
+│  │  │  └─ mappers.py
+│  │  ├─ weather/
+│  │  │  ├─ service.py
+│  │  │  ├─ models.py
+│  │  │  └─ mappers.py
+│  │  └─ yfinance/
+│  │     ├─ service.py
+│  │     ├─ models.py
+│  │     └─ mappers.py
+│  │
+│  ├─ utils/                    # 범용 유틸(순수 함수, 공통 콜백)
+│  │  ├─ __init__.py
+│  │  ├─ time.py                # 날짜/시간, 타임존 계산
+│  │  ├─ text.py                # 텍스트 포맷팅 (임베드, 표, 단위변환)
+│  │  ├─ plot.py                # matplotlib 관련 처리
+│  │  └─ images.py              # 이미지 처리   (ByteIO 팁 등)
+│  │
+│  └─ exceptions/
+│     ├─ __init__.py
+│     ├─ base.py                # 공통 예외(Warning/RateLimit 등)
+│     ├─ client_exceptions.py   # API 호출 실패 및 관련 예외처리
+│     ├─ mapper_exceptions.py   # mapper단 실패 및 관련 예외처리
+│     └─ service_exceptions.py  # 도메인 예외처리
+└─ dev/ (temp/)                 # 테스트 및 개발용 디렉토리 (gitignore)
+   ├─ test_maplestory_service.py
+   ├─ test_neople_client.py
+   └─ …
+```

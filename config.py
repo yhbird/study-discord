@@ -3,7 +3,6 @@ import sys
 import psutil
 
 from dotenv import load_dotenv
-from service.common import BotConfigFailed
 
 from datetime import datetime
 from pytz import timezone
@@ -12,14 +11,8 @@ import matplotlib
 from matplotlib import font_manager
 from pathlib import Path
 
-def kst_format_now() -> str:
-    """현재 시각을 KST로 포맷팅
-
-    Returns:
-        str: KST로 포맷된 현재 시각 문자열
-    """
-    kst = timezone('Asia/Seoul')
-    return datetime.now(tz=kst).strftime('%Y-%m-%d %H:%M:%S')
+from utils.time import kst_format_now
+from exceptions.base import BotConfigFailed
 
 # Discord Bot Token loading
 try:
@@ -64,17 +57,16 @@ except BotConfigFailed as e:
     print(f"Failed loading weather API key!!: {e}")
     sys.exit(1)
 
-# Debug configuration
-# 현재 사용중인 메모리 사용량을 MB 단위로 반환 -> 디버그용
-def get_memory_usage_mb() -> float:
-    """현재 프로세스의 메모리 사용량을 MB 단위로 반환
+# 금지 및 히든명령어 loading
+if load_dotenv('./env/ban.env'):
+    BAN_CMD_1 = os.getenv('ban_cmd_1', '')
+    BAN_CMD_2 = os.getenv('ban_cmd_2', '')
+    BAN_CMD_3 = os.getenv('ban_cmd_3', '')
+    BAN_COMMANDS = [BAN_CMD_1, BAN_CMD_2, BAN_CMD_3]
 
-    Returns:
-        float: 현재 프로세스의 메모리 사용량 (MB)
-    """
-    process = psutil.Process(os.getpid())
-    mem = process.memory_info().rss / 1024**2
-    return mem
+# 봇 명령어 timeout 설정 (초)
+COMMAND_TIMEOUT: int = 30  # seconds
+
 
 # configuration variables
 # 메모리 정리 주기 (분)
@@ -84,7 +76,7 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_TIME_STR: str = kst_format_now()
 BOT_START_DT: datetime = datetime.strptime(BOT_START_TIME_STR, '%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20250920-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20250924-{BOT_TOKEN_RUN}"
 BOT_DEVELOPER_ID: int = int(os.getenv('bot_developer_id', '0'))
 
 # matplotlib 한글 폰트 설정
