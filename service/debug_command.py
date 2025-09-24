@@ -290,7 +290,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
             )
             dm_embed.add_field(
                 name="븜 디버그 switch",
-                value="봇 디버그 모드 전환 (에러로그가 상세하게 표시됩니다.)\n",
+                value="봇 디버그 모드 전환 (에러로그가 상세하게 표시됩니다. 기본: OFF)\n",
                 inline=False
             )
             dm_embed.add_field(
@@ -303,9 +303,9 @@ async def deb_help(ctx: commands.Context, category: str = None):
                 value="상위 3명 가장 많이 명령어를 호출한 사용자 조회\n**사용자 멘션 포함 주의!**\n",
                 inline=False
             )
-            embed.add_field(
+            dm_embed.add_field(
                 name="븜 디버그 statsinit",
-                value="봇의 명령어 통계 초기화\n *봇 재시작시 자동 초기화됨, 메모리 사용량이 높다면 수동으로 초기화하세요*\n",
+                value="봇의 명령어 통계 초기화\n *재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
                 inline=False
             )
         else:
