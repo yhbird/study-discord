@@ -19,7 +19,7 @@ from utils.text import safe_float, safe_percent
 
 from exceptions.api_exceptions import *
 
-@log_command
+@log_command(alt_func_name="븜 미국주식")
 async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
     """주식 티커에 해당하는 미국 주식의 현재 가격을 반환합니다.
 

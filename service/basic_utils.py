@@ -1,7 +1,9 @@
+import os
 import discord
 from discord.ui import View, Button
 
 from exceptions.base import BotWarning
+from dotenv import load_dotenv
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
@@ -66,3 +68,26 @@ class ImageViewer(View):
             except discord.NotFound:
                 raise BotWarning
             
+            
+def check_ban(image_search_keyword: str) -> bool:
+    """금지어 검사
+
+    Args:
+        image_search_keyword (str): 이미지 검색어
+
+    Returns:
+        bool: 금지어 포함 여부
+    """
+    load_dotenv("env/ban.env")
+    ban_cmd_1 = os.getenv("ban_cmd_1")
+    ban_cmd_2 = os.getenv("ban_cmd_2")
+    ban_cmd_3 = os.getenv("ban_cmd_3")
+    ban_cmd_4 = os.getenv("ban_cmd_4")
+
+    ban_list: list = [ban_cmd_1, ban_cmd_2, ban_cmd_3, ban_cmd_4]
+
+    for ban_word in ban_list:
+        if ban_word in image_search_keyword:
+            return True
+        
+    return False

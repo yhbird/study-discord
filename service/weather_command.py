@@ -7,7 +7,7 @@ from bot_logger import log_command
 
 from exceptions.api_exceptions import *
 
-@log_command
+@log_command(alt_func_name="븜 날씨")
 async def api_weather(ctx: commands.Context, location_name: str) -> None:
     """현재 지역의 날씨 정보, 예보 정보를 가져오는 명령어
 

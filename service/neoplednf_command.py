@@ -9,7 +9,7 @@ from bot_logger import log_command
 from utils.image import get_image_bytes
 
 
-@log_command
+@log_command(alt_func_name="븜 던파정보")
 async def api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 정보 조회
 
@@ -167,7 +167,7 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     await ctx.send(embed=embed, file=buffer)
     buffer.close()
 
-@log_command
+@log_command(alt_func_name="븜 주간던파")
 async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 주간 타임라인 조회 (이번주 기준)
 

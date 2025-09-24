@@ -17,7 +17,7 @@ from utils.time import parse_iso_string
 from exceptions.api_exceptions import *
 
 
-@log_command
+@log_command(alt_func_name="븜 기본정보")
 async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터의 기본 정보(basic_info) 를 가져오는 명령어
 
@@ -203,7 +203,7 @@ async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
     await ctx.send(embed=embed)
 
 
-@log_command
+@log_command(alt_func_name="븜 피씨방")
 async def api_pcbang_notice(ctx: commands.Context) -> None:
     """메이플스토리 PC방 이벤트 공지사항을 가져오는 명령어
 
@@ -317,7 +317,7 @@ async def api_pcbang_notice(ctx: commands.Context) -> None:
     else:
         await ctx.send("PC방 이벤트 공지사항이 없어양!")
 
-@log_command
+@log_command(alt_func_name="븜 썬데이")
 async def api_sunday_notice(ctx: commands.Context) -> None:
     """메이플스토리 썬데이 이벤트 공지사항을 가져오는 명령어
 
@@ -432,7 +432,7 @@ async def api_sunday_notice(ctx: commands.Context) -> None:
         await ctx.send("썬데이 이벤트 공지사항이 아직 없어양!!\n매주 금요일 오전 10시에 업데이트 되니 참고해양!!")
 
 
-@log_command
+@log_command(alt_func_name="븜 상세정보")
 async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터의 상세 정보(detail_info)를 가져오는 명령어
 
@@ -822,7 +822,7 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
         embed.colour = discord.Colour.from_rgb(128, 128, 128)
     await ctx.send(embed=embed)
 
-@log_command
+@log_command(alt_func_name="븜 어빌리티")
 async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
     """캐릭터의 어빌리티 정보 조회
 
@@ -934,7 +934,7 @@ async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
         await ctx.send(embed=embed)
 
 
-@log_command
+@log_command(alt_func_name="븜 운세")
 async def api_maple_fortune_today(ctx: commands.Context, character_name: str) -> None:
     """MapleStory 오늘의 운세 기능
 
@@ -1029,7 +1029,7 @@ async def api_maple_fortune_today(ctx: commands.Context, character_name: str) ->
     await ctx.send(embed=embed)
 
 
-@log_command
+@log_command(alt_func_name="븜 경험치")
 async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> None:
     """MapleStory 캐릭터 경험치 히스토리 조회
 

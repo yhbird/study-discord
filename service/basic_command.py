@@ -13,13 +13,14 @@ import time
 from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
+from service.basic_utils import check_ban
 
 from ddgs.exceptions import DDGSException
 from bot_logger import log_command
 
 
 # 샴 따라해 기능 복원
-@log_command
+@log_command(alt_func_name="븜 따라해")
 async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
@@ -50,8 +51,8 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
 
 
 # 샴 이미지 기능 복원
-@log_command
-async def msg_handle_image(ctx: commands.Context, search_term: str):
+@log_command(alt_func_name="븜 이미지")
+async def msg_handle_image(ctx: commands.Context, search_term: str = None):
     """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
 
     Args:
@@ -65,13 +66,21 @@ async def msg_handle_image(ctx: commands.Context, search_term: str):
     Note:
         검색 지역 일본(ja-jp)으로 변경 (2025.09.01)
     """
-    command_prefix: str = "븜 이미지 "
 
     if ctx.message.author.bot:
         return
 
-    if ctx.message.content.startswith(command_prefix):
-        image_search_keyword: str = ctx.message.content[len(command_prefix):]
+    if search_term is None:
+        await ctx.message.channel.send("검색어를 입력하세양!!", reference=ctx.message)
+    else:
+        image_search_keyword: str = search_term
+
+    if check_ban(image_search_keyword):
+        ban_img: str = "data/img/dnf_4.gif"
+        with open(ban_img, "rb") as ban_img_file:
+            dnf_file = discord.File(ban_img_file)
+            await ctx.send(file=dnf_file, reference=ctx.message)
+        return
 
     results: list[dict] = None
     with DDGS() as ddgs:
@@ -111,7 +120,7 @@ async def msg_handle_image(ctx: commands.Context, search_term: str):
 
 # 주사위 (0~100)
 # 명령어 "븜 블링크빵" 사용
-@log_command
+@log_command(alt_func_name="븜 블링크빵")
 async def msg_handle_blinkbang(ctx: commands.Context):
     """랜덤 주사위 0~100 결과를 보여주는 기능
 

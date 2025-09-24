@@ -28,10 +28,21 @@ def kst_format_now() -> str:
     """현재 시각을 KST로 포맷팅
 
     Returns:
-        str: KST로 포맷된 현재 시각 문자열
+        str: KST로 포맷된 현재 시각 문자열 (예: '2024-06-15 14:30:00')
     """
     kst = timezone('Asia/Seoul')
     return datetime.now(tz=kst).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def kst_format_now_v2() -> datetime:
+    """현재 시각을 KST로 포맷팅하여 datetime 객체로 반환
+
+    Returns:
+        datetime: KST로 포맷된 현재 시각의 datetime 객체
+    """
+    kst = timezone('Asia/Seoul')
+    now_kst = datetime.now(tz=kst)
+    return now_kst
 
 
 def parse_iso_string(iso_string: str) -> str:

@@ -34,7 +34,6 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
     author_info: discord.Member = ctx.message.author
     if not author_info.guild_permissions.administrator and author_info.id != BOT_DEVELOPER_ID:  # 특정 사용자 예외
         await ctx.send(f"{ctx.message.author.mention}님은 관리자 권한이 없어양! 이 명령어는 관리자만 사용할 수 있어양!")
-        return
     else:
         if arg == "mem":
             await deb_command.deb_memory_usage(ctx)
@@ -42,19 +41,26 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
             await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
         if arg == "switch":
             await deb_command.deb_switch(ctx)
+        if arg == "stats":
+            await deb_command.deb_command_stats(ctx)
+        if arg == "userstats":
+            await deb_command.deb_user_stats(ctx)
+        if arg == "resetstats":
+            await deb_command.deb_reset_stats(ctx)
+    return
 
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
 @bot.command(name="help")
-async def run_msg_handle_help_redirection(ctx: commands.Context, category: str = None):
-    await deb_command.msg_handle_help_redirection(ctx, category)
+async def run_deb_help_redirection(ctx: commands.Context, category: str = None):
+    await deb_command.deb_help_redirection(ctx, category)
 
 @bot.command(name="도움말")
-async def run_msg_handle_help_redirection(ctx: commands.Context, category: str = None):
-    await deb_command.msg_handle_help_redirection(ctx, category)
+async def run_deb_help_redirection(ctx: commands.Context, category: str = None):
+    await deb_command.deb_help_redirection(ctx, category)
 
 @bot.command(name="명령어")
-async def run_msg_handle_help(ctx: commands.Context, category: str = None):
-    await deb_command.msg_handle_help_v2(ctx, category)
+async def run_deb_help(ctx: commands.Context, category: str = None):
+    await deb_command.deb_help(ctx, category)
 
 # 봇 실행 + 메모리 정리 반복 작업 시작
 @bot.event
@@ -126,15 +132,15 @@ async def run_stk_us_stock_price(ctx: commands.Context, ticker: str):
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=BAN_COMMANDS[0])
 async def run_hidden_command_1(ctx: commands.Context):
-    await hid_command.hidden_command(ctx)
+    await hid_command.hidden_command(ctx, text=BAN_COMMANDS[0])
 
 @bot.command(name=BAN_COMMANDS[1])
 async def run_hidden_command_2(ctx: commands.Context):
-    await hid_command.hidden_command(ctx)
+    await hid_command.hidden_command(ctx, text=BAN_COMMANDS[1])
 
 @bot.command(name=BAN_COMMANDS[2])
 async def run_hidden_command_3(ctx: commands.Context):
-    await hid_command.hidden_command(ctx)
+    await hid_command.hidden_command(ctx, text=BAN_COMMANDS[2])
 
 @bot.event
 async def on_message(message: discord.Message):

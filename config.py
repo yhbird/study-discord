@@ -64,6 +64,9 @@ if load_dotenv('./env/ban.env'):
     BAN_CMD_3 = os.getenv('ban_cmd_3', '')
     BAN_COMMANDS = [BAN_CMD_1, BAN_CMD_2, BAN_CMD_3]
 
+# 봇 명령어 timeout 설정 (초)
+COMMAND_TIMEOUT: int = 30  # seconds
+
 
 # configuration variables
 # 메모리 정리 주기 (분)
