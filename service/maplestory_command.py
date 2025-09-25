@@ -13,6 +13,7 @@ from bot_logger import log_command
 from utils.image import get_image_bytes
 from utils.text import preprocess_int_with_korean
 from utils.time import parse_iso_string
+from utils.plot import fp_maplestory_light, fp_maplestory_bold
 
 from exceptions.api_exceptions import *
 
@@ -1048,30 +1049,46 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
         character_ocid: str = get_ocid(character_name)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+        raise NexonAPIBadRequest(f"Character '{character_name}' not found")
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise NexonAPIForbidden("Forbidden access to API")
     except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise Exception("Too many requests to API")
     except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise NexonAPIServiceUnavailable("Nexon Open API Internal server error")
     except NexonAPIOCIDNotFound:
         await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
+        raise NexonAPIOCIDNotFound(f"OCID not found for character: {character_name}")
 
     xp_history_data: List[Tuple[str, int, str]] = []
     service_url: str = f"/maplestory/v1/character/basic"
     request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
 
+    # 오전 6시 이전에는 2일전 날짜부터 조회
+    kst_now = kst_format_now_v2()
+    if kst_now.hour < 6:
+        time_offset: int = 2
+    else:
+        time_offset: int = 1
+
     try:
         response_data: dict = general_request_handler_nexon(request_url)
-        xp_history_data: List[Tuple[str, int, str]] = get_weekly_xp_history(character_ocid)
+        xp_history_data: List[Tuple[str, int, str]] = get_weekly_xp_history(character_ocid, time_offset)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+        raise NexonAPIBadRequest(f"Character '{character_name}' basic info not found")
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise NexonAPIForbidden("Forbidden access to API")
     except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise NexonAPITooManyRequests("Too many requests to API")
     except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise NexonAPIServiceUnavailable("Nexon Open API Internal server error")
 
     # 캐릭터의 이름, 월드, 생성일 추출
     character_world: str = (
@@ -1127,7 +1144,7 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
             bar_h = yi + ylim_btm
 
             # bar 생성
-            ax.bar(xi, bar_h, width=0.6, linewidth=0, zorder=2, alpha=0.7, color='#8FD19E')
+            ax.bar(xi, bar_h, width=0.6, linewidth=0, zorder=2, alpha=0.7, color='#8FD19E',)
 
             # 경험치 퍼센트 라벨 (실제 값 표시)
             ax.annotate(f"{yi:.3f}%", xy=(xi, bar_h), xytext=(0, 5),
@@ -1139,10 +1156,10 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
             ax.annotate(f"Lv.{lvl}", xy=(xi, bar_h), xytext=(0, -11),
                         textcoords="offset points",
                         ha="center", va="bottom",
-                        fontsize=7, zorder=3)
+                        fontsize=6, zorder=3)
             
         # 축/격자 스타일 설정
-        ax.set_xticks(x, labels, fontsize=9)
+        ax.set_xticks(x, labels, fontproperties=fp_maplestory_light, fontsize=8)
         ylim_top = max(75.0, float(y.max())) * 1.35 + ylim_btm
         ax.set_ylim(0, ylim_top)
         ax.set_yticks([])
@@ -1153,7 +1170,9 @@ async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> No
         for spine in ["top", "right", "left"]:
             ax.spines[spine].set_visible(False)
         ax.spines["bottom"].set_alpha(0.4)
-        ax.set_title(plot_title, fontsize=12, pad=8)
+
+        # 제목 설정
+        ax.set_title(plot_title, fontproperties=fp_maplestory_bold, fontsize=16, pad=8)
 
         buffer = io.BytesIO()
         plt.savefig(buffer, format="png", bbox_inches="tight")
