@@ -251,8 +251,8 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
-            name="븜 날씨 <지역명 혹은 주소> (v1)",
-            value="**[카카오 / 기상청 API]**\n 해당 지역의 날씨 정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+            name="븜 날씨 <지역명 혹은 주소> (v2 Beta)",
+            value="**[카카오 / 기상청 API]**\n 현재 날씨와 예보정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
         )
         embed.add_field(
             name="븜 블링크빵",
@@ -304,7 +304,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
                 inline=False
             )
             dm_embed.add_field(
-                name="븜 디버그 statsinit",
+                name="븜 디버그 resetstats",
                 value="봇의 명령어 통계 초기화\n *재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
                 inline=False
             )

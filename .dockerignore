@@ -9,7 +9,6 @@ node_modules/
 *.json
 *.sh
 temp/
-data/
 __pycache__/
 README.md
 !pyproject.toml/requirements.txt

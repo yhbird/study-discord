@@ -11,9 +11,10 @@ from datetime import datetime, timedelta
 from pytz import timezone
 
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
-from typing import Optional, Dict, List, Tuple, Any
+from utils.time import kst_format_now_v2
 from data.json.fortune_message_table import fortune_message_table_raw
 
+from typing import Optional, Dict, List, Tuple, Any
 from exceptions.api_exceptions import *
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
@@ -370,10 +371,44 @@ def get_notice_details(notice_id: str) -> dict:
 
 
 # 랜덤 시드 기반 메이플스토리 운세 생성 및 경험치 추세 데이터 수집
-def _mix_seed(base_seed: int, f_cate: str, salt: str) -> int:
+def generate_fortune_seed(base_seed: int, f_cate: str, salt: str) -> int:
     h = hashlib.md5(f"{base_seed}|{f_cate}|{salt}".encode('utf-8')).hexdigest()
     return int(h, 16)
 
+
+def fortune_pick_grade(rng: random.Random, grade_table: List[Tuple[int, int]]) -> int:
+    roll = rng.randint(1, 100)
+    acc = 0
+    for g, w in grade_table:
+        acc += w
+        if roll <= acc:
+            return g
+    return -1
+    
+
+# 운세 메세지 list 생성 (가중치 반영)
+def generate_fortune_messages(
+        table_name: str,
+        msg_table: Dict[str, List[Tuple[str, int]]]
+    ) -> List[str]:
+    """운세 메세지 list 생성 (가중치 반영)
+
+    Args:
+        table_name (str): 운세 메세지 테이블 Key 이름 (예: "StarForce_lv5")
+        msg_table (Dict[str, List[Tuple[str, int]]]): 운세 메세지 테이블
+
+    Returns:
+        List[str]: 가중치가 반영된 운세 메세지 리스트
+    """
+    fortune_msg_table = msg_table.get(table_name, {})
+    return_msgs = []
+    if not fortune_msg_table:
+        return []
+    else:
+        for msg, weight in fortune_msg_table:
+            return_msgs.extend([msg] * weight)
+    return return_msgs
+    
 def maple_pick_fortune(seed: int) -> str:
     """메이플스토리 운세를 생성하는 함수
 
@@ -456,30 +491,24 @@ def maple_pick_fortune(seed: int) -> str:
             1: generate_fortune_messages("Hunter_lv1"),
         }
     }
-    def _pick_grade(rng: random.Random) -> int:
-        roll = rng.randint(1, 100)
-        acc = 0
-        for g, w in fortune_grade_weights:
-            acc += w
-            if roll <= acc:
-                return g
-        return -1
     
     fortune_result: List[str] = []
     for f_cate, f_name in fortune_category.items():
         # 행운 등급 결정
-        random_grade: random.Random = random.Random(_mix_seed(seed, f_cate, "grade"))
-        f_grade = _pick_grade(random_grade)
+        grade_seed: int = generate_fortune_seed(seed, f_cate, "grade")
+        random_grade: random.Random = random.Random(grade_seed)
+        f_grade = fortune_pick_grade(random_grade, fortune_grade_weights)
 
         if f_grade != -1:
             # 행운 메세지 결정
-            random_message: random.Random = random.Random(_mix_seed(seed, f_cate, "message"))
+            message_seed: int = generate_fortune_seed(seed, f_cate, "message")
+            random_message: random.Random = random.Random(message_seed)
             f_result_star, f_result_name = fortune_grade_table[f_grade]
-            f_fortune_message_dict: Dict[int, List[str]] = fortune_message.get(f_cate)
-            f_fortune_message: str = random_message.choice(f_fortune_message_dict.get(f_grade, []))
+            f_message_dict: Dict[int, List[str]] = fortune_message.get(f_cate)
+            f_message: str = random_message.choice(f_message_dict.get(f_grade, []))
             f_text = (
                 f"{f_name}\n"
-                f"{f_result_star} ({f_result_name}): {f_fortune_message}\n"
+                f"{f_result_star} ({f_result_name}): {f_message}\n"
             )
         else:
             f_text = f"{f_name}\n오늘의 운세를 알 수 없어양...\n"
@@ -487,7 +516,7 @@ def maple_pick_fortune(seed: int) -> str:
 
     return "\n".join(fortune_result)
 
-def get_weekly_xp_history(character_ocid: str) -> Tuple[str, int, str]:
+def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str, int, str]:
     """메이플 스토리 캐릭터의 1주일 간 경험치 추세 데이터 수집
     
     Args:
@@ -498,11 +527,17 @@ def get_weekly_xp_history(character_ocid: str) -> Tuple[str, int, str]:
         (예: ("2023-10-01", 250, "75.321%"))
 
     Raises:
+        1일전 데이터 호출 실패한 경우: 2일전 데이터 호출
         NexonAPIError: API 호출 오류
+
+    Reference:
+        https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
 
     start_date = datetime.now(tz=timezone("Asia/Seoul")).date()
-    date_list: List[str] = [(start_date - timedelta(days=2+i)).strftime("%Y-%m-%d") for i in range(7)]
+    date_list: List[str] = [
+        (start_date - timedelta(days=time_delta + i)).strftime("%Y-%m-%d") for i in range(7)
+    ]
     return_data: List[Tuple[str, int, str]] = []
 
     for param_date in date_list:

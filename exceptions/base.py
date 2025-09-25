@@ -18,6 +18,12 @@ class BotConfigFailed(BotBaseException):
     def __init__(self, message: str = "봇 설정을 불러오는 데 실패했어양"):
         super().__init__(message)
         self.message = message
+
+class BotInitializationError(BotBaseException):
+    """봇 초기화 실패"""
+    def __init__(self, message: str = "봇 초기화에 실패했어양"):
+        super().__init__(message)
+        self.message = message
         
 class BotWarning(Exception):
     """작업을 중단하지 않고 경고 메시지를 표시할 때 사용"""

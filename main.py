@@ -2,12 +2,12 @@ import discord
 import gc
 from discord.ext import commands
 
-from config import BOT_TOKEN, BOT_DEVELOPER_ID, BAN_COMMANDS
+from config import BOT_TOKEN, BOT_DEVELOPER_ID, SECRET_COMMANDS, SECRET_ADMIN_COMMAND
 from bot_logger import logger
 
 # Matplotlib 한글 폰트 설정
-from config import set_up_matploylib_korean
-applied = set_up_matploylib_korean("assets/font/NanumGothic.ttf")
+from utils.plot import set_up_matplotlib_korean
+applied = set_up_matplotlib_korean("assets/font/NanumGothic.ttf")
 
 # 디스코드 메세지 관련 명령어
 import service.basic_command as basic_command
@@ -27,6 +27,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
+admin_commands = SECRET_ADMIN_COMMAND
 # 디버그용 명령어 등록 from service.debug_command as deb_command
 @bot.command(name="디버그")
 async def bot_debug(ctx: commands.Context, arg: str = None):
@@ -35,18 +36,20 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
     if not author_info.guild_permissions.administrator and author_info.id != BOT_DEVELOPER_ID:  # 특정 사용자 예외
         await ctx.send(f"{ctx.message.author.mention}님은 관리자 권한이 없어양! 이 명령어는 관리자만 사용할 수 있어양!")
     else:
-        if arg == "mem":
+        if arg == admin_commands.get("deb_memory_usage"):
             await deb_command.deb_memory_usage(ctx)
-        if arg == "info":
+        if arg == admin_commands.get("deb_bot_info"):
             await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
-        if arg == "switch":
+        if arg == admin_commands.get("deb_switch"):
             await deb_command.deb_switch(ctx)
-        if arg == "stats":
+        if arg == admin_commands.get("deb_command_stats"):
             await deb_command.deb_command_stats(ctx)
-        if arg == "userstats":
+        if arg == admin_commands.get("deb_user_stats"):
             await deb_command.deb_user_stats(ctx)
-        if arg == "resetstats":
+        if arg == admin_commands.get("deb_reset_stats"):
             await deb_command.deb_reset_stats(ctx)
+        if arg is None:
+            await ctx.send(f"{ctx.message.author.mention}님, 디버그 명령어 사용법: `븜 디버그 [명령어]` 입력 혹은 `븜 명령어 관리자` 참고")
     return
 
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
@@ -130,17 +133,17 @@ async def run_stk_us_stock_price(ctx: commands.Context, ticker: str):
     await yfi_command.stk_us_stock_price(ctx, ticker)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
-@bot.command(name=BAN_COMMANDS[0])
+@bot.command(name=SECRET_COMMANDS[0])
 async def run_hidden_command_1(ctx: commands.Context):
-    await hid_command.hidden_command(ctx, text=BAN_COMMANDS[0])
+    await hid_command.hidden_command_1(ctx, text=SECRET_COMMANDS[0])
 
-@bot.command(name=BAN_COMMANDS[1])
+@bot.command(name=SECRET_COMMANDS[1])
 async def run_hidden_command_2(ctx: commands.Context):
-    await hid_command.hidden_command(ctx, text=BAN_COMMANDS[1])
+    await hid_command.hidden_command_2(ctx, text=SECRET_COMMANDS[1])
 
-@bot.command(name=BAN_COMMANDS[2])
+@bot.command(name=SECRET_COMMANDS[2])
 async def run_hidden_command_3(ctx: commands.Context):
-    await hid_command.hidden_command(ctx, text=BAN_COMMANDS[2])
+    await hid_command.hidden_command_3(ctx, text=SECRET_COMMANDS[2])
 
 @bot.event
 async def on_message(message: discord.Message):
