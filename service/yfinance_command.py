@@ -85,7 +85,7 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
         kst_time = datetime.now(tz=timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
         change_pct: float = ((today_close - previous_close) / previous_close) * 100
         stk_us_info = (
-            f"거래소: {stock_exchange} \n섹터: {stock_sector}\n"
+            f"거래소: {stock_exchange} \n섹터: {stock_sector}\n\n"
             f"- **이전 종가:** {safe_float(previous_close)} {stock_currency} {pc_krw_text}\n"
             f"- **현재 가격:** {safe_float(today_close)} {stock_currency} {tc_krw_text}\n"
             f"- **변동률:** {change_pct:.2f} %\n\n"
@@ -96,7 +96,7 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
             f"정보 제공: yahoo finance API (최대 15분 지연)\n"
             f"현지 시간: {stock_time} ({stock_timezone_short})\n"
             f"한국 시간: {kst_time} (KST)"
-            f"\n--- 환율안내 ---\n"
+            f"\n--- 환율안내 ---"
             f"{footer_text_extra}"
         )
         stock_embed = discord.Embed(

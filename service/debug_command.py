@@ -100,7 +100,7 @@ async def deb_help_redirection(ctx: commands.Context, category: str = None):
 
 
 # 도움말 명령어
-@log_command(alt_func_name="명령어")
+@log_command(alt_func_name="븜 명령어")
 async def deb_help(ctx: commands.Context, category: str = None):
     """봇의 사용법을 안내하는 기능 (카테고리별)
 
