@@ -91,7 +91,7 @@ NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))
 BOT_START_TIME_STR: str = BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20250924-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20250928-{BOT_TOKEN_RUN}"
 
 
 # 디버그 모드 설정
