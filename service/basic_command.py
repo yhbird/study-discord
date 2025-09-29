@@ -14,12 +14,14 @@ from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
 from service.basic_utils import check_ban
+from config import COMMAND_TIMEOUT
 
 from ddgs.exceptions import DDGSException
-from bot_logger import log_command
+from bot_logger import log_command, with_timeout
 
 
 # 샴 따라해 기능 복원
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 따라해")
 async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     """사용자가 보낸 메세지를 그대로 보내는 기능
@@ -51,6 +53,7 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
 
 
 # 샴 이미지 기능 복원
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 이미지")
 async def msg_handle_image(ctx: commands.Context, search_term: str = None):
     """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
@@ -120,6 +123,7 @@ async def msg_handle_image(ctx: commands.Context, search_term: str = None):
 
 # 주사위 (0~100)
 # 명령어 "븜 블링크빵" 사용
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 블링크빵")
 async def msg_handle_blinkbang(ctx: commands.Context):
     """랜덤 주사위 0~100 결과를 보여주는 기능

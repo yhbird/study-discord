@@ -9,17 +9,19 @@ from bs4 import BeautifulSoup
 
 from service.maplestory_utils import *
 
-from bot_logger import log_command
+from bot_logger import log_command, with_timeout
 from utils.image import get_image_bytes
 from utils.text import preprocess_int_with_korean
 from utils.time import parse_iso_string
 from utils.plot import fp_maplestory_light, fp_maplestory_bold
+from config import COMMAND_TIMEOUT
 
 from exceptions.api_exceptions import *
 
 
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 기본정보")
-async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터의 기본 정보(basic_info) 를 가져오는 명령어
 
     Args:
@@ -64,83 +66,47 @@ async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
 
     # 정상적으로 캐릭터 기본 정보를 찾았을 때
+    basic_info = process_maple_basic_info(response_data)
+
     # 캐릭터 기본 정보 1 - 캐릭터 이름
-    character_name: str = response_data.get('character_name')
+    character_name: str = basic_info.get('character_name')
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
+        return
+    
     # 캐릭터 기본 정보 2 - 캐릭터 레벨
-    character_level: int = (
-        int(response_data.get('character_level'))
-        if response_data.get('character_level') is not None
-        else 0
-    )
+    character_level: int = basic_info.get('character_level')
+
     # 캐릭터 기본 정보 3 - 캐릭터 소속월드
-    character_world: str = (
-        str(response_data.get('world_name')).strip()
-        if response_data.get('world_name') is not None
-        else '알 수 없음'
-    )
+    character_world: str | Literal["알수없음"] = basic_info.get('character_world')
+
     # 캐릭터 기본 정보 4 - 캐릭터 성별
-    character_gender: str = (
-        str(response_data.get('character_gender')).strip()
-        if response_data.get('character_gender') is not None
-        else '기타(제로)'
-    )
+    character_gender: str | Literal["제로"] = basic_info.get('character_gender')
+
     # 캐릭터 기본 정보 5 - 캐릭터 직업(차수)
-    character_class: str = (
-        str(response_data.get('character_class')).strip()
-        if response_data.get('character_class') is not None
-        else '알 수 없음'
-    )
-    character_class_level: str = (
-        str(response_data.get('character_class_level')).strip()
-        if response_data.get('character_class_level') is not None
-        else '알 수 없음'
-    )
+    character_job: str | Literal["알수없음"] = basic_info.get('character_job')
+
     # 캐릭터 기본 정보 6 - 경험치
-    character_exp: int = (
-        int(response_data.get('character_exp'))
-        if response_data.get('character_exp') is not None
-        else 0
-    )
-    character_exp_rate: str = (
-        str(response_data.get('character_exp_rate')).strip()
-        if response_data.get('character_exp_rate') is not None
-        else "0.000%"
-    )
+    character_exp: int = basic_info.get('character_exp')
+    character_exp_rate: str | Literal["0.000%"] = basic_info.get('character_exp_rate')
+
     # 캐릭터 기본 정보 7 - 소속길드
-    character_guild_name_json = response_data.get('character_guild_name')
-    if character_guild_name_json is None:
-        character_guild_name = '길드가 없어양!'
-    else:
-        character_guild_name = character_guild_name_json
+    character_guild_name: str | Literal["길드가 없어양!"] = basic_info.get('character_guild_name')
+
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-    character_image: str = (
-        str(response_data.get('character_image'))
-        if response_data.get('character_image') is not None
-        else '알 수 없음'
-    )
+    character_image: str | Literal[""] = basic_info.get('character_image')
+
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-    character_date_create: str = (
-        str(response_data.get('character_date_create')).strip()
-        if response_data.get('character_date_create') is not None
-        else '알 수 없음'
-    )
+    character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
+    
     # 캐릭터 기본 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-    character_access_flag: str = (
-        str(response_data.get('access_flag'))
-        if response_data.get('access_flag') is not None
-        else '알 수 없음'
-    )
+    character_access_flag: bool | Literal["알수없음"] = basic_info.get('character_access_flag')
+
     # 캐릭터 기본 정보 11 - 캐릭터 해방 퀘스트 완료 여부
-    character_liberation_quest_clear: str = (
-        str(response_data.get('liberation_quest_clear'))
-        if response_data.get('liberation_quest_clear') is not None
-        else '알 수 없음'
-    )
+    character_liberation_quest_clear: str | Literal["알수없음"] = basic_info.get('liberation_quest_clear')
 
     # Basic Info 데이터 전처리
-    if character_date_create != '알 수 없음':
+    if character_date_create != '알수없음':
         character_date_create = character_date_create.split("T")[0]  # "2023-12-21" 형태로 변환
         character_date_create_ymd = character_date_create.split("-")
         character_date_create_str: str = (
@@ -155,19 +121,20 @@ async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
         character_exp_str: str = str(character_exp)
     
     character_name_quote: str = quote(character_name)
-    if character_access_flag == "true":
-        character_access_flag = "최근 7일 이내 접속함"
+
+    if character_access_flag:
+        character_access_flag_str = "최근 7일 이내 접속함"
     else:
-        character_access_flag = "최근 7일 이내 접속하지 않음"
+        character_access_flag_str = "최근 7일 이내 접속하지 않음"
     
     if character_liberation_quest_clear == "0":
-        character_liberation_quest_clear = "제네시스 해방 퀘스트 미완료"
+        liberation_quest_clear_str = "제네시스 해방 퀘스트 미완료"
     elif character_liberation_quest_clear == "1":
-        character_liberation_quest_clear = "제네시스 해방 퀘스트 완료"
+        liberation_quest_clear_str = "제네시스 해방 퀘스트 완료"
     elif character_liberation_quest_clear == "2":
-        character_liberation_quest_clear = "데스티니 1차 해방 퀘스트 완료"
+        liberation_quest_clear_str = "데스티니 1차 해방 퀘스트 완료"
     else:
-        character_liberation_quest_clear = "해방 퀘스트 진행 여부 알 수 없음"
+        liberation_quest_clear_str = "해방 퀘스트 진행 여부 알 수 없음"
 
     if character_image != '알 수 없음':
         character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
@@ -182,14 +149,14 @@ async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
         f"**이름:** {character_name}\n"
         f"**레벨:** {character_level} ({character_exp_rate}%)\n"
         f"**인기도:** {get_character_popularity(character_ocid)}\n"
-        f"**직업:** {character_class} ({character_class_level}차 전직)\n"
+        f"**직업:** {character_job}\n"
         f"**길드:** {character_guild_name}\n"
         f"**경험치:** {character_exp_str}\n"
     )
     embed_footer: str = (
         f"생성일: {character_date_create_str}\n"
-        f"{character_liberation_quest_clear}\n"
-        f"({character_access_flag})"
+        f"{liberation_quest_clear_str}\n"
+        f"({character_access_flag_str})"
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
@@ -204,8 +171,9 @@ async def api_basic_info(ctx: commands.Context, character_name: str) -> None:
     await ctx.send(embed=embed)
 
 
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 피씨방")
-async def api_pcbang_notice(ctx: commands.Context) -> None:
+async def maple_pcbang_notice(ctx: commands.Context) -> None:
     """메이플스토리 PC방 이벤트 공지사항을 가져오는 명령어
 
     Args:
@@ -318,8 +286,10 @@ async def api_pcbang_notice(ctx: commands.Context) -> None:
     else:
         await ctx.send("PC방 이벤트 공지사항이 없어양!")
 
+
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 썬데이")
-async def api_sunday_notice(ctx: commands.Context) -> None:
+async def maple_sunday_notice(ctx: commands.Context) -> None:
     """메이플스토리 썬데이 이벤트 공지사항을 가져오는 명령어
 
     Args:
@@ -433,8 +403,9 @@ async def api_sunday_notice(ctx: commands.Context) -> None:
         await ctx.send("썬데이 이벤트 공지사항이 아직 없어양!!\n매주 금요일 오전 10시에 업데이트 되니 참고해양!!")
 
 
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 상세정보")
-async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터의 상세 정보(detail_info)를 가져오는 명령어
 
     <수집 항목>
@@ -511,72 +482,48 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
             await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
             raise Exception("Nexon Open API Internal server error")
     
-    # 캐릭터 상세 정보 1 - 캐릭터 이름
-    character_name: str = basic_info_response_data.get('character_name')
+    # 정상적으로 캐릭터 기본 정보를 찾았을 때
+    basic_info = process_maple_basic_info(basic_info_response_data)
+
+    # 캐릭터 기본 정보 1 - 캐릭터 이름
+    character_name: str = basic_info.get('character_name')
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
-        raise Exception(f"Character detail info not found for: {character_name}")
-    # 캐릭터 상세 정보 2 - 캐릭터 레벨
-    character_level: int = (
-        int(basic_info_response_data.get('character_level', 0))
-        if basic_info_response_data.get('character_level') is not None
-        else 0
-    )
-    # 캐릭터 상세 정보 3 - 캐릭터 소속월드
-    character_world: str = (
-        str(basic_info_response_data.get('world_name')).strip()
-        if basic_info_response_data.get('world_name') is not None
-        else '알 수 없음'
-    )
-    # 캐릭터 상세 정보 4 - 캐릭터 성별
-    character_gender: str = (
-        str(basic_info_response_data.get('character_gender')).strip()
-        if basic_info_response_data.get('character_gender') is not None
-        else '알 수 없음'
-    )
-    # 캐릭터 상세 정보 5 - 캐릭터 직업(차수)
-    character_class: str = (
-        str(basic_info_response_data.get('character_class')).strip()
-        if basic_info_response_data.get('character_class') is not None
-        else '알 수 없음'
-    )
-    character_class_level: str = (
-        str(basic_info_response_data.get('character_class_level')).strip()
-        if basic_info_response_data.get('character_class_level') is not None
-        else '알 수 없음'
-    )
-    # 캐릭터 상세 정보 6 - 경험치
-    character_exp: int = (
-        int(basic_info_response_data.get('character_exp'))
-        if basic_info_response_data.get('character_exp') is not None
-        else 0
-    )
-    character_exp_rate: str = (
-        str(basic_info_response_data.get('character_exp_rate')).strip()
-        if basic_info_response_data.get('character_exp_rate') is not None
-        else "0.000%"
-    )
-    # 캐릭터 상세 정보 7 - 소속길드
-    character_guild_name: str = (
-        str(basic_info_response_data.get('character_guild_name')).strip()
-        if basic_info_response_data.get('character_guild_name') is not None
-        else '길드가 없어양!'
-    )
-    # 캐릭터 상세 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
-    character_image: str = (
-        str(basic_info_response_data.get('character_image')).strip()
-        if basic_info_response_data.get('character_image') is not None
-        else '알 수 없음'
-    )
-    if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
-    # 캐릭터 상세 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
-    character_date_create: str = (
-        str(basic_info_response_data.get('character_date_create')).strip()
-        if basic_info_response_data.get('character_date_create') is not None
-        else '알 수 없음'
-    )
-    if character_date_create != '알 수 없음':
+        return
+    
+    # 캐릭터 기본 정보 2 - 캐릭터 레벨
+    character_level: int = basic_info.get('character_level')
+
+    # 캐릭터 기본 정보 3 - 캐릭터 소속월드
+    character_world: str | Literal["알수없음"] = basic_info.get('character_world')
+
+    # 캐릭터 기본 정보 4 - 캐릭터 성별
+    character_gender: str | Literal["제로"] = basic_info.get('character_gender')
+
+    # 캐릭터 기본 정보 5 - 캐릭터 직업(차수)
+    character_job: str | Literal["알수없음"] = basic_info.get('character_job')
+
+    # 캐릭터 기본 정보 6 - 경험치
+    character_exp: int = basic_info.get('character_exp')
+    character_exp_rate: str | Literal["0.000%"] = basic_info.get('character_exp_rate')
+
+    # 캐릭터 기본 정보 7 - 소속길드
+    character_guild_name: str | Literal["길드가 없어양!"] = basic_info.get('character_guild_name')
+
+    # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
+    character_image: str | Literal[""] = basic_info.get('character_image')
+
+    # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
+    character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
+    
+    # 캐릭터 기본 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
+    character_access_flag: bool | Literal["알수없음"] = basic_info.get('character_access_flag')
+
+    # 캐릭터 기본 정보 11 - 캐릭터 해방 퀘스트 완료 여부
+    character_liberation_quest_clear: str | Literal["알수없음"] = basic_info.get('liberation_quest_clear')
+
+    # Basic Info 데이터 전처리
+    if character_date_create != '알수없음':
         character_date_create = character_date_create.split("T")[0]  # "2023-12-21" 형태로 변환
         character_date_create_ymd = character_date_create.split("-")
         character_date_create_str: str = (
@@ -584,18 +531,30 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
             f"{int(character_date_create_ymd[1])}월 "
             f"{int(character_date_create_ymd[2])}일"
         )
-    # 캐릭터 상세 정보 10 - 캐릭터 최근 접속 여부 (7일 이내 접속 여부)
-    character_access_flag: str = (
-        str(basic_info_response_data.get('access_flag')).strip()
-        if basic_info_response_data.get('access_flag') is not None
-        else '알 수 없음'
-    )
-    if character_access_flag == "true":
-        character_access_flag = "최근 7일 이내 접속함"
-    elif character_access_flag == "false":
-        character_access_flag = "최근 7일 이내 접속하지 않음"
+
+    if character_exp >= 1000:
+        character_exp_str: str = f"{character_exp:,}"
     else:
-        character_access_flag = "최근 접속 여부 알 수 없음"
+        character_exp_str: str = str(character_exp)
+    
+    character_name_quote: str = quote(character_name)
+
+    if character_access_flag:
+        character_access_flag_str = "최근 7일 이내 접속함"
+    else:
+        character_access_flag_str = "최근 7일 이내 접속하지 않음"
+    
+    if character_liberation_quest_clear == "0":
+        liberation_quest_clear_str = "제네시스 해방 퀘스트 미완료"
+    elif character_liberation_quest_clear == "1":
+        liberation_quest_clear_str = "제네시스 해방 퀘스트 완료"
+    elif character_liberation_quest_clear == "2":
+        liberation_quest_clear_str = "데스티니 1차 해방 퀘스트 완료"
+    else:
+        liberation_quest_clear_str = "해방 퀘스트 진행 여부 알 수 없음"
+
+    if character_image != '알 수 없음':
+        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
     
     # detail_info_response_data 전처리
     stat_list: list[dict] = detail_info_response_data.get('final_stat', [])
@@ -779,17 +738,19 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
 
     # Embed 메시지 생성
     maple_scouter_url: str = f"https://maplescouter.com/info?name={quote(character_name)}"
+
     embed_title: str = f"{character_world}월드 '{character_name}' 용사님의 상세 정보에양!!"
     embed_description: str = (
         f"[🔗 환산 사이트 이동]({maple_scouter_url})\n"
         f"**월드:** {character_world}\n"
         f"**이름:** {character_name}\n"
         f"**레벨:** {character_level} ({character_exp_rate}%)\n"
-        f"**인기도:** {get_character_popularity(character_ocid)}\n"
-        f"**직업:** {character_class} ({character_class_level}차 전직)\n"
+        f"**인기도:** {get_character_popularity(character_ocid):,}\n"
+        f"**직업:** {character_job}\n"
         f"**길드:** {character_guild_name}\n"
         f"\n**\-\-\- 상세 정보 \-\-\-**\n"
         f"**전투력**: {character_stat_battle_power}\n"
+        f"**공격력/마력**: {character_stat_attack_power} / {character_stat_magic_power}\n"
         f"**보스 공격력**: {character_stat_boss_attack}\n"
         f"**크리티컬 데미지**: {character_stat_critical_damage}\n"
         f"**방어율 무시**: {character_stat_ignore_defense}\n"
@@ -809,7 +770,8 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
     )
     embed_footer: str = (
         f"생성일: {character_date_create_str}\n"
-        f"({character_access_flag})"
+        f"{liberation_quest_clear_str}\n"
+        f"({character_access_flag_str})"
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
@@ -823,8 +785,10 @@ async def api_detail_info(ctx: commands.Context, character_name: str) -> None:
         embed.colour = discord.Colour.from_rgb(128, 128, 128)
     await ctx.send(embed=embed)
 
+
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 어빌리티")
-async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_ability_info(ctx: commands.Context, character_name: str) -> None:
     """캐릭터의 어빌리티 정보 조회
 
     Args:
@@ -935,8 +899,9 @@ async def api_ability_info(ctx: commands.Context, character_name: str) -> None:
         await ctx.send(embed=embed)
 
 
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 운세")
-async def api_maple_fortune_today(ctx: commands.Context, character_name: str) -> None:
+async def maple_fortune_today(ctx: commands.Context, character_name: str) -> None:
     """MapleStory 오늘의 운세 기능
 
     Args:
@@ -1030,8 +995,9 @@ async def api_maple_fortune_today(ctx: commands.Context, character_name: str) ->
     await ctx.send(embed=embed)
 
 
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 경험치")
-async def api_maple_xp_history(ctx: commands.Context, character_name: str) -> None:
+async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
     """MapleStory 캐릭터 경험치 히스토리 조회
 
     Args:

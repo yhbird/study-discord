@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import traceback
@@ -233,4 +234,24 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
     if func is not None and callable(func):
         return decorator(func)
     
+    return decorator
+
+
+def with_timeout(timeout_seconds: int = config.COMMAND_TIMEOUT):
+    """비동기 함수에 타임아웃을 적용하는 데코레이터
+
+    Args:
+        timeout_seconds (int): 타임아웃 시간(초)
+
+    Returns:
+        callable: 타임아웃이 적용된 비동기 함수
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(ctx: commands.Context, *args, **kwargs):
+            try:
+                return await asyncio.wait_for(func(ctx, *args, **kwargs), timeout=timeout_seconds)
+            except asyncio.TimeoutError:
+                await ctx.send(f"⏰ 명령어 최대 시간 초과로 취소되었어양")
+        return wrapper
     return decorator

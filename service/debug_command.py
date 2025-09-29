@@ -11,12 +11,13 @@ from datetime import datetime, timedelta
 
 from service.debug_utils import *
 
-from bot_logger import logger, log_command
+from bot_logger import logger, log_command, with_timeout
 from utils.time import kst_format_now, kst_format_now_v2
 import config as config
 import bot_logger as bl
 
 # 메모리 사용량 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="봇 메모리 사용량 조회")
 async def deb_memory_usage(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -28,6 +29,7 @@ async def deb_memory_usage(ctx: commands.Context):
 
 
  # 봇 정보 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="봇 정보")
 async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -64,6 +66,7 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
 
 
 # 디버그 모드 ON/OFF
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="디버그 모드 전환")
 async def deb_switch(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -76,6 +79,7 @@ async def deb_switch(ctx: commands.Context):
 
 
 # "븜 명령어" 리다이렉트
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="명령어 리다이렉트")
 async def deb_help_redirection(ctx: commands.Context, category: str = None):
     """사용자에게 도움말을 리다이렉트하는 기능
@@ -100,6 +104,7 @@ async def deb_help_redirection(ctx: commands.Context, category: str = None):
 
 
 # 도움말 명령어
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 명령어")
 async def deb_help(ctx: commands.Context, category: str = None):
     """봇의 사용법을 안내하는 기능 (카테고리별)
@@ -344,6 +349,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
 
 
 # 가장 오래 / 빨리 실행된 명령어 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 async def deb_command_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
@@ -400,6 +406,7 @@ async def deb_command_stats(ctx: commands.Context) -> None:
 
 
 # 가장 많이 명령어를 호출한 사용자 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 async def deb_user_stats(ctx: commands.Context) -> None:
     """사용자별 명령어 호출 통계를 조회합니다.
 
@@ -456,13 +463,14 @@ async def deb_user_stats(ctx: commands.Context) -> None:
 
 
 # 통계 초기화 (메모리 사용량 감소 목적)
+@with_timeout(config.COMMAND_TIMEOUT)
 async def deb_reset_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
     # 명령어 통계 초기화
-    bl.COMMAND_STATS.clear()
-    bl.USER_STATS.clear()
+    bl.COMMAND_STATS = {}
+    bl.USER_STATS = {}
     bl.SLOWEST_COMMAND_NAME = None
     bl.SLOWEST_COMMAND_ELAPSED = 0.01
     bl.FASTEST_COMMAND_NAME = None

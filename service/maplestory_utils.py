@@ -14,7 +14,7 @@ from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
 from utils.time import kst_format_now_v2
 from data.json.fortune_message_table import fortune_message_table_raw
 
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Literal, Optional, Dict, List, Tuple, Any
 from exceptions.api_exceptions import *
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
@@ -136,6 +136,15 @@ def get_character_ability_info(ocid: str) -> dict:
     return response_data
 
 
+def _compile_patterns():
+    compiled = []
+    for pat, grade_map in ABILITY_MAX_TABLE.items():
+        rx = pat.replace("{n}", r"(?P<value>\d+(?:\,\d+)?)")
+        rx = rf"^\s*(?P<head>{rx})\s*$"
+        compiled.append((re.compile(rx), grade_map))
+    return compiled
+
+
 # 어빌리티 최대값 테이블 작성
 # 등장하지 않는 등급의 경우 -1으로 입력
 ABILITY_MAX_TABLE: Dict[str, Dict[str, int]] = {
@@ -169,13 +178,6 @@ ABILITY_MAX_TABLE: Dict[str, Dict[str, int]] = {
     r"{n}레벨마다\s공격력\s1\s증가": {"레전드리": 10, "유니크": -1, "에픽": -1, "레어": -1},
     r"{n}레벨마다\s마력\s1\s증가": {"레전드리": 10, "유니크": -1, "에픽": -1, "레어": -1}
 }
-def _compile_patterns():
-    compiled = []
-    for pat, grade_map in ABILITY_MAX_TABLE.items():
-        rx = pat.replace("{n}", r"(?P<value>\d+(?:\,\d+)?)")
-        rx = rf"^\s*(?P<head>{rx})\s*$"
-        compiled.append((re.compile(rx), grade_map))
-    return compiled
 
 _COMPILED_PATTERNS = _compile_patterns()
 
@@ -183,6 +185,7 @@ DUAL_ABILITY_MAX_N = {"레전드리": 40, "유니크": 30, "에픽": 20, "레어
 _DUAL_NUM_RX = re.compile(
     r"^\s*\S+?\s*(\d{1,3}(?:,\d{3})*|\d+)\s*증가\s*,\s*\S+?\s*(\d{1,3}(?:,\d{3})*|\d+)\s*증가\s*$"
 )
+
 
 def ability_max_value(
         ability_grade: str,
@@ -409,6 +412,7 @@ def generate_fortune_messages(
             return_msgs.extend([msg] * weight)
     return return_msgs
     
+
 def maple_pick_fortune(seed: int) -> str:
     """메이플스토리 운세를 생성하는 함수
 
@@ -516,6 +520,7 @@ def maple_pick_fortune(seed: int) -> str:
 
     return "\n".join(fortune_result)
 
+
 def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str, int, str]:
     """메이플 스토리 캐릭터의 1주일 간 경험치 추세 데이터 수집
     
@@ -556,5 +561,127 @@ def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str
             else "0.000%"
         )
         return_data.append((param_date, character_level, character_exp_rate))
+
+    return return_data
+
+
+def process_maple_basic_info(raw_data: dict) -> dict:
+    """메이플스토리 캐릭터 기본 정보 데이터를 가공하는 함수
+
+    Args:
+        raw_data (dict): 원본 캐릭터 기본 정보 데이터
+
+    Returns:
+        dict: 가공된 캐릭터 기본 정보 데이터
+    """
+    if isinstance(raw_data, dict):
+        input_data: dict = raw_data.copy()
+        return_data: dict = {}
+
+        # basic info 1. 캐릭터 이름
+        character_name: str | bool = input_data.get('character_name')
+        if character_name is None:
+            return False
+        else:
+            return_data['character_name'] = character_name
+        
+        # basic info 2. 캐릭터 레벨
+        character_level: int = (
+            int(input_data.get('character_level'))
+            if input_data.get('character_level') is not None
+            else -1
+        )
+        return_data['character_level'] = character_level if character_level != -1 else "몰라양"
+
+        # basic info 3. 캐릭터 소속월드
+        character_world: str | Literal["알수없음"] = (
+            str(input_data.get('world_name')).strip()
+            if input_data.get('world_name') is not None
+            else "알수없음"
+        )
+        return_data['character_world'] = character_world
+
+        # basic info 4. 캐릭터 성별
+        character_gender: str | Literal["제로"] = (
+            str(input_data.get('character_gender')).strip()
+            if input_data.get('character_gender') is not None
+            else "제로"
+        )
+        return_data['character_gender'] = character_gender
+
+        # basic info 5. 캐릭터 직업 & 직업차수
+        character_class: str | Literal["알수없음"] = (
+            str(input_data.get('character_class')).strip()
+            if input_data.get('character_class') is not None
+            else "알수없음"
+        )
+        character_class_level: str | Literal["알수없음"] = (
+            str(input_data.get('character_class_level')).strip()
+            if input_data.get('character_class_level') is not None
+            else "알수없음"
+        )
+        return_data['character_job'] = f"{character_class} ({character_class_level}차 전직)"
+        return_data['character_class'] = character_class
+        return_data['character_class_level'] = character_class_level
+
+        # basic info 6. 캐릭터 경험치 & 퍼센트
+        character_exp: int = (
+            int(input_data.get('character_exp'))
+            if input_data.get('character_exp') is not None
+            else -1
+        )
+        character_exp_rate: str | Literal["0.000%"] = (
+            str(input_data.get('character_exp_rate')).strip()
+            if input_data.get('character_exp_rate') is not None
+            else "0.000%"
+        )
+        return_data['character_exp'] = character_exp
+        return_data['character_exp_rate'] = character_exp_rate
+
+        # basic info 7. 캐릭터 소속 길드
+        character_guild_name_json = input_data.get('character_guild_name')
+        if character_guild_name_json is None:
+            character_guild_name = "길드가 없어양!"
+        else:
+            character_guild_name = str(character_guild_name_json).strip()
+        return_data['character_guild_name'] = character_guild_name
+
+        # basic info 8. 캐릭터 외형 이미지 URL
+        character_image: str | Literal[""] = (
+            str(input_data.get('character_image')).strip()
+            if input_data.get('character_image') is not None
+            else ""
+        )
+        return_data['character_image'] = character_image
+
+        # basic info 9. 캐릭터 생성일
+        character_date_create: str | Literal["알수없음"] = (
+            str(input_data.get('character_date_create')).strip()
+            if input_data.get('character_date_create') is not None
+            else "알수없음"
+        )
+        return_data['character_date_create'] = character_date_create
+
+        # basic info 10. 캐릭터 최근 7일 이내 접속 여부 (flag)
+        character_access_flag: bool | Literal["알수없음"]  = (
+            str(input_data.get('character_access_flag')).strip()
+            if input_data.get('character_access_flag') is not None
+            else "알수없음"
+        )
+        if character_access_flag == "true":
+            character_access_flag = True
+        elif character_access_flag == "false":
+            character_access_flag = False
+        else:
+            character_access_flag = "알수없음"
+        return_data['character_access_flag'] = character_access_flag
+
+        # basic info 11. 캐릭터 해방 퀘스트 완료 여부
+        character_liberation_quest_clear: str | Literal["알수없음"] = (
+            str(input_data.get('liberation_quest_clear')).strip()
+            if input_data.get('liberation_quest_clear') is not None
+            else "알수없음"
+        )
+        return_data['liberation_quest_clear'] = character_liberation_quest_clear
 
     return return_data
