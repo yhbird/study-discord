@@ -229,8 +229,8 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
-            name="[개발중] 븜 주간던파 <서버이름> <캐릭터이름>",
-            value="던전앤파이터 캐릭터의 주간 던파를 요약합니다.\n*태초를 몇개 먹었는지 븜미가 친절히 알려줘양*\n**<개발중>**\n ",
+            name="븜 주간던파 <서버이름> <캐릭터이름>",
+            value="던전앤파이터 캐릭터의 주간 던파를 요약합니다.\n*레이드 클리어 기록, 태초획득 기록까지 븜미가 친절히 알려줘양*\n ",
             inline=False
         )
     elif category == "기타":
@@ -297,17 +297,17 @@ async def deb_help(ctx: commands.Context, category: str = None):
             )
             dm_embed.add_field(
                 name="븜 디버그 stats",
-                value="븜 가동 시간 동안 가장 많이 실행된 명령어와 명령수행시간 조회\n",
+                value="상위 10개 가장 많이 실행된 명령어와 수행시간 조회\n",
                 inline=False
             )
             dm_embed.add_field(
                 name="븜 디버그 userstats",
-                value="상위 3명 가장 많이 명령어를 호출한 사용자 조회\n**사용자 멘션 포함 주의!**\n",
+                value="상위 3명 가장 많이 명령어를 호출한 사용자의 통계 조회\n**사용자 멘션 포함 주의!**\n",
                 inline=False
             )
             dm_embed.add_field(
                 name="븜 디버그 resetstats",
-                value="봇의 명령어 통계 초기화\n *재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
+                value="봇의 사용자 및 명령어 통계 초기화\n *봇 재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
                 inline=False
             )
         else:
@@ -360,7 +360,7 @@ async def deb_command_stats(ctx: commands.Context) -> None:
     command_stats_raw: dict = bl.COMMAND_STATS
     top10_commands: list = sorted(command_stats_raw.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
     if not command_stats_raw:
-        await ctx.send("아직 명령어 통계가 없어양...")
+        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
         return
 
     rank_emoji: list = ["🥇", "🥈", "🥉"]
@@ -418,7 +418,7 @@ async def deb_user_stats(ctx: commands.Context) -> None:
     # 사용자 통계 출력 (상위 3명, mention 포함)
     user_stats_raw = bl.USER_STATS
     if not user_stats_raw:
-        await ctx.send("아직 통계에 집계된 사용자가 없어양...")
+        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
         return
     
     rank_emoji: list = ["🥇", "🥈", "🥉"]
