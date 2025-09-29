@@ -259,7 +259,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                 item_rare: str = timeline_data.get("itemRarity", "몰라양")
 
                 # 태초 아이템 획득 시 하이라이트 메시지 생성
-                if timeline_code != 513 and item_rare == "태초":
+                if timeline_code not in [513, 507] and item_rare == "태초":
                     channel_name = timeline_data.get("channelName", "알수없음")
                     channel_no = timeline_data.get("channelNo", "알수없음")
                     get_primeval_count += 1
@@ -273,6 +273,13 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                     get_primeval_count += 1
                     timeline_highlight += (
                         f"던전 {dungeon_name}에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                    )
+
+                if timeline_code == 507 and item_rare == "태초":
+                    # 레이드 카드 보상에서 태초 아이템 획득 시
+                    get_primeval_count += 1
+                    timeline_highlight += (
+                        f"레이드에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
                     )
 
                 # 융합석 업그레이드 획득 시 (에픽 획득 집계 미포함)

@@ -1,6 +1,9 @@
+import asyncio
 import logging
 import time
 import traceback
+
+from discord.ext import commands
 
 from logging import Logger
 from functools import wraps
@@ -28,6 +31,13 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+def get_discord_user_id(ctx: commands.Context) -> int | None:
+    if _is_discord_context(ctx):
+        author_id = getattr(getattr(ctx, "author", None), "id", None) or getattr(getattr(ctx, "user", None), "id", None)
+        return author_id
+    else:
+        return None
+
 
 def _short_str(s: str, max_len: int = 80) -> str:
     s = repr(s)
@@ -43,7 +53,7 @@ def _is_discord_context(x) -> bool:
         return False
 
 
-def _format_arg(x, max_len: int = 80, stats: bool = True):
+def _format_arg(x, max_len: int = 80):
     # 원시 타입
     if isinstance(x, (int, float, bool, type(None))):
         return repr(x)
@@ -55,12 +65,6 @@ def _format_arg(x, max_len: int = 80, stats: bool = True):
         author_id = getattr(getattr(x, "author", None), "id", None) or getattr(getattr(x, "user", None), "id", None)
         guild_id = getattr(getattr(x, "guild", None), "id", None)
         chan_id  = getattr(getattr(x, "channel", None), "id", None)
-
-        if author_id and author_id not in USER_STATS and stats:
-            USER_STATS[author_id] = {'count': 0}
-        if author_id and author_id in USER_STATS and stats:
-            USER_STATS[author_id]['count'] += 1
-
         return f"<Context guild={guild_id} channel={chan_id} user={author_id}>"
 
     # dict: 앞의 몇 개 키만
@@ -85,7 +89,7 @@ def _format_arg(x, max_len: int = 80, stats: bool = True):
     return f"<{type(x).__name__}>"
 
 
-def _format_bound_args(func, args, kwargs, stats_flag: bool = True) -> str:
+def _format_bound_args(func, args, kwargs) -> str:
     sig = inspect.signature(func)
     bound = sig.bind_partial(*args, **kwargs)
     parts = []
@@ -94,7 +98,7 @@ def _format_bound_args(func, args, kwargs, stats_flag: bool = True) -> str:
         if any(s in k.lower() for s in SENSITIVE_KEYS):
             parts.append(f"{k}=<redacted>")
         else:
-            parts.append(f"{k}={_format_arg(v, stats=stats_flag)}")
+            parts.append(f"{k}={_format_arg(v)}")
     return ", ".join(parts)
 
 
@@ -138,7 +142,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
 
                 # 인자 정보 포맷팅
                 try:
-                    arg_info: str = _format_bound_args(inner_func, args, kwargs, stats_flag=stats)
+                    arg_info: str = _format_bound_args(inner_func, args, kwargs)
                 except Exception as e:
                     arg_info: str = "<arg-format-error>"
 
@@ -148,24 +152,47 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 else:
                     info_log = f"{func_name} success (Elapsed time: {elapsed_time:.3f} seconds)"
 
-                # 명령어 통계 업데이트
-                if func_name not in COMMAND_STATS and stats:
-                    COMMAND_STATS[func_name] = {'alt_name': alt_func_name, 'count': 0, 'fast': 30.0, 'slow': 0.0}
-                if func_name in COMMAND_STATS and stats:
-                    COMMAND_STATS[func_name]['count'] += 1
-                    if elapsed_time > COMMAND_STATS[func_name]['slow']:
-                        COMMAND_STATS[func_name]['slow'] = elapsed_time
-                    if elapsed_time < COMMAND_STATS[func_name]['fast']:
-                        COMMAND_STATS[func_name]['fast'] = elapsed_time
-
                 if stats:
-                    if elapsed_time > SLOWEST_COMMAND_ELAPSED:
-                        SLOWEST_COMMAND_ELAPSED = elapsed_time
-                        SLOWEST_COMMAND_NAME = alt_func_name or func_name
+                    # 명령어 통계 업데이트
+                    if func_name not in COMMAND_STATS and stats:
+                        COMMAND_STATS[func_name] = {'alt_name': alt_func_name, 'count': 0, 'fast': 30.0, 'slow': 0.0}
+                    if func_name in COMMAND_STATS and stats:
+                        COMMAND_STATS[func_name]['count'] += 1
+                        if elapsed_time > COMMAND_STATS[func_name]['slow']:
+                            COMMAND_STATS[func_name]['slow'] = elapsed_time
+                        if elapsed_time < COMMAND_STATS[func_name]['fast']:
+                            COMMAND_STATS[func_name]['fast'] = elapsed_time
 
-                    if elapsed_time < FASTEST_COMMAND_ELAPSED:
-                        FASTEST_COMMAND_ELAPSED = elapsed_time
-                        FASTEST_COMMAND_NAME = alt_func_name or func_name
+                        if elapsed_time > SLOWEST_COMMAND_ELAPSED:
+                            SLOWEST_COMMAND_ELAPSED = elapsed_time
+                            SLOWEST_COMMAND_NAME = alt_func_name or func_name
+
+                        if elapsed_time < FASTEST_COMMAND_ELAPSED:
+                            FASTEST_COMMAND_ELAPSED = elapsed_time
+                            FASTEST_COMMAND_NAME = alt_func_name or func_name
+
+                    # 사용자 통계 업데이트
+                    ctx = kwargs.get("ctx") or (args[0] if args else None)
+                    if ctx and isinstance(ctx, commands.Context):
+                        user_id = get_discord_user_id(ctx)
+
+                        if user_id:
+                            if user_id not in USER_STATS:
+                                USER_STATS[user_id] = {'total_count': 1}
+                            else:
+                                USER_STATS[user_id]['total_count'] += 1
+                                USER_STATS[user_id]['last_command'] = alt_func_name
+
+                            user_individual_stats: dict = USER_STATS[user_id]
+                            if user_individual_stats.get('command_counts') is None:
+                                user_individual_stats['command_counts'] = {
+                                    alt_func_name: 1
+                                }
+                            else:
+                                if user_individual_stats['command_counts'].get(alt_func_name) is None:
+                                    user_individual_stats['command_counts'][alt_func_name] = 1
+                                else:
+                                    user_individual_stats['command_counts'][alt_func_name] += 1
 
                 logger.info(info_log)
                 return
@@ -207,4 +234,24 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
     if func is not None and callable(func):
         return decorator(func)
     
+    return decorator
+
+
+def with_timeout(timeout_seconds: int = config.COMMAND_TIMEOUT):
+    """비동기 함수에 타임아웃을 적용하는 데코레이터
+
+    Args:
+        timeout_seconds (int): 타임아웃 시간(초)
+
+    Returns:
+        callable: 타임아웃이 적용된 비동기 함수
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(ctx: commands.Context, *args, **kwargs):
+            try:
+                return await asyncio.wait_for(func(ctx, *args, **kwargs), timeout=timeout_seconds)
+            except asyncio.TimeoutError:
+                await ctx.send(f"⏰ 명령어 최대 시간 초과로 취소되었어양")
+        return wrapper
     return decorator

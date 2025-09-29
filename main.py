@@ -1,6 +1,9 @@
+import time
 import discord
-import gc
 from discord.ext import commands
+
+import asyncio
+from config import COMMAND_TIMEOUT
 
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, SECRET_COMMANDS, SECRET_ADMIN_COMMAND
 from bot_logger import logger
@@ -28,6 +31,8 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='븜 ', intents=intents, help_command=None)
 admin_commands = SECRET_ADMIN_COMMAND
+
+
 # 디버그용 명령어 등록 from service.debug_command as deb_command
 @bot.command(name="디버그")
 async def bot_debug(ctx: commands.Context, arg: str = None):
@@ -87,31 +92,31 @@ async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
 # 메이플스토리 명령어 등록 from service.maplestory_command as map_command
 @bot.command(name="기본정보")
 async def run_api_basic_info(ctx: commands.Context, character_name: str):
-    await map_command.api_basic_info(ctx, character_name)
+    await map_command.maple_basic_info(ctx, character_name)
 
 @bot.command(name="상세정보")
 async def run_api_detail_info(ctx: commands.Context, character_name: str):
-    await map_command.api_detail_info(ctx, character_name)
+    await map_command.maple_detail_info(ctx, character_name)
     
 @bot.command(name="피씨방")
 async def run_api_pcbang_notice(ctx: commands.Context):
-    await map_command.api_pcbang_notice(ctx)
+    await map_command.maple_pcbang_notice(ctx)
 
 @bot.command(name="썬데이")
 async def run_api_sunday_notice(ctx: commands.Context):
-    await map_command.api_sunday_notice(ctx)
+    await map_command.maple_sunday_notice(ctx)
 
 @bot.command(name="어빌리티")
 async def run_api_ability_info(ctx: commands.Context, character_name: str):
-    await map_command.api_ability_info(ctx, character_name)
+    await map_command.maple_ability_info(ctx, character_name)
 
 @bot.command(name="운세")
 async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str):
-    await map_command.api_maple_fortune_today(ctx, character_name)
+    await map_command.maple_fortune_today(ctx, character_name)
 
 @bot.command(name="경험치")
 async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
-    await map_command.api_maple_xp_history(ctx, character_name)
+    await map_command.maple_xp_history(ctx, character_name)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보")

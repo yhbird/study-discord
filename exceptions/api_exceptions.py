@@ -1,3 +1,11 @@
+"""
+exceptions/api_exceptions.py
+
+API 관련 예외 처리 모듈
+
+???_command.py / ???_utils.py에서 사용되는 예외 클래스 정의
+"""
+
 from exceptions.base import ClientBaseException
 
 class NexonAPIError(ClientBaseException):

@@ -11,12 +11,13 @@ from datetime import datetime, timedelta
 
 from service.debug_utils import *
 
-from bot_logger import logger, log_command
+from bot_logger import logger, log_command, with_timeout
 from utils.time import kst_format_now, kst_format_now_v2
 import config as config
 import bot_logger as bl
 
 # 메모리 사용량 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="봇 메모리 사용량 조회")
 async def deb_memory_usage(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -28,6 +29,7 @@ async def deb_memory_usage(ctx: commands.Context):
 
 
  # 봇 정보 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="봇 정보")
 async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -64,6 +66,7 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
 
 
 # 디버그 모드 ON/OFF
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="디버그 모드 전환")
 async def deb_switch(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -76,6 +79,7 @@ async def deb_switch(ctx: commands.Context):
 
 
 # "븜 명령어" 리다이렉트
+@with_timeout(config.COMMAND_TIMEOUT)
 @log_command(stats=False, alt_func_name="명령어 리다이렉트")
 async def deb_help_redirection(ctx: commands.Context, category: str = None):
     """사용자에게 도움말을 리다이렉트하는 기능
@@ -100,7 +104,8 @@ async def deb_help_redirection(ctx: commands.Context, category: str = None):
 
 
 # 도움말 명령어
-@log_command(alt_func_name="명령어")
+@with_timeout(config.COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 명령어")
 async def deb_help(ctx: commands.Context, category: str = None):
     """봇의 사용법을 안내하는 기능 (카테고리별)
 
@@ -229,8 +234,8 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
-            name="[개발중] 븜 주간던파 <서버이름> <캐릭터이름>",
-            value="던전앤파이터 캐릭터의 주간 던파를 요약합니다.\n*태초를 몇개 먹었는지 븜미가 친절히 알려줘양*\n**<개발중>**\n ",
+            name="븜 주간던파 <서버이름> <캐릭터이름>",
+            value="던전앤파이터 캐릭터의 주간 던파를 요약합니다.\n*레이드 클리어 기록, 태초획득 기록까지 븜미가 친절히 알려줘양*\n ",
             inline=False
         )
     elif category == "기타":
@@ -265,8 +270,10 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
     elif category == "관리자":
+        is_admin: bool = False
         # 명령어 요청자 권한 확인
-        if ctx.message.author.guild_permissions.administrator:
+        if ctx.message.author.guild_permissions.administrator or ctx.message.author.id == config.BOT_DEVELOPER_ID:
+            is_admin: bool = True
             # 관리자 권한 있음 -> DM으로 명령어 전송
             embed = discord.Embed(
                 title="관리자 전용 명령어",
@@ -295,17 +302,17 @@ async def deb_help(ctx: commands.Context, category: str = None):
             )
             dm_embed.add_field(
                 name="븜 디버그 stats",
-                value="븜 가동 시간 동안 가장 많이 실행된 명령어와 명령수행시간 조회\n",
+                value="상위 10개 가장 많이 실행된 명령어와 수행시간 조회\n",
                 inline=False
             )
             dm_embed.add_field(
                 name="븜 디버그 userstats",
-                value="상위 3명 가장 많이 명령어를 호출한 사용자 조회\n**사용자 멘션 포함 주의!**\n",
+                value="상위 3명 가장 많이 명령어를 호출한 사용자의 통계 조회\n**사용자 멘션 포함 주의!**\n",
                 inline=False
             )
             dm_embed.add_field(
                 name="븜 디버그 resetstats",
-                value="봇의 명령어 통계 초기화\n *재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
+                value="봇의 사용자 및 명령어 통계 초기화\n *봇 재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
                 inline=False
             )
         else:
@@ -327,22 +334,22 @@ async def deb_help(ctx: commands.Context, category: str = None):
         "Powered by Neople Open API\n"
     )
     embed.set_footer(text=embed_footer)
+
     if category == "관리자":
         # 요청한 채널에 embed 전송
         await ctx.send(embed=embed)
 
         # 관리자 권한 있으면 DM 전송 시도
-        try:
+        if is_admin:
             dm_embed.set_footer(text=embed_footer)
             await ctx.message.author.send(embed=dm_embed)
-        except Exception:
-            await ctx.message.channel.send(f"{ctx.message.author.mention} DM을 보내는 중에 오류가 발생했어양...")
     else:
         # 메세지 전송
         await ctx.send(embed=embed)
 
 
 # 가장 오래 / 빨리 실행된 명령어 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 async def deb_command_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
@@ -357,8 +364,9 @@ async def deb_command_stats(ctx: commands.Context) -> None:
 
     # 명령어 순위 통계 (상위 10개)
     command_stats_raw: dict = bl.COMMAND_STATS
+    top10_commands: list = sorted(command_stats_raw.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
     if not command_stats_raw:
-        await ctx.send("아직 명령어 통계가 없어양...")
+        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
         return
 
     rank_emoji: list = ["🥇", "🥈", "🥉"]
@@ -366,14 +374,15 @@ async def deb_command_stats(ctx: commands.Context) -> None:
         f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등')} "
         f"{info['alt_name'] or cmd_name}: {info['count']}회 "
         f"(최고: {info['fast']:.3f}초, 최저: {info['slow']:.3f}초)"
-        for idx, (cmd_name, info) in enumerate(sorted(command_stats_raw.items(), key=lambda item: item[1]['count'], reverse=True)[:10])
+        for idx, (cmd_name, info) in enumerate(top10_commands)
     )
 
     now_kst = kst_format_now_v2().strftime('%Y-%m-%d %H:%M:%S')
     embed_title = f"븜끼봇 명령어 통계 ({now_kst})"
     stats_message = (
-        f"지금 까지 실행된 명령어 통계에양!\n"
-        f"```ini\n[명령어 통계]\n"
+        f"지금 까지 실행된 상위 10개 명령어 통계에양!\n"
+        f"```ini\n"
+        f"[상위 명령어 통계 top 10]\n"
         f"{what_is_slowest}"
         f"{what_is_fastest}\n"
         f"[명령어별 실행 횟수 및 시간]\n"
@@ -397,26 +406,43 @@ async def deb_command_stats(ctx: commands.Context) -> None:
 
 
 # 가장 많이 명령어를 호출한 사용자 조회
+@with_timeout(config.COMMAND_TIMEOUT)
 async def deb_user_stats(ctx: commands.Context) -> None:
+    """사용자별 명령어 호출 통계를 조회합니다.
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+
+    Note:
+        USER_STATS 딕셔너리에서 사용자 ID를 키로 사용하여
+        각 사용자의 명령어 호출 횟수를 저장합니다.
+        {user_id: {'total_count': int, 'last_command': str, 'command_counts': {command_name: int, ...}}} 형태
+    """
+
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
     # 사용자 통계 출력 (상위 3명, mention 포함)
-    user_stats_raw = bl.USER_STATS # {user_id: {'count': int}} 형태
+    user_stats_raw = bl.USER_STATS
     if not user_stats_raw:
-        await ctx.send("아직 명령어를 호출한 사용자가 없어양...")
+        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
         return
     
     rank_emoji: list = ["🥇", "🥈", "🥉"]
+    top3_users: list = sorted(user_stats_raw.items(), key=lambda item: item[1]['total_count'], reverse=True)[:3]
     user_stats = "\n".join(
-        f"{rank_emoji[idx]} <@{user_id}>: {info['count']}회"
-        for idx, (user_id, info) in enumerate(sorted(user_stats_raw.items(), key=lambda item: item[1]['count'], reverse=True)[:10])
+        f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등 ')}"
+        f"<@{user_id}>: {info['total_count']}회\n"
+        f"- 최근 사용 명령어: {info.get('last_command', '몰라양')}\n"
+        f"- 많이 사용한 명령어: {max(info['command_counts'], key=info['command_counts'].get, default='몰라양')} "
+        f"({max(info['command_counts'].values(), default=0)}회)\n"
+        for idx, (user_id, info) in enumerate(top3_users)
     )
     now_kst = kst_format_now_v2().strftime('%Y-%m-%d %H:%M:%S')
     embed_title = f"븜끼봇 사용자 통계 ({now_kst})"
     stats_message = (
         f"지금 까지 명령어를 가장 많이 호출한 사용자 통계에양!\n"
-        f"\n[사용자별 명령어 호출 횟수]\n"
+        f"\n[상위 사용자 3명 명령어 통계]\n"
         f"{user_stats}\n"
         f""
     )
@@ -437,13 +463,14 @@ async def deb_user_stats(ctx: commands.Context) -> None:
 
 
 # 통계 초기화 (메모리 사용량 감소 목적)
+@with_timeout(config.COMMAND_TIMEOUT)
 async def deb_reset_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
     # 명령어 통계 초기화
-    bl.COMMAND_STATS.clear()
-    bl.USER_STATS.clear()
+    bl.COMMAND_STATS = {}
+    bl.USER_STATS = {}
     bl.SLOWEST_COMMAND_NAME = None
     bl.SLOWEST_COMMAND_ELAPSED = 0.01
     bl.FASTEST_COMMAND_NAME = None

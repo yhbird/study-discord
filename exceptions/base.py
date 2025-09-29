@@ -1,8 +1,9 @@
-"""api_exceptions.py
+"""
+exceptions/base.py
 
-API 관련 예외 처리 모듈
+공통 예외 처리 모듈
 
-api_command.py / api_utils.py에서 사용되는 예외 클래스 정의
+각 단계별 예외 클래스를 정의합니다.
 
 """
 
