@@ -17,7 +17,7 @@ from pytz import timezone
 from bot_logger import log_command
 from utils.text import safe_float, safe_percent
 
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
 
 @log_command(alt_func_name="븜 미국주식")
 async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
@@ -73,7 +73,7 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
     except YFI_NO_TICKER:
         await ctx.send(f"티커 {ticker}는 존재하지 않거나, 주식 정보가 없어양!")
         return
-    except YFI_NO_RATE_WARNING:
+    except YFI_NO_RATE_WARNING: # 경고의 경우 no return
         await ctx.send(f"경고) {stock_currency} 환율 정보를 찾을 수 없어양!")
     except YFI_STOCK_FETCH_RATE:
         await ctx.send(f"경고) 환율 정보를 가져오는 데 실패했어양!")
@@ -93,11 +93,11 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
             f"- **52주 최저가:** {safe_float(low_52w)} {stock_currency} {low_52w_krw_text} ({safe_percent(low_52w_change_pct)})\n"
         )
         footer_text = (
-            f"정보 제공: yahoo finance API (최대 15분 지연)\n"
             f"현지 시간: {stock_time} ({stock_timezone_short})\n"
             f"한국 시간: {kst_time} (KST)"
             f"\n--- 환율안내 ---"
             f"{footer_text_extra}"
+            f"정보 제공: yahoo finance API (최대 15분 지연)\n"
         )
         stock_embed = discord.Embed(
             title=f"{stock_name} ({stock_ticker})",

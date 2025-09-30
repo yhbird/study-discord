@@ -16,7 +16,8 @@ from utils.time import parse_iso_string
 from utils.plot import fp_maplestory_light, fp_maplestory_bold
 from config import COMMAND_TIMEOUT
 
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
+from exceptions.command_exceptions import *
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -42,6 +43,8 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         character_ocid: str = get_ocid(character_name)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+
+        return
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
     except NexonAPITooManyRequests:

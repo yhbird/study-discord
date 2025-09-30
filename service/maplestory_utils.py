@@ -15,7 +15,7 @@ from utils.time import kst_format_now_v2
 from data.json.fortune_message_table import fortune_message_table_raw
 
 from typing import Literal, Optional, Dict, List, Tuple, Any
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
     """Nexon Open API의 일반적인 요청을 처리하는 함수  

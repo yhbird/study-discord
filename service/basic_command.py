@@ -16,6 +16,7 @@ from service.basic_utils import ImageViewer
 from service.basic_utils import check_ban
 from config import COMMAND_TIMEOUT
 
+from exceptions.command_exceptions import InvalidCommandFormat
 from ddgs.exceptions import DDGSException
 from bot_logger import log_command, with_timeout
 
@@ -75,8 +76,10 @@ async def msg_handle_image(ctx: commands.Context, search_term: str = None):
 
     if search_term is None:
         await ctx.message.channel.send("검색어를 입력하세양!!", reference=ctx.message)
+        raise InvalidCommandFormat("검색어가 입력되지 않음")
     else:
-        image_search_keyword: str = search_term
+        image_search_keyword: str = search_term.strip()
+
 
     if check_ban(image_search_keyword):
         ban_img: str = "data/img/dnf_4.gif"
@@ -116,6 +119,7 @@ async def msg_handle_image(ctx: commands.Context, search_term: str = None):
     embed = discord.Embed(title=f"'{image_search_keyword}' 이미지 검색 결과 에양 ({index_indicator})")
     embed.set_image(url=view.images[view.current_index]["image"])
     embed.description = f"[🔗 원본 보기]({view.images[view.current_index]['url']})"
+    embed.set_footer(text="문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!")
 
     sent_message = await ctx.message.channel.send(embed=embed, view=view)
     view.message = sent_message

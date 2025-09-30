@@ -23,6 +23,13 @@ class ImageViewer(View):
         self.add_item(Button(label="❌", style=discord.ButtonStyle.primary, custom_id="delete"))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Admin 권한이 있으면 삭제 가능
+        if interaction.user.guild_permissions.administrator:
+            if action == "delete":
+                if self.message:
+                    await self.message.delete()
+                return False  # View 종료
+               
         # 상호작용한 사용자가 뷰의 소유자와 일치하는지 확인
         if interaction.user != self.view_owner:
             await interaction.response.send_message("이 기능은 검색한 사람만 사용할 수 있어양!", ephemeral=True)
@@ -50,6 +57,7 @@ class ImageViewer(View):
         embed = discord.Embed(title=f"'{self.image_search_keyword}' 이미지 검색 결과 에양 ({index})")
         embed.set_image(url=self.images[self.current_index]["image"])
         embed.description = f"[🔗 원본 보기]({self.images[self.current_index]['url']})"
+        embed.set_footer(text="문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!")
         if interaction.response.is_done():
             await interaction.followup.edit_message(message_id=self.message.id, embed=embed, view=self)
         else:
