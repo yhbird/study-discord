@@ -7,7 +7,7 @@ from pytz import timezone
 from typing import List
 from config import WTH_API_HOME, WTH_DATA_API_KEY # Weather API
 from config import KKO_API_HOME, KKO_LOCAL_API_KEY # Kakao Local API
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
 
 def convert_grid(lat: float, lon: float) -> tuple:
     """ 위도/경도를 기상청 기준 격자 좌표로 반환

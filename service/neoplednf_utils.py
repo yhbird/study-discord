@@ -5,7 +5,7 @@ from pytz import timezone
 
 from typing import Optional, Dict, List, Any
 from config import NEOPLE_API_HOME, NEOPLE_API_KEY
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
 
 
 def general_request_handler_neople(request_url: str, headers: Optional[dict] = None, params: Optional[dict] = None) -> dict:

@@ -1,16 +1,17 @@
 """
-exceptions/api_exceptions.py
+exceptions/client_exceptions.py
 
 API 관련 예외 처리 모듈
 
-???_command.py / ???_utils.py에서 사용되는 예외 클래스 정의
+???_utils.py에서 사용되는 예외 클래스 정의
 """
+
+from __future__ import annotations
 
 from exceptions.base import ClientBaseException
 
 class NexonAPIError(ClientBaseException):
     """Nexon API 사용 중 발생하는 오류"""
-    pass
 
 class NexonAPIBadRequest(ClientBaseException):
     """Nexon API Bad Request 오류"""

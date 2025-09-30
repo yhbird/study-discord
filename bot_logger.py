@@ -17,7 +17,7 @@ from exceptions.base import BotWarning
 SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
 SLOWEST_COMMAND_ELAPSED : float = 0.0 # 가장 느린 명령어 초기값
 SLOWEST_COMMAND_NAME : str = ""
-FASTEST_COMMAND_ELAPSED : float = 30.0 # 가장 빠른 명령어 초기값
+FASTEST_COMMAND_ELAPSED : float = config.COMMAND_TIMEOUT # 가장 빠른 명령어 초기값
 FASTEST_COMMAND_NAME : str = ""
 COMMAND_STATS: dict = {} # 명령어별 실행 횟수 및 총 소요 시간 기록
 USER_STATS: dict = {} # 사용자별 명령어 사용 횟수 기록
@@ -46,8 +46,8 @@ def _short_str(s: str, max_len: int = 80) -> str:
 
 def _is_discord_context(x) -> bool:
     try:
-        m = x.__class__.__module__
-        n = x.__class__.__name__
+        m: str = x.__class__.__module__
+        n: str = x.__class__.__name__
         return m.startswith("discord") and "Context" in n
     except Exception:
         return False
@@ -133,7 +133,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
         async def wrapper(*args, **kwargs):
             global SLOWEST_COMMAND_ELAPSED, SLOWEST_COMMAND_NAME
             global FASTEST_COMMAND_ELAPSED, FASTEST_COMMAND_NAME
-            global COMMAND_STATS
+            global COMMAND_STATS, USER_STATS
             func_name = inner_func.__name__
             start_time = time.time()
             try:
@@ -154,9 +154,9 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
 
                 if stats:
                     # 명령어 통계 업데이트
-                    if func_name not in COMMAND_STATS and stats:
-                        COMMAND_STATS[func_name] = {'alt_name': alt_func_name, 'count': 0, 'fast': 30.0, 'slow': 0.0}
-                    if func_name in COMMAND_STATS and stats:
+                    if func_name not in COMMAND_STATS:
+                        COMMAND_STATS[func_name] = {'alt_name': alt_func_name, 'count': 1, 'fast': config.COMMAND_TIMEOUT, 'slow': 0.0}
+                    else:
                         COMMAND_STATS[func_name]['count'] += 1
                         if elapsed_time > COMMAND_STATS[func_name]['slow']:
                             COMMAND_STATS[func_name]['slow'] = elapsed_time

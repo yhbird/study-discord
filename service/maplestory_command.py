@@ -12,11 +12,12 @@ from service.maplestory_utils import *
 from bot_logger import log_command, with_timeout
 from utils.image import get_image_bytes
 from utils.text import preprocess_int_with_korean
-from utils.time import parse_iso_string
+from utils.time import parse_iso_string, kst_format_now_v2
 from utils.plot import fp_maplestory_light, fp_maplestory_bold
 from config import COMMAND_TIMEOUT
 
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
+from exceptions.command_exceptions import *
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -42,6 +43,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         character_ocid: str = get_ocid(character_name)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+        return
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
     except NexonAPITooManyRequests:
@@ -457,7 +459,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     # OCID 데이터값 검증
     if not character_ocid:
         await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise Exception(f"OCID not found for character: {character_name}")
+        raise CommandFailure(f"OCID not found for character: {character_name}")
     
     basic_info_service_url: str = f"/maplestory/v1/character/basic"
     detail_info_service_url: str = f"/maplestory/v1/character/stat"
@@ -471,17 +473,17 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     except Exception as e:
         if '400' in str(e):
             await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-            raise Exception(f"Character '{character_name}' detail info not found")
+            raise CommandFailure(f"Character '{character_name}' detail info not found")
         if '403' in str(e):
             await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
+            raise CommandFailure("Forbidden access to API")
         if '429' in str(e):
             await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
+            raise CommandFailure("Too many requests to API")
         if '500' in str(e):
             await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
-    
+            raise CommandFailure("Nexon Open API Internal server error")
+
     # 정상적으로 캐릭터 기본 정보를 찾았을 때
     basic_info = process_maple_basic_info(basic_info_response_data)
 
@@ -489,7 +491,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     character_name: str = basic_info.get('character_name')
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
-        return
+        raise CommandFailure(f"Character name '{character_name}' not found")
     
     # 캐릭터 기본 정보 2 - 캐릭터 레벨
     character_level: int = basic_info.get('character_level')
@@ -557,143 +559,81 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
     
     # detail_info_response_data 전처리
-    stat_list: list[dict] = detail_info_response_data.get('final_stat', [])
-    if not stat_list:
+    try:
+        stat_info = process_maple_stat_info(detail_info_response_data)
+    except NexonAPIError:
         await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-        raise Exception(f"Character '{character_name}' detail info not found")
-    else:
-        stat_info: dict = {}
-        for stat in stat_list:
-            stat_name: str = stat.get('stat_name')
-            stat_value: str = stat.get('stat_value', '몰라양')
-            stat_info[stat_name] = stat_value
+        raise CommandFailure(f"Character '{character_name}' detail info not found")
     
-    # 캐릭터 상세 정보 11 - 캐릭터 능력치: 스탯 공격력 "209558569" -> 억 만 단위 변환
-    character_stat_attack: str = (
-        str(stat_info.get('최대 스탯공격력')).strip()
-        if stat_info.get('최대 스탯공격력') is not None
-        else '몰라양')
-    if character_stat_attack != '몰라양':
-        character_stat_attack = preprocess_int_with_korean(character_stat_attack)
     # 캐릭터 상세 정보 12 - 캐릭터 능력치: 데미지(%) "175.00" -> "175.00%"
-    character_stat_damage: str = (
-        str(stat_info.get('데미지')).strip()
-        if stat_info.get('데미지') is not None
-        else '0.00%'
-    )
-    if character_stat_damage != '0.00%':
-        character_stat_damage = f"{character_stat_damage}%"
+    character_stat_damage: str | Literal["알수없음"] = stat_info.get("stat_damage")
+    if character_stat_damage != "알수없음":
+        character_stat_damage_str: str = f"{character_stat_damage}%"
+    else:
+        character_stat_damage_str: str = "몰라양"
+
     # 캐릭터 상세 정보 13 - 캐릭터 능력치: 보스 공격력(%) "50.00" -> "50.00%"
-    character_stat_boss_attack: str = (
-        str(stat_info.get('보스 몬스터 데미지')).strip()
-        if stat_info.get('보스 몬스터 데미지') is not None
-        else '0.00%'
-    )
-    if character_stat_boss_attack != '0.00%':
-        character_stat_boss_attack = f"{character_stat_boss_attack}%"
+    character_stat_boss_damage: str | Literal["알수없음"] = stat_info.get("stat_boss_attack")
+    if character_stat_boss_damage != "알수없음":
+        character_stat_boss_damage_str: str = f"{character_stat_boss_damage}%"
+    else:
+        character_stat_boss_damage_str: str = "몰라양"
+
     # 캐릭터 상세 정보 14 - 캐릭터 능력치: 크리티컬 데미지(%) "50.00" -> "50.00%"
-    character_stat_critical_damage: str = (
-        str(stat_info.get('크리티컬 데미지')).strip()
-        if stat_info.get('크리티컬 데미지') is not None
-        else '0.00%'
-    )
-    if character_stat_critical_damage != '0.00%':
-        character_stat_critical_damage = f"{character_stat_critical_damage}%"
+    character_stat_critical_damage: str | Literal["알수없음"] = stat_info.get("stat_critical_damage")
+    if character_stat_critical_damage != "알수없음":
+        character_stat_critical_damage_str: str = f"{character_stat_critical_damage}%"
+    else:
+        character_stat_critical_damage_str: str = "몰라양"
+
     # 캐릭터 상세 정보 15 - 캐릭터 능력치: 방어율 무시(%) "50.00" -> "50.00%"
-    character_stat_ignore_defense: str = (
-        str(stat_info.get('방어율 무시')).strip()
-        if stat_info.get('방어율 무시') is not None
-        else '0.00%'
-    )
-    if character_stat_ignore_defense != '0.00%':
-        character_stat_ignore_defense = f"{character_stat_ignore_defense}%"
+    character_stat_ignore_defense: str | Literal["알수없음"] = stat_info.get("stat_ignore_defense")
+    if character_stat_ignore_defense != "알수없음":
+        character_stat_ignore_defense_str: str = f"{character_stat_ignore_defense}%"
+    else:
+        character_stat_ignore_defense_str: str = "몰라양"
+
     # 캐릭터 상세 정보 16 - 캐릭터 능력치: 스타포스
-    character_stat_starforce: str = (
-        str(stat_info.get('스타포스')).strip()
-        if stat_info.get('스타포스') is not None
-        else '0'
-    )
-    if character_stat_starforce != '0':
-        character_stat_starforce = f"총합 {character_stat_starforce}성"
+    character_stat_starforce: str | Literal["알수없음"] = stat_info.get("stat_starforce")
+    if character_stat_starforce != "알수없음":
+        character_stat_starforce_str: str = f"총합 {character_stat_starforce}성"
+    else:
+        character_stat_starforce_str: str = "몰라양"
+
     # 캐릭터 상세 정보 17 - 캐릭터 능력치: 아케인포스
-    character_stat_arcaneforce: str = (
-        str(stat_info.get('아케인포스')).strip()
-        if stat_info.get('아케인포스') is not None
-        else '0'
-    )
+    character_stat_arcane_force: str | Literal["알수없음"] = stat_info.get("stat_arcane_force")
+    if character_stat_arcane_force != "알수없음":
+        character_stat_arcane_force_str: str = f"{character_stat_arcane_force}"
+    else:
+        character_stat_arcane_force_str: str = "몰라양"
+
     # 캐릭터 상세 정보 18 - 캐릭터 능력치: 어센틱포스
-    character_stat_authenticforce: str = (
-        str(stat_info.get('어센틱포스')).strip()
-        if stat_info.get('어센틱포스') is not None
-        else '0'
-    )
+    character_stat_authentic_force: str | Literal["알수없음"] = stat_info.get("stat_authentic_force")
+    if character_stat_authentic_force != "알수없음":
+        character_stat_authentic_force_str: str = f"{character_stat_authentic_force}"
+    else:
+        character_stat_authentic_force_str: str = "몰라양"
+
     # 캐릭터 상세 정보 19 - 캐릭터 능력치: 스탯(힘, 덱, 인트, 럭) "1000" -> "1,000"
-    stat_str: int = (
-        int(stat_info.get('STR'))
-        if stat_info.get('STR') is not None
-        else 0
-    )
-    stat_dex: int = (
-        int(stat_info.get('DEX'))
-        if stat_info.get('DEX') is not None
-        else 0
-    )
-    stat_int: int = (
-        int(stat_info.get('INT'))
-        if stat_info.get('INT') is not None
-        else 0
-    )
-    stat_luk: int = (
-        int(stat_info.get('LUK'))
-        if stat_info.get('LUK') is not None
-        else 0
-    )
-    stat_hp: int = (
-        int(stat_info.get('HP'))
-        if stat_info.get('HP') is not None
-        else 0
-    )
-    stat_mp: int = (
-        int(stat_info.get('MP'))
-        if stat_info.get('MP') is not None
-        else 0
-    )
-    if stat_mp == 0:
-        stat_mp = 0
-    stat_ap_str: int = (
-        int(stat_info.get('AP 배분 STR', '0'))
-        if stat_info.get('AP 배분 STR') is not None
-        else 0
-    )
-    stat_ap_dex: int = (
-        int(stat_info.get('AP 배분 DEX', '0'))
-        if stat_info.get('AP 배분 DEX') is not None
-        else 0
-    )
-    stat_ap_int: int = (
-        int(stat_info.get('AP 배분 INT', '0'))
-        if stat_info.get('AP 배분 INT') is not None
-        else 0
-    )
-    stat_ap_luk: int = (
-        int(stat_info.get('AP 배분 LUK', '0'))
-        if stat_info.get('AP 배분 LUK') is not None
-        else 0
-    )
-    stat_ap_hp: int = (
-        int(stat_info.get('AP 배분 HP', '0'))
-        if stat_info.get('AP 배분 HP') is not None
-        else 0
-    )
-    if stat_ap_hp < 0:
-        stat_ap_hp = 0
-    stat_ap_mp: int = (
-        int(stat_info.get('AP 배분 MP', '0'))
-        if stat_info.get('AP 배분 MP') is not None
-        else 0
-    )
-    if stat_ap_mp < 0:
-        stat_ap_mp = 0
+    stat_str: int = stat_info.get("stat_str")
+    stat_dex: int = stat_info.get("stat_dex")
+    stat_int: int = stat_info.get("stat_int")
+    stat_luk: int = stat_info.get("stat_luk")
+    stat_hp: int = stat_info.get("stat_hp")
+    stat_mp: int = stat_info.get("stat_mp")
+    stat_str_ap: int = stat_info.get("stat_str_ap")
+    stat_dex_ap: int = stat_info.get("stat_dex_ap")
+    stat_int_ap: int = stat_info.get("stat_int_ap")
+    stat_luk_ap: int = stat_info.get("stat_luk_ap")
+    stat_hp_ap: int = stat_info.get("stat_hp_ap")
+    stat_mp_ap: int = stat_info.get("stat_mp_ap")
+
+    if stat_hp_ap < 0:
+        stat_hp_ap = 0
+
+    if stat_mp_ap < 0:
+        stat_mp_ap = 0
+
     character_stat_str: str = f"{stat_str:,}"
     character_stat_dex: str = f"{stat_dex:,}"
     character_stat_int: str = f"{stat_int:,}"
@@ -704,36 +644,48 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         if stat_mp > 0
         else "MP를 사용하지 않는 캐릭터에양"
     )
-    character_stat_ap_str: str = f"{stat_ap_str:,}"
-    character_stat_ap_dex: str = f"{stat_ap_dex:,}"
-    character_stat_ap_int: str = f"{stat_ap_int:,}"
-    character_stat_ap_luk: str = f"{stat_ap_luk:,}"
-    character_stat_ap_hp: str = f"{stat_ap_hp:,}"
-    character_stat_ap_mp: str = (
-        f"{stat_ap_mp:,}"
+    character_stat_str_ap: str = f"{stat_str_ap:,}"
+    character_stat_dex_ap: str = f"{stat_dex_ap:,}"
+    character_stat_int_ap: str = f"{stat_int_ap:,}"
+    character_stat_luk_ap: str = f"{stat_luk_ap:,}"
+    character_stat_hp_ap: str = f"{stat_hp_ap:,}"
+    character_stat_mp_ap: str = (
+        f"{stat_mp_ap:,}"
         if stat_mp > 0
         else "X"
     )
+
     # 캐릭터 상세 정보 20 - 캐릭터 능력치: 드메
-    character_stat_drop: str = stat_info.get('아이템 드롭률', '0%')
-    if character_stat_drop != '0%':
-        character_stat_drop = f"{character_stat_drop}%"
-    character_stat_meso: str = stat_info.get('메소 획득량', '0%')
-    if character_stat_meso != '0%':
-        character_stat_meso = f"{character_stat_meso}%"
+    character_stat_drop: str | Literal["알수없음"] = stat_info.get('stat_item_drop')
+    if character_stat_drop != "알수없음":
+        character_stat_drop_str: str = f"{character_stat_drop}%"
+    else:
+        character_stat_drop_str: str = "몰라양"
+    character_stat_meso: str | Literal["알수없음"] = stat_info.get('stat_meso')
+    if character_stat_meso != "알수없음":
+        character_stat_meso_str: str = f"{character_stat_meso}%"
+    else:
+        character_stat_meso_str: str = "몰라양"
+
     # 캐릭터 상세 정보 21 - 캐릭터 능력치: 쿨감
-    character_stat_cooldown_pct: str = stat_info.get('재사용 대기시간 감소 (%)', '0%')
-    if character_stat_cooldown_pct != '0%':
-        character_stat_cooldown_pct = f"{character_stat_cooldown_pct}%"
-    character_stat_cooldown_sec: str = stat_info.get('재사용 대기시간 감소 (초)', '0초')
-    if character_stat_cooldown_sec != '0초':
-        character_stat_cooldown_sec = f"{character_stat_cooldown_sec}초"
-    character_stat_cooldown: str = f"{character_stat_cooldown_pct} | {character_stat_cooldown_sec}"
+    character_stat_cooldown_pct: str | Literal["알수없음"] = stat_info.get('stat_cooltime_reduction_per')
+    if character_stat_cooldown_pct != "알수없음":
+        character_stat_cooldown_pct_str: str = f"{character_stat_cooldown_pct}%"
+    else:
+        character_stat_cooldown_pct_str: str = "몰라양"
+    character_stat_cooldown_sec: str | Literal["알수없음"] = stat_info.get('stat_cooltime_reduction_sec')
+    if character_stat_cooldown_sec != "알수없음":
+        character_stat_cooldown_sec_str: str = f"{character_stat_cooldown_sec}초"
+    else:
+        character_stat_cooldown_sec_str = "몰라양"
+    character_stat_cooldown: str = f"{character_stat_cooldown_pct_str} | {character_stat_cooldown_sec_str}"
+
     # 캐릭터 상세 정보 22 - 캐릭터 능력치: 공격력/마력
-    character_stat_attack_power: str = f"{int(stat_info.get('공격력', '0')):,}"
-    character_stat_magic_power: str = f"{int(stat_info.get('마력', '0')):,}"
+    character_stat_attack_power: str = f"{int(stat_info.get('stat_attack', '0')):,}"
+    character_stat_magic_power: str = f"{int(stat_info.get('stat_magic', '0')):,}"
+
     # 캐릭터 상세 정보 23 - 캐릭터 능력치: 전투력 "억 만 단위 변환"
-    character_stat_battle_power: str = stat_info.get('전투력', '0')
+    character_stat_battle_power: str = stat_info.get('stat_battle_power', '0')
     character_stat_battle_power = preprocess_int_with_korean(character_stat_battle_power)
 
     # Embed 메시지 생성
@@ -751,22 +703,23 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         f"\n**\-\-\- 상세 정보 \-\-\-**\n"
         f"**전투력**: {character_stat_battle_power}\n"
         f"**공격력/마력**: {character_stat_attack_power} / {character_stat_magic_power}\n"
-        f"**보스 공격력**: {character_stat_boss_attack}\n"
-        f"**크리티컬 데미지**: {character_stat_critical_damage}\n"
-        f"**방어율 무시**: {character_stat_ignore_defense}\n"
-        f"**드랍/메획 증가**: {character_stat_drop} / {character_stat_meso}\n"
+        f"**데미지**: {character_stat_damage_str}\n"
+        f"**보스 공격력**: {character_stat_boss_damage_str}\n"
+        f"**크리티컬 데미지**: {character_stat_critical_damage_str}\n"
+        f"**방어율 무시**: {character_stat_ignore_defense_str}\n"
+        f"**드랍/메획 증가**: {character_stat_drop_str} / {character_stat_meso_str}\n"
         f"\n**\-\-\- 능력치 \-\-\-**\n"
-        f"**STR**: {character_stat_str} ({character_stat_ap_str})\n"
-        f"**DEX**: {character_stat_dex} ({character_stat_ap_dex})\n"
-        f"**INT**: {character_stat_int} ({character_stat_ap_int})\n"
-        f"**LUK**: {character_stat_luk} ({character_stat_ap_luk})\n"
-        f"**HP**: {character_stat_hp} ({character_stat_ap_hp})\n"
-        f"**MP**: {character_stat_mp} ({character_stat_ap_mp})\n"
+        f"**STR**: {character_stat_str} ({character_stat_str_ap})\n"
+        f"**DEX**: {character_stat_dex} ({character_stat_dex_ap})\n"
+        f"**INT**: {character_stat_int} ({character_stat_int_ap})\n"
+        f"**LUK**: {character_stat_luk} ({character_stat_luk_ap})\n"
+        f"**HP**: {character_stat_hp} ({character_stat_hp_ap})\n"
+        f"**MP**: {character_stat_mp} ({character_stat_mp_ap})\n"
         f"**재사용 대기시간 감소**: {character_stat_cooldown}\n"
         f"\n**\-\-\- 포스정보 \-\-\-**\n"
-        f"**스타포스**: {character_stat_starforce}\n"
-        f"**아케인포스**: {character_stat_arcaneforce}\n"
-        f"**어센틱포스**: {character_stat_authenticforce}\n"
+        f"**스타포스**: {character_stat_starforce_str}\n"
+        f"**아케인포스**: {character_stat_arcane_force_str}\n"
+        f"**어센틱포스**: {character_stat_authentic_force_str}\n"
     )
     embed_footer: str = (
         f"생성일: {character_date_create_str}\n"

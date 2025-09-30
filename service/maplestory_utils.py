@@ -11,11 +11,11 @@ from datetime import datetime, timedelta
 from pytz import timezone
 
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
-from utils.time import kst_format_now_v2
 from data.json.fortune_message_table import fortune_message_table_raw
 
-from typing import Literal, Optional, Dict, List, Tuple, Any
-from exceptions.api_exceptions import *
+from typing import Literal, Optional, Dict, List, Tuple
+
+from exceptions.client_exceptions import *
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
     """Nexon Open API의 일반적인 요청을 처리하는 함수  
@@ -685,3 +685,296 @@ def process_maple_basic_info(raw_data: dict) -> dict:
         return_data['liberation_quest_clear'] = character_liberation_quest_clear
 
     return return_data
+
+def process_maple_stat_info(raw_data: dict) -> Dict[str, str | int | Literal["알수없음"]]:
+    """메이플스토리 캐릭터 상세 정보 데이터를 가공하는 함수
+
+    Args:
+        raw_data (dict): 메이플스토리 캐릭터 상세 정보 데이터
+
+    Returns:
+        dict: 가공된 캐릭터 상세 정보 데이터
+    """
+    stat_list: List[dict] = raw_data.get('final_stat', [])
+
+    if isinstance(stat_list, list) and stat_list:
+        stat_info: dict = {}
+        for stat in stat_list:
+            stat_name: str = str(stat.get('stat_name')).strip()
+            stats_value: str = str(stat.get('stats_value')).strip()
+            if stat_name and stats_value:
+                stat_info[stat_name] = stats_value
+            else:
+                continue
+    else:
+        raise NexonAPIError("Invalid stat data format")
+    
+    if stat_info:
+        stat_attack_min: str | Literal["알수없음"] = (
+            str(stat_info.get("최소 스탯공격력")).strip()
+            if stat_info.get("최소 스탯공격력") is not None
+            else "알수없음"
+        )
+        stat_attack_max: str | Literal["알수없음"] = (
+            str(stat_info.get("최대 스탯공격력")).strip()
+            if stat_info.get("최대 스탯공격력") is not None
+            else "알수없음"
+        )
+        stat_damage: str | Literal["알수없음"] = (
+            str(stat_info.get("데미지")).strip()
+            if stat_info.get("데미지") is not None
+            else "알수없음"
+        )
+        stat_boss_damage: str | Literal["알수없음"] = (
+            str(stat_info.get("보스 몬스터 데미지")).strip()
+            if stat_info.get("보스 몬스터 데미지") is not None
+            else "알수없음"
+        )
+        stat_final_damage: str | Literal["알수없음"] = (
+            str(stat_info.get("최종 데미지")).strip()
+            if stat_info.get("최종 데미지") is not None
+            else "알수없음"
+        )
+        stat_ignore_def: str | Literal["알수없음"] = (
+            str(stat_info.get("방어율 무시")).strip()
+            if stat_info.get("방어율 무시") is not None
+            else "알수없음"
+        )
+        stat_crit_rate: str | Literal["알수없음"] = (
+            str(stat_info.get("크리티컬 확률")).strip()
+            if stat_info.get("크리티컬 확률") is not None
+            else "알수없음"
+        )
+        stat_crit_damage: str | Literal["알수없음"] = (
+            str(stat_info.get("크리티컬 데미지")).strip()
+            if stat_info.get("크리티컬 데미지") is not None
+            else "알수없음"
+        )
+        stat_status_resist: str | Literal["알수없음"] = (
+            str(stat_info.get("상태이상 내성")).strip()
+            if stat_info.get("상태이상 내성") is not None
+            else "알수없음"
+        )
+        stat_stance: str | Literal["알수없음"] = (
+            str(stat_info.get("스탠스")).strip()
+            if stat_info.get("스탠스") is not None
+            else "알수없음"
+        )
+        stat_defense: str | Literal["알수없음"] = (
+            str(stat_info.get("방어력")).strip()
+            if stat_info.get("방어력") is not None
+            else "알수없음"
+        )
+        stat_move_speed: str | Literal["알수없음"] = (
+            str(stat_info.get("이동속도")).strip()
+            if stat_info.get("이동속도") is not None
+            else "알수없음"
+        )
+        stat_jump: str | Literal["알수없음"] = (
+            str(stat_info.get("점프력")).strip()
+            if stat_info.get("점프력") is not None
+            else "알수없음"
+        )
+        stat_starforce: str | Literal["알수없음"] = (
+            str(stat_info.get("스타포스")).strip()
+            if stat_info.get("스타포스") is not None
+            else "알수없음"
+        )
+        stat_arcane_force: str | Literal["알수없음"] = (
+            str(stat_info.get("아케인포스")).strip()
+            if stat_info.get("아케인포스") is not None
+            else "알수없음"
+        )
+        stat_authentic_force: str | Literal["알수없음"] = (
+            str(stat_info.get("어센틱포스")).strip()
+            if stat_info.get("어센틱포스") is not None
+            else "알수없음"
+        )
+        stat_str: int = (
+            int(stat_info.get("STR"))
+            if stat_info.get("STR") is not None
+            else 0
+        )
+        stat_dex: int = (
+            int(stat_info.get("DEX"))
+            if stat_info.get("DEX") is not None
+            else 0
+        )
+        stat_int: int = (
+            int(stat_info.get("INT"))
+            if stat_info.get("INT") is not None
+            else 0
+        )
+        stat_luk: int = (
+            int(stat_info.get("LUK"))
+            if stat_info.get("LUK") is not None
+            else 0
+        )
+        stat_hp: int = (
+            int(stat_info.get("HP"))
+            if stat_info.get("HP") is not None
+            else 0
+        )
+        stat_mp: int = (
+            int(stat_info.get("MP"))
+            if stat_info.get("MP") is not None
+            else 0
+        )
+        stat_str_ap: int = (
+            int(stat_info.get("AP 배분 STR"))
+            if stat_info.get("AP 배분 STR") is not None
+            else 0
+        )
+        stat_dex_ap: int = (
+            int(stat_info.get("AP 배분 DEX"))
+            if stat_info.get("AP 배분 DEX") is not None
+            else 0
+        )
+        stat_int_ap: int = (
+            int(stat_info.get("AP 배분 INT"))
+            if stat_info.get("AP 배분 INT") is not None
+            else 0
+        )
+        stat_luk_ap: int = (
+            int(stat_info.get("AP 배분 LUK"))
+            if stat_info.get("AP 배분 LUK") is not None
+            else 0
+        )
+        stat_hp_ap: int = (
+            int(stat_info.get("AP 배분 HP"))
+            if stat_info.get("AP 배분 HP") is not None
+            else 0
+        )
+        stat_mp_ap: int = (
+            int(stat_info.get("AP 배분 MP"))
+            if stat_info.get("AP 배분 MP") is not None
+            else 0
+        )
+        stat_item_drop: str | Literal["알수없음"] = (
+            str(stat_info.get("아이템 드롭률")).strip()
+            if stat_info.get("아이템 드롭률") is not None
+            else "알수없음"
+        )
+        stat_mesos: str | Literal["알수없음"] = (
+            str(stat_info.get("메소 획득량")).strip()
+            if stat_info.get("메소 획득량") is not None
+            else "알수없음"
+        )
+        stat_buff_duration: str | Literal["알수없음"] = (
+            str(stat_info.get("버프 지속시간")).strip()
+            if stat_info.get("버프 지속시간") is not None
+            else "알수없음"
+        )
+        stat_attack_speed: str | Literal["알수없음"] = (
+            str(stat_info.get("공격속도")).strip()
+            if stat_info.get("공격속도") is not None
+            else "알수없음"
+        )
+        stat_mob_damage: str | Literal["알수없음"] = (
+            str(stat_info.get("일반 몬스터 데미지")).strip()
+            if stat_info.get("일반 몬스터 데미지") is not None
+            else "알수없음"
+        )
+        stat_cooltime_reduction_sec: str | Literal["알수없음"] = (
+            str(stat_info.get("재사용 대기시간 감소 (초)")).strip()
+            if stat_info.get("재사용 대기시간 감소 (초)") is not None
+            else "알수없음"
+        )
+        stat_cooltime_reduction_per: str | Literal["알수없음"] = (
+            str(stat_info.get("재사용 대기시간 감소 (%)")).strip()
+            if stat_info.get("재사용 대기시간 감소 (%)") is not None
+            else "알수없음"
+        )
+        stat_cooltime_avoid: str | Literal["알수없음"] = (
+            str(stat_info.get("재사용 대기시간 미적용")).strip()
+            if stat_info.get("재사용 대기시간 미적용") is not None
+            else "알수없음"
+        )
+        stat_ignore_element: str | Literal["알수없음"] = (
+            str(stat_info.get("속성 내성 무시")).strip()
+            if stat_info.get("속성 내성 무시") is not None
+            else "알수없음"
+        )
+        stat_status_damage: str | Literal["알수없음"] = (
+            str(stat_info.get("상태이상 추가 데미지")).strip()
+            if stat_info.get("상태이상 추가 데미지") is not None
+            else "알수없음"
+        )
+        stat_weapon_mastery: str | Literal["알수없음"] = (
+            str(stat_info.get("무기 숙련도")).strip()
+            if stat_info.get("무기 숙련도") is not None
+            else "알수없음"
+        )
+        stat_bonus_exp: str | Literal["알수없음"] = (
+            str(stat_info.get("추가 경험치 획득")).strip()
+            if stat_info.get("추가 경험치 획득") is not None
+            else "알수없음"
+        )
+        stat_attack: str | Literal["알수없음"] = (
+            str(stat_info.get("공격력")).strip()
+            if stat_info.get("공격력") is not None
+            else "알수없음"
+        )
+        stat_magic: str | Literal["알수없음"] = (
+            str(stat_info.get("마력")).strip()
+            if stat_info.get("마력") is not None
+            else "알수없음"
+        )
+        stat_battle_power: str | Literal["알수없음"] = (
+            str(stat_info.get("전투력")).strip()
+            if stat_info.get("전투력") is not None
+            else "알수없음"
+        )
+        stat_familiar_duration: str | Literal["알수없음"] = (
+            str(stat_info.get("소환수 지속시간 증가")).strip()
+            if stat_info.get("소환수 지속시간 증가") is not None
+            else "알수없음"
+        )
+
+        processed_stat_info: Dict[str, str | int | Literal["알수없음"]] = {
+            "stat_attack_min": stat_attack_min,
+            "stat_attack_max": stat_attack_max,
+            "stat_damage": stat_damage,
+            "stat_boss_damage": stat_boss_damage,
+            "stat_final_damage": stat_final_damage,
+            "stat_ignore_def": stat_ignore_def,
+            "stat_crit_rate": stat_crit_rate,
+            "stat_crit_damage": stat_crit_damage,
+            "stat_status_resist": stat_status_resist,
+            "stat_stance": stat_stance,
+            "stat_defense": stat_defense,
+            "stat_move_speed": stat_move_speed,
+            "stat_jump": stat_jump,
+            "stat_starforce": stat_starforce,
+            "stat_arcane_force": stat_arcane_force,
+            "stat_authentic_force": stat_authentic_force,
+            "stat_str": stat_str,
+            "stat_dex": stat_dex,
+            "stat_int": stat_int,
+            "stat_luk": stat_luk,
+            "stat_hp": stat_hp,
+            "stat_mp": stat_mp,
+            "stat_str_ap": stat_str_ap,
+            "stat_dex_ap": stat_dex_ap,
+            "stat_int_ap": stat_int_ap,
+            "stat_luk_ap": stat_luk_ap,
+            "stat_hp_ap": stat_hp_ap,
+            "stat_mp_ap": stat_mp_ap,
+            "stat_item_drop": stat_item_drop,
+            "stat_mesos": stat_mesos,
+            "stat_buff_duration": stat_buff_duration,
+            "stat_attack_speed": stat_attack_speed,
+            "stat_mob_damage": stat_mob_damage,
+            "stat_cooltime_reduction_sec": stat_cooltime_reduction_sec,
+            "stat_cooltime_reduction_per": stat_cooltime_reduction_per,
+            "stat_cooltime_avoid": stat_cooltime_avoid,
+            "stat_ignore_element": stat_ignore_element,
+            "stat_status_damage": stat_status_damage,
+            "stat_weapon_mastery": stat_weapon_mastery,
+            "stat_bonus_exp": stat_bonus_exp,
+            "stat_attack": stat_attack,
+            "stat_magic": stat_magic,
+            "stat_battle_power": stat_battle_power,
+            "stat_familiar_duration": stat_familiar_duration,
+        }
+        return processed_stat_info

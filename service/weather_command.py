@@ -5,7 +5,7 @@ from service.weather_utils import *
 
 from bot_logger import log_command
 
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
 
 @log_command(alt_func_name="븜 날씨")
 async def api_weather(ctx: commands.Context, location_name: str) -> None:

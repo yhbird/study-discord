@@ -26,6 +26,7 @@ async def deb_memory_usage(ctx: commands.Context):
     mem_usage: float = get_memory_usage_mb()
     logger.debug(f"Current memory usage: {mem_usage:.2f} MB")
     await ctx.send(f"현재 메모리 사용량: {mem_usage:.2f} MB")
+    return
 
 
  # 봇 정보 조회
@@ -63,11 +64,12 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
     logger.debug(debug_msg)
     info_msg = f"{bot_info}\n{send_msg}"
     await ctx.send(info_msg)
+    return
 
 
 # 디버그 모드 ON/OFF
 @with_timeout(config.COMMAND_TIMEOUT)
-@log_command(stats=False, alt_func_name="디버그 모드 전환")
+@log_command(stats=False, alt_func_name="븜 디버그 모드 전환")
 async def deb_switch(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
@@ -76,11 +78,12 @@ async def deb_switch(ctx: commands.Context):
     config.DEBUG_MODE = not config.DEBUG_MODE
     debug_status = "ON" if config.DEBUG_MODE else "OFF"
     await ctx.send(f"디버그 모드가 {debug_status}으로 설정되었어양!")
+    return
 
 
 # "븜 명령어" 리다이렉트
 @with_timeout(config.COMMAND_TIMEOUT)
-@log_command(stats=False, alt_func_name="명령어 리다이렉트")
+@log_command(stats=False, alt_func_name="븜 명령어 리다이렉트")
 async def deb_help_redirection(ctx: commands.Context, category: str = None):
     """사용자에게 도움말을 리다이렉트하는 기능
 
@@ -99,8 +102,10 @@ async def deb_help_redirection(ctx: commands.Context, category: str = None):
         mention = ctx.message.author.mention
         if category:
             await ctx.message.channel.send(f"{mention} '븜 명령어 {category}'를 입력하세양!")
+            return
         else:
             await ctx.message.channel.send(f"{mention} '븜 명령어'를 입력하세양!")
+            return
 
 
 # 도움말 명령어
@@ -346,6 +351,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
     else:
         # 메세지 전송
         await ctx.send(embed=embed)
+    return
 
 
 # 가장 오래 / 빨리 실행된 명령어 조회

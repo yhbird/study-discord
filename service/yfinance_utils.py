@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-from exceptions.api_exceptions import *
+from exceptions.client_exceptions import *
 
 def exchange_krw_rate(from_currency: str) -> float:
     """
