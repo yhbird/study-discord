@@ -11,11 +11,13 @@ from datetime import datetime, timedelta
 from pytz import timezone
 
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
+from config import NEXON_API_TIME_SLEEP # Nexon Open API Rate Limit 방지용 시간 간격
 from data.json.fortune_message_table import fortune_message_table_raw
 
 from typing import Literal, Optional, Dict, List, Tuple
 
 from exceptions.client_exceptions import *
+from utils.time import parse_iso_string
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
     """Nexon Open API의 일반적인 요청을 처리하는 함수  
@@ -322,14 +324,16 @@ def maple_convert_grade_text(grade_text: str) -> str:
     return grade_mapping.get(grade_text, "몰라양")
 
 
-def get_notice(target_event: str = None) -> list[dict]:
+def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dict] | Dict[str, str | Literal["알수없음"]]:
     """Nexon Open API를 통해 메이플스토리 공지사항을 가져오는 함수
 
     Args:
         target_event (str, optional): 특정 이벤트에 대한 공지사항을 필터링할 수 있음. 기본값은 None.
+        recent_notice(bool): True인 경우, 최신 공지사항부터 반환 (list index 0, default: True)
 
     Returns:
-        list[dict]: 공지사항 목록
+        Dict[str, str | Literal["알수없음"]]: 가장 최근 공지사항 데이터 (recent_notice가 True인 경우)
+        list[Dict[str, str | Literal["알수없음"]]]: 공지사항 데이터 목록 (recent_notice가 False인 경우)
 
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
@@ -352,7 +356,73 @@ def get_notice(target_event: str = None) -> list[dict]:
     if target_event:
         notices = [notice for notice in notices if notice_filter in notice.get('title', '')]
 
-    return notices
+    if not notices:
+        raise NexonAPIError("No notices found")
+
+    if recent_notice:
+        notice_data: dict = notices[0]
+
+        return_data: Dict[str, str | Literal["알수없음"]] = {
+            "notice_title" : (
+                str(notice_data.get("title")).strip()
+                if notice_data.get("title") is not None else "알수없음"
+            ),
+            "notice_url" : (
+                str(notice_data.get("url")).strip()
+                if notice_data.get("url") is not None else "알수없음"
+            ),
+            "notice_id" : (
+                str(notice_data.get("notice_id")).strip()
+                if notice_data.get("notice_id") is not None else "알수없음"
+            ),
+            "notice_date" : (
+                parse_iso_string(str(notice_data.get("date")).strip())
+                if notice_data.get("date") is not None else "알수없음"
+            ),
+            "notice_start_date" : (
+                parse_iso_string(str(notice_data.get("date_event_start")).strip())
+                if notice_data.get("date_event_start") is not None else "알수없음"
+            ),
+            "notice_end_date" : (
+                parse_iso_string(str(notice_data.get("date_event_end")).strip())
+                if notice_data.get("date_event_end") is not None else "알수없음"
+            )
+        }
+
+        return return_data
+    else:
+        return_data: List[Dict[str, str | Literal["알수없음"]]] = []
+
+        for notice_data in notices:
+            notice_dict: Dict[str, str | Literal["알수없음"]] = {
+                "notice_title" : (
+                    str(notice_data.get("title")).strip()
+                    if notice_data.get("title") is not None else "알수없음"
+                ),
+                "notice_url" : (
+                    str(notice_data.get("url")).strip()
+                    if notice_data.get("url") is not None else "알수없음"
+                ),
+                "notice_id" : (
+                    str(notice_data.get("notice_id")).strip()
+                    if notice_data.get("notice_id") is not None else "알수없음"
+                ),
+                "notice_date" : (
+                    parse_iso_string(str(notice_data.get("date")).strip())
+                    if notice_data.get("date") is not None else "알수없음"
+                ),
+                "notice_start_date" : (
+                    parse_iso_string(str(notice_data.get("date_event_start")).strip())
+                    if notice_data.get("date_event_start") is not None else "알수없음"
+                ),
+                "notice_end_date" : (
+                    parse_iso_string(str(notice_data.get("date_event_end")).strip())
+                    if notice_data.get("date_event_end") is not None else "알수없음"
+                )
+            }
+            return_data.append(notice_dict)
+
+        return return_data
 
 
 def get_notice_details(notice_id: str) -> dict:
@@ -548,7 +618,7 @@ def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str
     for param_date in date_list:
         request_service_url: str = f"/maplestory/v1/character/basic"
         request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
-        time.sleep(0.34)  # API Rate Limit 방지
+        time.sleep(NEXON_API_TIME_SLEEP)  # API Rate Limit 방지
         response_data: dict = general_request_handler_nexon(request_url)
         character_level: int = (
             int(response_data.get("character_level", -1))

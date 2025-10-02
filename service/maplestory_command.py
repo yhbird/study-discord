@@ -189,63 +189,36 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
     """
     try:
         notice_data: dict = get_notice(target_event="pcbang")
-    except Exception as e:
-        if '400' in str(e):
-            await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
-            raise Exception("PC Bang notice not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
+    except NexonAPIBadRequest as e:
+        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
+        raise CommandFailure("PC Bang notice not found")
+    except NexonAPIForbidden as e:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests as e:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable as e:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
+    except NexonAPIError as e:
+        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
+        raise CommandFailure("PC Bang notice not found")
         
     # 공지사항 데이터 전처리
     if notice_data:
-        notice_data: dict = notice_data[0]  # 가장 최근 공지사항 1개
-
         # 공지사항 제목, 링크, 내용(HTML)
-        notice_title: str = (
-            str(notice_data.get('title')).strip()
-            if notice_data.get('title') is not None
-            else '알 수 없음'
-        )
-        notice_url: str = (
-            str(notice_data.get('url')).strip()
-            if notice_data.get('url') is not None
-            else '알 수 없음'
-        )
-        notice_id: str = (
-            str(notice_data.get('notice_id')).strip()
-            if notice_data.get('notice_id') is not None
-            else '알 수 없음'
-        )
+        notice_title: str = notice_data.get("notice_title")
+        notice_url: str = notice_data.get("notice_url")
+        notice_id: str = notice_data.get("notice_id")
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
-        notice_date: str = (
-            str(notice_data.get('date')).strip()
-            if notice_data.get('date') is not None
-            else '알 수 없음'
-        )
-        notice_start_date: str = (
-            str(notice_data.get('date_event_start')).strip()
-            if notice_data.get('date_event_start') is not None
-            else '알 수 없음'
-        )
-        notice_end_date: str = (
-            str(notice_data.get('date_event_end')).strip()
-            if notice_data.get('date_event_end') is not None
-            else '알 수 없음'
-        )
+        notice_date: str = notice_data.get("notice_date")
+        notice_start_date: str = notice_data.get("date_event_start")
+        notice_end_date: str = notice_data.get("date_event_end")
 
-        footer_notice_date: str = parse_iso_string(notice_date)
-        footer_notice_start_date: str = parse_iso_string(notice_start_date)
-        footer_notice_end_date: str = parse_iso_string(notice_end_date)
         footer_notice_text: str = (
-            f"공지사항 날짜: {footer_notice_date}\n"
+            f"공지사항 날짜: {notice_date}\n"
         )
 
         # 공지사항 이미지 URL 추출
@@ -264,8 +237,8 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
 
         # 메시지 생성
         content_text: str = (
-            f"**이벤트 시작일:** {footer_notice_start_date}\n"
-            f"**이벤트 종료일:** {footer_notice_end_date}\n"
+            f"**이벤트 시작일:** {notice_start_date}\n"
+            f"**이벤트 종료일:** {notice_end_date}\n"
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
@@ -305,65 +278,37 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
     """
     try:
         notice_data: dict = get_notice(target_event="sunday")
-    except Exception as e:
-        if '400' in str(e):
-            await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
-            raise Exception("Sunday event notice not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
-
+    except NexonAPIBadRequest as e:
+        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
+        raise CommandFailure("PC Bang notice not found")
+    except NexonAPIForbidden as e:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests as e:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable as e:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
+    except NexonAPIError as e:
+        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
+        raise CommandFailure("PC Bang notice not found")
+        
     # 공지사항 데이터 전처리
     if notice_data:
-        notice_data: dict = notice_data[0] # 가장 최근 공지사항 1개
-
         # 공지사항 제목, 링크, 내용(HTML)
-        notice_title: str = (
-            str(notice_data.get('title')).strip()
-            if notice_data.get('title') is not None
-            else '알 수 없음'
-        )
-        notice_url: str = (
-            str(notice_data.get('url')).strip()
-            if notice_data.get('url') is not None
-            else '알 수 없음'
-        )
-        notice_id: str = (
-            str(notice_data.get('notice_id')).strip()
-            if notice_data.get('notice_id') is not None
-            else '알 수 없음'
-        )
+        notice_title: str = notice_data.get("notice_title")
+        notice_url: str = notice_data.get("notice_url")
+        notice_id: str = notice_data.get("notice_id")
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
-        notice_date: str = (
-            str(notice_data.get('date')).strip()
-            if notice_data.get('date') is not None
-            else '알 수 없음'
-        )
-        notice_start_date: str = (
-            str(notice_data.get('date_event_start')).strip()
-            if notice_data.get('date_event_start') is not None
-            else '알 수 없음'
-        )
-        notice_end_date: str = (
-            str(notice_data.get('date_event_end')).strip()
-            if notice_data.get('date_event_end') is not None
-            else '알 수 없음'
-        )
+        notice_date: str = notice_data.get("notice_date")
+        notice_start_date: str = notice_data.get("date_event_start")
+        notice_end_date: str = notice_data.get("date_event_end")
 
-        footer_notice_date: str = parse_iso_string(notice_date)
-        footer_notice_start_date: str = parse_iso_string(notice_start_date)
-        footer_notice_end_date: str = parse_iso_string(notice_end_date)
         footer_notice_text: str = (
-            f"공지사항 날짜: {footer_notice_date}\n"
+            f"공지사항 날짜: {notice_date}\n"
         )
-
         # 공지사항 이미지 URL 추출
         notice_detail_data: dict = get_notice_details(notice_id)
         notice_contents: str = (
@@ -380,8 +325,8 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
 
         # 메시지 생성
         content_text: str = (
-            f"**이벤트 시작일:** {footer_notice_start_date}\n"
-            f"**이벤트 종료일:** {footer_notice_end_date}\n"
+            f"**이벤트 시작일:** {notice_start_date}\n"
+            f"**이벤트 종료일:** {notice_end_date}\n"
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
@@ -867,43 +812,44 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     # 캐릭터 OCID 조회
     try:
         character_ocid: str = get_ocid(character_name)
-    except NexonAPIError as e:
-        if '400' in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-            raise NexonAPIBadRequest(f"Character '{character_name}' not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise NexonAPIForbidden("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
+    except NexonAPIBadRequest as e:
+        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+        raise CommandFailure(f"Character '{character_name}' not found")
+    except NexonAPIForbidden as e:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests as e:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable as e:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Service unavailable")
+    except NexonAPIOCIDNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
+        raise CommandFailure(f"OCID not found for character: {character_name}")
     
     # OCID 데이터값 검증
     if not character_ocid:
         await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise Exception(f"OCID not found for character: {character_name}")
+        raise CommandFailure(f"OCID not found for character: {character_name}")
     
     # 캐릭터 월드/생성일 확인
     try:
         basic_info_service_url: str = f"/maplestory/v1/character/basic"
         basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={character_ocid}"
         basic_info_response_data: dict = general_request_handler_nexon(basic_info_request_url)
-    except Exception as e:
-        if '400' in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-            raise Exception(f"Character '{character_name}' detail info not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise Exception("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
+    except NexonAPIBadRequest as e:
+        await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
+        raise CommandFailure(f"Character '{character_name}' detail info not found")
+    except NexonAPIForbidden as e:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests as e:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable as e:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Service unavailable")
     character_world: str = (
         str(basic_info_response_data.get('world_name')).strip()
         if basic_info_response_data.get('world_name') is not None
@@ -968,19 +914,19 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
         character_ocid: str = get_ocid(character_name)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-        raise NexonAPIBadRequest(f"Character '{character_name}' not found")
+        raise CommandFailure(f"Character '{character_name}' not found")
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise NexonAPIForbidden("Forbidden access to API")
+        raise CommandFailure("Forbidden access to API")
     except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise Exception("Too many requests to API")
+        raise CommandFailure("Too many requests to API")
     except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise NexonAPIServiceUnavailable("Nexon Open API Internal server error")
+        raise CommandFailure("Nexon Open API Service unavailable")
     except NexonAPIOCIDNotFound:
         await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise NexonAPIOCIDNotFound(f"OCID not found for character: {character_name}")
+        raise CommandFailure(f"OCID not found for character: {character_name}")
 
     xp_history_data: List[Tuple[str, int, str]] = []
     service_url: str = f"/maplestory/v1/character/basic"
@@ -998,16 +944,16 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
         xp_history_data: List[Tuple[str, int, str]] = get_weekly_xp_history(character_ocid, time_offset)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise NexonAPIBadRequest(f"Character '{character_name}' basic info not found")
+        raise CommandFailure(f"Character '{character_name}' basic info not found")
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise NexonAPIForbidden("Forbidden access to API")
+        raise CommandFailure("Forbidden access to API")
     except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise NexonAPITooManyRequests("Too many requests to API")
+        raise CommandFailure("Too many requests to API")
     except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise NexonAPIServiceUnavailable("Nexon Open API Internal server error")
+        raise CommandFailure("Nexon Open API Service unavailable")
 
     # 캐릭터의 이름, 월드, 생성일 추출
     character_world: str = (

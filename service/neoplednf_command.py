@@ -4,6 +4,7 @@ from discord.ext import commands
 import io
 
 from service.neoplednf_utils import *
+from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import log_command
 from utils.image import get_image_bytes
@@ -31,55 +32,74 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     try:
         character_id = neople_dnf_get_character_id(server_name, character_name)
         server_id = neople_dnf_server_parse(server_name)
+    except NeopleAPIInvalidId as e:
+        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        raise CommandFailure("Invalid ID")
+    except NeopleAPILimitExceed as e:
+        await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
+        raise CommandFailure("API limit exceeded")
+    except NeopleAPIInvalidParams as e:
+        await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
+        raise CommandFailure("Invalid parameters")
+    except NeopleDNFInvalidServerID as e:
+        await ctx.send(f"서버명이 잘못 입력 되었어양...")
+        raise CommandFailure("Invalid server name")
+    except NeopleDNFInvalidCharacterInfo as e:
+        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
+        raise CommandFailure(f"Character '{character_name}' not found")
+    except NeopleDNFInvalidRequestParams as e:
+        await ctx.send(f"네오플 API 요청 파라미터에 오류가 발생했어양!!!")
+        raise CommandFailure("Invalid request parameters")
+    except NeopleDNFSystemMaintenance as e:
+        await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
+        raise CommandFailure("System maintenance")
+    except NeopleDNFSystemError as e:
+        await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        raise CommandFailure("System error")
     except NeopleAPIError as e:
-        if "API001" in str(e):
-            await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        elif "API002" in str(e):
-            await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
-        elif "API006" in str(e):
-            await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
-        elif "DNF000" in str(e):
-            await ctx.send(f"서버명이 잘못 입력 되었어양...")
-        elif "DNF001" in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
-        elif "DNF900" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        elif "DNF901" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        elif "DNF980" in str(e):
-            await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
-        elif "DNF999" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        else:
-            await ctx.send(f"던전앤파이터 API에서 알 수 없는 오류가 발생했어양!")
-        raise NeopleAPIError(str(e))
+        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        raise CommandFailure("Neople API error")
+    except Exception as e:
+        await ctx.send(f"던전앤파이터 API 통신 중 알 수 없는 오류가 발생했어양!")
+        raise CommandFailure("Unknown error")
 
     # 캐릭터 정보 조회
     try:
         request_url = f"{NEOPLE_API_HOME}/df/servers/{server_id}/characters/{character_id}?apikey={NEOPLE_API_KEY}"
         character_info: dict = general_request_handler_neople(request_url)
+    except NeopleAPIInvalidId as e:
+        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        raise CommandFailure("Invalid ID")
+    except NeopleAPILimitExceed as e:
+        await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
+        raise CommandFailure("API limit exceeded")
+    except NeopleAPIInvalidParams as e:
+        await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
+        raise CommandFailure("Invalid parameters")
+    except NeopleDNFInvalidServerID as e:
+        await ctx.send(f"서버명이 잘못 입력 되었어양...")
+        raise CommandFailure("Invalid server name")
+    except NeopleDNFInvalidCharacterInfo as e:
+        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
+        raise CommandFailure(f"Character '{character_name}' not found")
+    except NeopleDNFInvalidURL as e:
+        await ctx.send(f"네오플 API 요청 URL이 잘못되었어양...")
+        raise CommandFailure("Invalid URL")
+    except NeopleDNFInvalidRequestParams as e:
+        await ctx.send(f"네오플 API 요청 파라미터에 오류가 발생했어양!!!")
+        raise CommandFailure("Invalid request parameters")
+    except NeopleDNFSystemMaintenance as e:
+        await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
+        raise CommandFailure("System maintenance")
+    except NeopleDNFSystemError as e:
+        await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        raise CommandFailure("System error")
     except NeopleAPIError as e:
-        if "API001" in str(e):
-            await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        elif "API002" in str(e):
-            await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
-        elif "API006" in str(e):
-            await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
-        elif "DNF000" in str(e):
-            await ctx.send(f"서버명이 잘못 입력 되었어양...")
-        elif "DNF001" in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
-        elif "DNF900" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        elif "DNF901" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        elif "DNF980" in str(e):
-            await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
-        elif "DNF999" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        else:
-            await ctx.send(f"던전앤파이터 API에서 알 수 없는 오류가 발생했어양!")
-        raise NeopleAPIError(str(e))
+        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        raise CommandFailure("Neople API error")
+    except Exception as e:
+        await ctx.send(f"던전앤파이터 API 통신 중 알 수 없는 오류가 발생했어양!")
+        raise CommandFailure("Unknown error")
 
     # 모험단 이름 추출
     adventure_name: str = (
@@ -190,33 +210,42 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
     """
     try:
         timeline_data: dict = get_dnf_weekly_timeline(server_name, character_name)
-    except NeopleAPIError as e:
-        if "API001" in str(e):
-            await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        elif "API002" in str(e):
-            await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
-        elif "API006" in str(e):
-            await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
-        elif "DNF000" in str(e):
-            await ctx.send(f"서버명이 잘못 입력 되었어양...")
-        elif "DNF001" in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
-        elif "DNF900" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        elif "DNF901" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        elif "DNF980" in str(e):
-            await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
-        elif "DNF999" in str(e):
-            await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        else:
-            await ctx.send(f"던전앤파이터 API에서 알 수 없는 오류가 발생했어양!")
-        raise NeopleAPIError(str(e))
-    except NeopleDNFInvalidTimelineParams as e:
-        await ctx.send(f"타임라인을 불러오는데 문제가 발생했어양!")
-        raise Exception(str(e))
+    except NeopleAPIInvalidId as e:
+        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        raise CommandFailure("Invalid ID")
+    except NeopleAPILimitExceed as e:
+        await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
+        raise CommandFailure("API limit exceeded")
+    except NeopleAPIInvalidParams as e:
+        await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
+        raise CommandFailure("Invalid parameters")
+    except NeopleDNFInvalidServerID as e:
+        await ctx.send(f"서버명이 잘못 입력 되었어양...")
+        raise CommandFailure("Invalid server name")
     except NeopleDNFInvalidCharacterInfo as e:
         await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
+        raise CommandFailure(f"Character '{character_name}' not found")
+    except NeopleDNFInvalidTimelineParams as e:
+        await ctx.send(f"타임라인 요청 정보를 잘못 입력했어양...")
+        raise CommandFailure("Invalid timeline parameters")
+    except NeopleDNFInvalidURL as e:
+        await ctx.send(f"네오플 API 요청 URL이 잘못되었어양...")
+        raise CommandFailure("Invalid URL")
+    except NeopleDNFInvalidRequestParams as e:
+        await ctx.send(f"네오플 API 요청 파라미터에 오류가 발생했어양!!!")
+        raise CommandFailure("Invalid request parameters")
+    except NeopleDNFSystemMaintenance as e:
+        await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
+        raise CommandFailure("System maintenance")
+    except NeopleDNFSystemError as e:
+        await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
+        raise CommandFailure("System error")
+    except NeopleAPIError as e:
+        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
+        raise CommandFailure("Neople API error")
+    except Exception as e:
+        await ctx.send(f"던전앤파이터 API 통신 중 알 수 없는 오류가 발생했어양!")
+        raise CommandFailure("Unknown error")
 
     character_timeline: dict = timeline_data.get("timeline")
     timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
@@ -259,28 +288,39 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                 item_rare: str = timeline_data.get("itemRarity", "몰라양")
 
                 # 태초 아이템 획득 시 하이라이트 메시지 생성
-                if timeline_code not in [513, 507] and item_rare == "태초":
-                    channel_name = timeline_data.get("channelName", "알수없음")
-                    channel_no = timeline_data.get("channelNo", "알수없음")
-                    get_primeval_count += 1
-                    timeline_highlight += (
-                        f"{channel_name} {channel_no}채널에서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
-                    )
+                if item_rare == "태초":
 
-                if timeline_code == 513 and item_rare == "태초":
                     # 던전 카드 보상에서 태초 아이템 획득 시
-                    dungeon_name: str = timeline_data.get("dungeonName", "몰라양")
-                    get_primeval_count += 1
-                    timeline_highlight += (
-                        f"던전 {dungeon_name}에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
-                    )
+                    if timeline_code == 513:
+                        dungeon_name: str = timeline_data.get("dungeonName", "몰라양")
+                        get_primeval_count += 1
+                        timeline_highlight += (
+                            f"던전 {dungeon_name}에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                        )
 
-                if timeline_code == 507 and item_rare == "태초":
                     # 레이드 카드 보상에서 태초 아이템 획득 시
-                    get_primeval_count += 1
-                    timeline_highlight += (
-                        f"레이드에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
-                    )
+                    elif timeline_code == 507:
+                        get_primeval_count += 1
+                        timeline_highlight += (
+                            f"레이드에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                        )
+
+                    # 항아리&상자 보상에서 태초 아이템 획득 시
+                    elif timeline_code == 504:
+                        get_primeval_count += 1
+                        timeline_highlight += (
+                            f"항아리&상자를 개봉해서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                        )
+
+                    # 기타 종말의 숭배자 등에서 태초 아이템 획득 시
+                    else:
+                        channel_name = timeline_data.get("channelName", "알수없음")
+                        channel_no = timeline_data.get("channelNo", "알수없음")
+                        get_primeval_count += 1
+                        timeline_highlight += (
+                            f"{channel_name} {channel_no}채널에서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                        )
+                    
 
                 # 융합석 업그레이드 획득 시 (에픽 획득 집계 미포함)
                 if timeline_code == 511 and item_rare == "에픽":
@@ -397,3 +437,4 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         embed.set_footer(text=timeline_footer)
         embed.colour = discord.Colour.from_rgb(128, 0, 128)  # purple
         await ctx.send(embed=embed)
+        return

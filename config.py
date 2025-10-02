@@ -87,6 +87,12 @@ COMMAND_TIMEOUT: int = 30  # seconds
 # 메모리 정리 주기 (분)
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
 NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
+if BOT_TOKEN_RUN == 'dev':
+    NEXON_API_LIMIT_PER_SEC: int = 5  # 개발 환경에서는 낮은 제한
+    NEXON_API_TIME_SLEEP: float = 1.0 / NEXON_API_LIMIT_PER_SEC - 1
+else:
+    NEXON_API_LIMIT_PER_SEC: int = 500  # 운영 환경에서는 높은 제한
+NEXON_API_TIME_SLEEP: float = 1.0 / NEXON_API_LIMIT_PER_SEC if not locals().get('NEXON_API_TIME_SLEEP') else NEXON_API_TIME_SLEEP
 
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))
