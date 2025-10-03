@@ -100,6 +100,8 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
 
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
+    if character_image != '알 수 없음':
+        character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -141,8 +143,6 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     else:
         liberation_quest_clear_str = "해방 퀘스트 진행 여부 알 수 없음"
 
-    if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
 
     # Embed 메시지 생성
     maple_scouter_url: str = f"https://maplescouter.com/info?name={character_name_quote}"
@@ -161,7 +161,8 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     embed_footer: str = (
         f"생성일: {character_date_create_str}\n"
         f"{liberation_quest_clear_str}\n"
-        f"({character_access_flag_str})"
+        f"({character_access_flag_str})\n"
+        f"Data Based on Nexon Open API"
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
@@ -443,6 +444,8 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
 
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
+    if character_image != '알 수 없음':
+        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -484,8 +487,6 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     else:
         liberation_quest_clear_str = "해방 퀘스트 진행 여부 알 수 없음"
 
-    if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
     
     # 캐릭터 상세 정보 12 - 캐릭터 능력치: 데미지(%) "175.00" -> "175.00%"
     character_stat_damage: str | Literal["알수없음"] = stat_info.get("stat_damage")
@@ -654,7 +655,8 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     embed_footer: str = (
         f"생성일: {character_date_create_str}\n"
         f"{liberation_quest_clear_str}\n"
-        f"({character_access_flag_str})"
+        f"({character_access_flag_str})\n"
+        f"Data Based on Nexon Open API"
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
@@ -665,7 +667,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     elif character_gender in ["여성", "여"]:
         embed.colour = discord.Colour.from_rgb(255, 105, 180)
     else:
-        embed.colour = discord.Colour.from_rgb(128, 128, 128)
+        embed.colour = discord.Colour.from_rgb(128, 128, 128) # 제로일 경우 회색
     await ctx.send(embed=embed)
 
 
@@ -1084,6 +1086,9 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     
     character_name: str = basic_info.get('character_name', character_name)
     character_world: str = (
-        str(basic_info.get('world_name')).strip()
-        if basic_info.get('world_name') is not None else '모르는'
+        str(basic_info.get('character_world')).strip()
+        if basic_info.get('character_world') is not None else '알수없음'
     )
+    character_image: str | Literal[""] = basic_info.get('character_image')
+    if character_image != '알 수 없음':
+        character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"

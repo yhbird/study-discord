@@ -1098,6 +1098,17 @@ def get_cash_equipment_info(ocid: str):
             str(response_data.get("character_gender")).strip()
             if response_data.get("character_gender") is not None
             else "기타"
+        ),
+        "current_preset_no": (
+            int(response_data.get("preset_no"))
+            if response_data.get("preset_no") is not None
+            else -1
+        ),
+        "equipment_base_list": (
+            response_data.get("cash_item_equipment_base", [])
         )
     }
-    
+    preset = return_data.get("current_preset_no") or 1
+    response_data["equipment_look_list"] = (
+        response_data.get(f"cash_item_equipment_preset_{preset}", [])
+    )
