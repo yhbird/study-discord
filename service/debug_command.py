@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from service.debug_utils import *
 
 from bot_logger import logger, log_command, with_timeout
-from utils.time import kst_format_now, kst_format_now_v2
+from utils.time import kst_format_now, kst_format_now
 import config as config
 import bot_logger as bl
 
@@ -42,7 +42,7 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
         f"**봇 이름:** {bot_name}\n"
         f"**봇 시작 시간:** {config.BOT_START_DT.strftime('%Y년 %m월 %d일 %H시 %M분 %S초')}"
     )
-    now_dt: datetime = kst_format_now_v2()
+    now_dt: datetime = kst_format_now()
     uptime: timedelta = now_dt - config.BOT_START_DT
     # uptime의 일, 시간, 분, 초 계산
     up_d: int = uptime.days
@@ -383,7 +383,7 @@ async def deb_command_stats(ctx: commands.Context) -> None:
         for idx, (cmd_name, info) in enumerate(top10_commands)
     )
 
-    now_kst = kst_format_now_v2().strftime('%Y-%m-%d %H:%M:%S')
+    now_kst = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
     embed_title = f"븜끼봇 명령어 통계 ({now_kst})"
     stats_message = (
         f"지금 까지 실행된 상위 10개 명령어 통계에양!\n"
@@ -444,7 +444,7 @@ async def deb_user_stats(ctx: commands.Context) -> None:
         f"({max(info['command_counts'].values(), default=0)}회)\n"
         for idx, (user_id, info) in enumerate(top3_users)
     )
-    now_kst = kst_format_now_v2().strftime('%Y-%m-%d %H:%M:%S')
+    now_kst = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
     embed_title = f"븜끼봇 사용자 통계 ({now_kst})"
     stats_message = (
         f"지금 까지 명령어를 가장 많이 호출한 사용자 통계에양!\n"

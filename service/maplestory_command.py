@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 
@@ -8,16 +9,19 @@ from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup
 
 from service.maplestory_utils import *
+from service.maplestory_resolver import CharacterOCIDResolver
 
 from bot_logger import log_command, with_timeout
 from utils.image import get_image_bytes
 from utils.text import preprocess_int_with_korean
-from utils.time import parse_iso_string, kst_format_now_v2
+from utils.time import kst_format_now
 from utils.plot import fp_maplestory_light, fp_maplestory_bold
 from config import COMMAND_TIMEOUT
 
 from exceptions.client_exceptions import *
 from exceptions.command_exceptions import *
+
+ocid_resolver = CharacterOCIDResolver(get_ocid, ttl_sec=3600, negative_ttl_sec=60)
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -38,37 +42,36 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     Raises:
         Reference에 있는 URL 참조
     """
-    # 캐릭터의 OCID 조회
+    if ctx.message.author.bot:
+        return 
+    
     try:
-        character_ocid: str = get_ocid(character_name)
-    except NexonAPIBadRequest:
+        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        basic_info, character_popularity = await asyncio.gather(
+            asyncio.to_thread(get_basic_info, character_ocid),
+            asyncio.to_thread(get_popularity, character_ocid)
+        )
+    except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
         return
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-    except NexonAPIOCIDNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-
-    service_url: str = f"/maplestory/v1/character/basic"
-    request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
-    # 예외 처리 (자세한 내용은 Reference 참고)
-    try:
-        response_data: dict = general_request_handler_nexon(request_url)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character basic info not found")
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
     except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
     except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-
-    # 정상적으로 캐릭터 기본 정보를 찾았을 때
-    basic_info = process_maple_basic_info(response_data)
+        raise CommandFailure("Nexon Open API Internal server error")
+    except NexonAPIError:
+        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character basic info not found")
+    
+    # 캐릭터 기본 정보 0 - 캐릭터 OCID (추가 데이터 조회용)
+    character_ocid: str = basic_info.get('character_ocid')
 
     # 캐릭터 기본 정보 1 - 캐릭터 이름
     character_name: str = basic_info.get('character_name')
@@ -139,7 +142,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         liberation_quest_clear_str = "해방 퀘스트 진행 여부 알 수 없음"
 
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
+        character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
 
     # Embed 메시지 생성
     maple_scouter_url: str = f"https://maplescouter.com/info?name={character_name_quote}"
@@ -150,7 +153,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         f"**월드:** {character_world}\n"
         f"**이름:** {character_name}\n"
         f"**레벨:** {character_level} ({character_exp_rate}%)\n"
-        f"**인기도:** {get_character_popularity(character_ocid)}\n"
+        f"**인기도:** {character_popularity:,}\n"
         f"**직업:** {character_job}\n"
         f"**길드:** {character_guild_name}\n"
         f"**경험치:** {character_exp_str}\n"
@@ -384,53 +387,34 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
-    # 캐릭터의 OCID 조회
     try:
-        character_ocid: str = get_ocid(character_name)
-    except NexonAPIError as e:
-        if '400' in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-            raise NexonAPIBadRequest(f"Character '{character_name}' not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise NexonAPIForbidden("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise Exception("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise Exception("Nexon Open API Internal server error")
+        character_ocid = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        basic_info, stat_info, character_popularity = await asyncio.gather(
+            asyncio.to_thread(get_basic_info, character_ocid),
+            asyncio.to_thread(get_stat_info, character_ocid),
+            asyncio.to_thread(get_popularity, character_ocid)
+        )
+    except NexonAPICharacterNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+        return
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character basic info not found")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
 
-    # OCID 데이터값 검증
+    # 캐릭터 기본 정보 0 - 캐릭터 OCID (추가 데이터 조회용)
+    character_ocid: str = basic_info.get('character_ocid')
     if not character_ocid:
-        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise CommandFailure(f"OCID not found for character: {character_name}")
-    
-    basic_info_service_url: str = f"/maplestory/v1/character/basic"
-    detail_info_service_url: str = f"/maplestory/v1/character/stat"
-    basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={character_ocid}"
-    detail_info_request_url: str = f"{NEXON_API_HOME}{detail_info_service_url}?ocid={character_ocid}"
-
-    # 예외 처리 (자세한 내용은 Reference 참고)
-    try:
-        basic_info_response_data: dict = general_request_handler_nexon(basic_info_request_url)
-        detail_info_response_data: dict = general_request_handler_nexon(detail_info_request_url)
-    except Exception as e:
-        if '400' in str(e):
-            await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-            raise CommandFailure(f"Character '{character_name}' detail info not found")
-        if '403' in str(e):
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise CommandFailure("Forbidden access to API")
-        if '429' in str(e):
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise CommandFailure("Too many requests to API")
-        if '500' in str(e):
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise CommandFailure("Nexon Open API Internal server error")
-
-    # 정상적으로 캐릭터 기본 정보를 찾았을 때
-    basic_info = process_maple_basic_info(basic_info_response_data)
+        await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
+        raise NexonAPIOCIDNotFound("Character OCID not found")
 
     # 캐릭터 기본 정보 1 - 캐릭터 이름
     character_name: str = basic_info.get('character_name')
@@ -503,13 +487,6 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     if character_image != '알 수 없음':
         character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
     
-    # detail_info_response_data 전처리
-    try:
-        stat_info = process_maple_stat_info(detail_info_response_data)
-    except NexonAPIError:
-        await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' detail info not found")
-    
     # 캐릭터 상세 정보 12 - 캐릭터 능력치: 데미지(%) "175.00" -> "175.00%"
     character_stat_damage: str | Literal["알수없음"] = stat_info.get("stat_damage")
     if character_stat_damage != "알수없음":
@@ -518,21 +495,28 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         character_stat_damage_str: str = "몰라양"
 
     # 캐릭터 상세 정보 13 - 캐릭터 능력치: 보스 공격력(%) "50.00" -> "50.00%"
-    character_stat_boss_damage: str | Literal["알수없음"] = stat_info.get("stat_boss_attack")
+    character_stat_boss_damage: str | Literal["알수없음"] = stat_info.get("stat_boss_damage")
     if character_stat_boss_damage != "알수없음":
         character_stat_boss_damage_str: str = f"{character_stat_boss_damage}%"
     else:
         character_stat_boss_damage_str: str = "몰라양"
 
+    # 최종 데미지 항목 추가 (2025.10.04)
+    character_final_damage: str | Literal["알수없음"] = stat_info.get("stat_final_damage")
+    if character_final_damage != "알수없음":
+        character_final_damage_str: str = f"{character_final_damage}%"
+    else:
+        character_final_damage_str: str = "몰라양"
+
     # 캐릭터 상세 정보 14 - 캐릭터 능력치: 크리티컬 데미지(%) "50.00" -> "50.00%"
-    character_stat_critical_damage: str | Literal["알수없음"] = stat_info.get("stat_critical_damage")
+    character_stat_critical_damage: str | Literal["알수없음"] = stat_info.get("stat_crit_damage")
     if character_stat_critical_damage != "알수없음":
         character_stat_critical_damage_str: str = f"{character_stat_critical_damage}%"
     else:
         character_stat_critical_damage_str: str = "몰라양"
 
     # 캐릭터 상세 정보 15 - 캐릭터 능력치: 방어율 무시(%) "50.00" -> "50.00%"
-    character_stat_ignore_defense: str | Literal["알수없음"] = stat_info.get("stat_ignore_defense")
+    character_stat_ignore_defense: str | Literal["알수없음"] = stat_info.get("stat_ignore_def")
     if character_stat_ignore_defense != "알수없음":
         character_stat_ignore_defense_str: str = f"{character_stat_ignore_defense}%"
     else:
@@ -642,13 +626,14 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         f"**월드:** {character_world}\n"
         f"**이름:** {character_name}\n"
         f"**레벨:** {character_level} ({character_exp_rate}%)\n"
-        f"**인기도:** {get_character_popularity(character_ocid):,}\n"
+        f"**인기도:** {character_popularity:,}\n"
         f"**직업:** {character_job}\n"
         f"**길드:** {character_guild_name}\n"
         f"\n**\-\-\- 상세 정보 \-\-\-**\n"
         f"**전투력**: {character_stat_battle_power}\n"
         f"**공격력/마력**: {character_stat_attack_power} / {character_stat_magic_power}\n"
         f"**데미지**: {character_stat_damage_str}\n"
+        f"**최종 데미지**: {character_final_damage_str}\n"
         f"**보스 공격력**: {character_stat_boss_damage_str}\n"
         f"**크리티컬 데미지**: {character_stat_critical_damage_str}\n"
         f"**방어율 무시**: {character_stat_ignore_defense_str}\n"
@@ -703,25 +688,35 @@ async def maple_ability_info(ctx: commands.Context, character_name: str) -> None
         return
     
     try:
-        ocid = get_ocid(character_name)
-        if ocid is not None:
-            ability_info: dict = get_character_ability_info(ocid)
-            basic_info_service_url: str = f"/maplestory/v1/character/basic"
-            basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={ocid}"
-            basic_info: dict = general_request_handler_nexon(basic_info_request_url)
-            character_name: str = basic_info.get('character_name', character_name)
-            character_world: str = (
-                str(basic_info.get('world_name')).strip()
-                if basic_info.get('world_name') is not None else '모르는'
-            )
+        character_ocid = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        
+        # 동기 함수 병렬 실행
+        ability_info, basic_info = await asyncio.gather(
+            asyncio.to_thread(get_ability_info, character_ocid),
+            asyncio.to_thread(get_basic_info, character_ocid)
+        )
 
-    except NexonAPIOCIDNotFound:
+        character_name: str = basic_info.get('character_name', character_name)
+        character_world: str = (
+            str(basic_info.get('world_name')).strip()
+            if basic_info.get('world_name') is not None else '모르는'
+        )
+
+    except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
         return
-    except Exception as e:
-        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 가져오는 중에 오류가 발생했어양!")
-        return
-
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character ability info not found")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
 
     # 캐릭터의 남은 명성 조회
     ability_fame: int = (
@@ -811,7 +806,8 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = get_ocid(character_name)
+        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+
     except NexonAPIBadRequest as e:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
         raise CommandFailure(f"Character '{character_name}' not found")
@@ -835,9 +831,7 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     
     # 캐릭터 월드/생성일 확인
     try:
-        basic_info_service_url: str = f"/maplestory/v1/character/basic"
-        basic_info_request_url: str = f"{NEXON_API_HOME}{basic_info_service_url}?ocid={character_ocid}"
-        basic_info_response_data: dict = general_request_handler_nexon(basic_info_request_url)
+        basic_info: dict = await asyncio.to_thread(get_basic_info, character_ocid)
     except NexonAPIBadRequest as e:
         await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
         raise CommandFailure(f"Character '{character_name}' detail info not found")
@@ -851,13 +845,13 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
         raise CommandFailure("Nexon Open API Service unavailable")
     character_world: str = (
-        str(basic_info_response_data.get('world_name')).strip()
-        if basic_info_response_data.get('world_name') is not None
+        str(basic_info.get('character_world')).strip()
+        if basic_info.get('character_world') is not None
         else '알 수 없음'
     )
     character_date_create: str = (
-        str(basic_info_response_data.get('character_date_create')).strip()
-        if basic_info_response_data.get('character_date_create') is not None
+        str(basic_info.get('character_date_create')).strip()
+        if basic_info.get('character_date_create') is not None
         else '알 수 없음'
     )
     if character_date_create != '알 수 없음':
@@ -883,7 +877,10 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
         f"오늘의 날짜: {datetime.now().strftime('%Y년 %m월 %d일')}\n"
         f"\n{fortune_text}"
     )
-    embed_footer: str = f"--- 주의 ---\n운세는 재미로만 확인해주세양!"
+    embed_footer: str = (
+        f"주의: 운세는 재미로만 확인해주세양!\n"
+        f"Data Based on Nexon Open API"
+    )
 
     embed = discord.Embed(
         title=embed_title,
@@ -911,9 +908,13 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = get_ocid(character_name)
-    except NexonAPIBadRequest:
+        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_basic_info = await asyncio.to_thread(get_basic_info, character_ocid)
+    except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+        raise CommandFailure("Character not found")
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
         raise CommandFailure(f"Character '{character_name}' not found")
     except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
@@ -929,18 +930,15 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
         raise CommandFailure(f"OCID not found for character: {character_name}")
 
     xp_history_data: List[Tuple[str, int, str]] = []
-    service_url: str = f"/maplestory/v1/character/basic"
-    request_url: str = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
 
     # 오전 6시 이전에는 2일전 날짜부터 조회
-    kst_now = kst_format_now_v2()
+    kst_now = kst_format_now()
     if kst_now.hour < 6:
         time_offset: int = 2
     else:
         time_offset: int = 1
 
     try:
-        response_data: dict = general_request_handler_nexon(request_url)
         xp_history_data: List[Tuple[str, int, str]] = get_weekly_xp_history(character_ocid, time_offset)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
@@ -957,13 +955,13 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
 
     # 캐릭터의 이름, 월드, 생성일 추출
     character_world: str = (
-        str(response_data.get('world_name')).strip()
-        if response_data.get('world_name') is not None
+        str(character_basic_info.get('character_world')).strip()
+        if character_basic_info.get('character_world') is not None
         else '알 수 없음'
     )
     character_date_create: str = (
-        str(response_data.get('character_date_create')).strip()
-        if response_data.get('character_date_create') is not None
+        str(character_basic_info.get('character_date_create')).strip()
+        if character_basic_info.get('character_date_create') is not None
         else '알 수 없음'
     )
     if character_date_create != '알 수 없음':
@@ -1049,3 +1047,43 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
         file = discord.File(buffer, filename=f"{character_ocid}_{now_kst}.png")
         await ctx.send(content=f"캐릭터 생성일: {character_date_create_str}", file=file)
         buffer.close()
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 코디")
+async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) -> None:
+    """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 캐릭터 이름
+    """
+    if ctx.message.author.bot:
+        return
+    
+    # 캐릭터 basic 정보 조회 (OCID 포함)
+    try:
+        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        basic_info: dict = await asyncio.to_thread(get_basic_info, character_ocid)
+        cash_equipment_info: dict = await asyncio.to_thread(get_cash_equipment_info, character_ocid)
+    except NexonAPICharacterNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
+        return
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 코디 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character cash equipment info not found")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
+    
+    character_name: str = basic_info.get('character_name', character_name)
+    character_world: str = (
+        str(basic_info.get('world_name')).strip()
+        if basic_info.get('world_name') is not None else '모르는'
+    )

@@ -186,6 +186,7 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     # Discord Embed 전송
     await ctx.send(embed=embed, file=buffer)
     buffer.close()
+    return
 
 @log_command(alt_func_name="븜 주간던파")
 async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str) -> None:

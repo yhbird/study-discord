@@ -1,4 +1,5 @@
-import json
+from __future__ import annotations
+
 import requests
 import hashlib
 import random
@@ -18,6 +19,16 @@ from typing import Literal, Optional, Dict, List, Tuple
 
 from exceptions.client_exceptions import *
 from utils.time import parse_iso_string
+
+class maplestory_service_url:
+    ocid : str = "/maplestory/v1/id"
+    pop : str = "/maplestory/v1/character/popularity"
+    ability : str = "/maplestory/v1/character/ability"
+    notice : str = "/maplestory/v1/notice-event"
+    notice_detail : str = "/maplestory/v1/notice-event/detail"
+    basic_info: str = "/maplestory/v1/character/basic"
+    stat_info: str = "/maplestory/v1/character/stat"
+    cash_equipment: str = "/maplestory/v1/character/cashitem-equipment"
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
     """Nexon Open API의 일반적인 요청을 처리하는 함수  
@@ -88,20 +99,23 @@ def get_ocid(character_name: str) -> str:
         Reference에 있는 URL 참조
         (예외처리는 함수 밖에서 처리)
     """
-    service_url = f"/maplestory/v1/id"
+    service_url = maplestory_service_url.ocid
     url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
-    response_data: dict = general_request_handler_nexon(request_url)
+    try:
+        response_data: dict = general_request_handler_nexon(request_url)
+    except NexonAPIBadRequest as e:
+        raise NexonAPICharacterNotFound("Character not found") from e
     
     # 정상적으로 OCID를 찾았을 때
     ocid: str = str(response_data.get('ocid'))
     if ocid:
         return ocid
     else:
-        raise NexonAPIOCIDNotFound("OCID not found in response")
+        raise NexonAPICharacterNotFound("OCID not found in response")
 
 
-def get_character_popularity(ocid: str) -> str:
+def get_popularity(ocid: str) -> str:
     """OCID에 해당하는 캐릭터의 인기도를 가져오는 함수
 
     Args:
@@ -113,7 +127,7 @@ def get_character_popularity(ocid: str) -> str:
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    service_url = f"/maplestory/v1/character/popularity"
+    service_url = maplestory_service_url.pop
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     try:
         response_data: dict = general_request_handler_nexon(request_url)
@@ -123,7 +137,7 @@ def get_character_popularity(ocid: str) -> str:
         return "몰라양"  # 예외 발생 시 기본값으로 "몰라양" 반환
 
 
-def get_character_ability_info(ocid: str) -> dict:
+def get_ability_info(ocid: str) -> dict:
     """OCID에 해당하는 캐릭터의 어빌리티 정보를 가져오는 함수
 
     Args:
@@ -132,7 +146,7 @@ def get_character_ability_info(ocid: str) -> dict:
     Returns:
         dict: 캐릭터의 어빌리티 정보
     """
-    service_url = f"/maplestory/v1/character/ability"
+    service_url = maplestory_service_url.ability
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     response_data: dict = general_request_handler_nexon(request_url)
     return response_data
@@ -341,7 +355,7 @@ def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dic
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=24
     """
-    service_url = f"/maplestory/v1/notice-event"
+    service_url = maplestory_service_url.notice
     request_url = f"{NEXON_API_HOME}{service_url}"
     response_data: dict = general_request_handler_nexon(request_url)
     notices: list = response_data.get('event_notice', [])
@@ -437,7 +451,7 @@ def get_notice_details(notice_id: str) -> dict:
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    service_url = f"/maplestory/v1/notice-event/detail"
+    service_url = maplestory_service_url.notice_detail
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
     response_data: dict = general_request_handler_nexon(request_url)
     return response_data
@@ -609,14 +623,14 @@ def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
 
-    start_date = datetime.now(tz=timezone("Asia/Seoul")).date()
+    start_date: datetime = datetime.now(tz=timezone("Asia/Seoul")).date()
     date_list: List[str] = [
         (start_date - timedelta(days=time_delta + i)).strftime("%Y-%m-%d") for i in range(7)
     ]
     return_data: List[Tuple[str, int, str]] = []
 
     for param_date in date_list:
-        request_service_url: str = f"/maplestory/v1/character/basic"
+        request_service_url: str = maplestory_service_url.basic_info
         request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
         time.sleep(NEXON_API_TIME_SLEEP)  # API Rate Limit 방지
         response_data: dict = general_request_handler_nexon(request_url)
@@ -635,21 +649,34 @@ def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str
     return return_data
 
 
-def process_maple_basic_info(raw_data: dict) -> dict:
-    """메이플스토리 캐릭터 기본 정보 데이터를 가공하는 함수
+def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["..."]]:
+    """메이플스토리 캐릭터 기본 정보 데이터를 가져와서 가공하는 함수
 
     Args:
-        raw_data (dict): 원본 캐릭터 기본 정보 데이터
+        ocid (str): 캐릭터 OCID
 
     Returns:
         dict: 가공된 캐릭터 기본 정보 데이터
     """
-    if isinstance(raw_data, dict):
-        input_data: dict = raw_data.copy()
-        return_data: dict = {}
+    character_ocid: str = ocid
+
+    service_url = maplestory_service_url.basic_info
+    requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
+
+    response_data: dict = general_request_handler_nexon(requests_url)
+
+    if isinstance(character_ocid, str):
+        return_data: dict = {
+            "character_ocid": character_ocid
+        }
 
         # basic info 1. 캐릭터 이름
-        character_name: str | bool = input_data.get('character_name')
+        character_name: str = (
+            str(response_data.get('character_name')).strip()
+            if response_data.get('character_name') is not None
+            else None
+        )
+
         if character_name is None:
             return False
         else:
@@ -657,37 +684,37 @@ def process_maple_basic_info(raw_data: dict) -> dict:
         
         # basic info 2. 캐릭터 레벨
         character_level: int = (
-            int(input_data.get('character_level'))
-            if input_data.get('character_level') is not None
+            int(response_data.get('character_level'))
+            if response_data.get('character_level') is not None
             else -1
         )
         return_data['character_level'] = character_level if character_level != -1 else "몰라양"
 
         # basic info 3. 캐릭터 소속월드
         character_world: str | Literal["알수없음"] = (
-            str(input_data.get('world_name')).strip()
-            if input_data.get('world_name') is not None
+            str(response_data.get('world_name')).strip()
+            if response_data.get('world_name') is not None
             else "알수없음"
         )
         return_data['character_world'] = character_world
 
         # basic info 4. 캐릭터 성별
-        character_gender: str | Literal["제로"] = (
-            str(input_data.get('character_gender')).strip()
-            if input_data.get('character_gender') is not None
-            else "제로"
+        character_gender: str | Literal["기타"] = (
+            str(response_data.get('character_gender')).strip()
+            if response_data.get('character_gender') is not None
+            else "기타"
         )
         return_data['character_gender'] = character_gender
 
         # basic info 5. 캐릭터 직업 & 직업차수
         character_class: str | Literal["알수없음"] = (
-            str(input_data.get('character_class')).strip()
-            if input_data.get('character_class') is not None
+            str(response_data.get('character_class')).strip()
+            if response_data.get('character_class') is not None
             else "알수없음"
         )
         character_class_level: str | Literal["알수없음"] = (
-            str(input_data.get('character_class_level')).strip()
-            if input_data.get('character_class_level') is not None
+            str(response_data.get('character_class_level')).strip()
+            if response_data.get('character_class_level') is not None
             else "알수없음"
         )
         return_data['character_job'] = f"{character_class} ({character_class_level}차 전직)"
@@ -696,20 +723,20 @@ def process_maple_basic_info(raw_data: dict) -> dict:
 
         # basic info 6. 캐릭터 경험치 & 퍼센트
         character_exp: int = (
-            int(input_data.get('character_exp'))
-            if input_data.get('character_exp') is not None
+            int(response_data.get('character_exp'))
+            if response_data.get('character_exp') is not None
             else -1
         )
         character_exp_rate: str | Literal["0.000%"] = (
-            str(input_data.get('character_exp_rate')).strip()
-            if input_data.get('character_exp_rate') is not None
+            str(response_data.get('character_exp_rate')).strip()
+            if response_data.get('character_exp_rate') is not None
             else "0.000%"
         )
         return_data['character_exp'] = character_exp
         return_data['character_exp_rate'] = character_exp_rate
 
         # basic info 7. 캐릭터 소속 길드
-        character_guild_name_json = input_data.get('character_guild_name')
+        character_guild_name_json = response_data.get('character_guild_name')
         if character_guild_name_json is None:
             character_guild_name = "길드가 없어양!"
         else:
@@ -718,24 +745,24 @@ def process_maple_basic_info(raw_data: dict) -> dict:
 
         # basic info 8. 캐릭터 외형 이미지 URL
         character_image: str | Literal[""] = (
-            str(input_data.get('character_image')).strip()
-            if input_data.get('character_image') is not None
+            str(response_data.get('character_image')).strip()
+            if response_data.get('character_image') is not None
             else ""
         )
         return_data['character_image'] = character_image
 
         # basic info 9. 캐릭터 생성일
         character_date_create: str | Literal["알수없음"] = (
-            str(input_data.get('character_date_create')).strip()
-            if input_data.get('character_date_create') is not None
+            str(response_data.get('character_date_create')).strip()
+            if response_data.get('character_date_create') is not None
             else "알수없음"
         )
         return_data['character_date_create'] = character_date_create
 
         # basic info 10. 캐릭터 최근 7일 이내 접속 여부 (flag)
         character_access_flag: bool | Literal["알수없음"]  = (
-            str(input_data.get('character_access_flag')).strip()
-            if input_data.get('character_access_flag') is not None
+            str(response_data.get('character_access_flag')).strip()
+            if response_data.get('character_access_flag') is not None
             else "알수없음"
         )
         if character_access_flag == "true":
@@ -748,15 +775,15 @@ def process_maple_basic_info(raw_data: dict) -> dict:
 
         # basic info 11. 캐릭터 해방 퀘스트 완료 여부
         character_liberation_quest_clear: str | Literal["알수없음"] = (
-            str(input_data.get('liberation_quest_clear')).strip()
-            if input_data.get('liberation_quest_clear') is not None
+            str(response_data.get('liberation_quest_clear')).strip()
+            if response_data.get('liberation_quest_clear') is not None
             else "알수없음"
         )
         return_data['liberation_quest_clear'] = character_liberation_quest_clear
 
     return return_data
 
-def process_maple_stat_info(raw_data: dict) -> Dict[str, str | int | Literal["알수없음"]]:
+def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
     """메이플스토리 캐릭터 상세 정보 데이터를 가공하는 함수
 
     Args:
@@ -765,239 +792,242 @@ def process_maple_stat_info(raw_data: dict) -> Dict[str, str | int | Literal["�
     Returns:
         dict: 가공된 캐릭터 상세 정보 데이터
     """
-    stat_list: List[dict] = raw_data.get('final_stat', [])
-
+    service_url = maplestory_service_url.stat_info
+    requests_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    response_data: dict = general_request_handler_nexon(requests_url)
+    stat_list: List[dict] = response_data.get('final_stat', [])
+    
     if isinstance(stat_list, list) and stat_list:
-        stat_info: dict = {}
+        character_stat_info: dict = {}
         for stat in stat_list:
             stat_name: str = str(stat.get('stat_name')).strip()
-            stats_value: str = str(stat.get('stats_value')).strip()
-            if stat_name and stats_value:
-                stat_info[stat_name] = stats_value
+            stat_value: str | None = stat.get('stat_value')
+            if stat_name:
+                character_stat_info[stat_name] = stat_value
             else:
                 continue
     else:
         raise NexonAPIError("Invalid stat data format")
     
-    if stat_info:
+    if character_stat_info != {}:
         stat_attack_min: str | Literal["알수없음"] = (
-            str(stat_info.get("최소 스탯공격력")).strip()
-            if stat_info.get("최소 스탯공격력") is not None
+            str(character_stat_info.get("최소 스탯공격력")).strip()
+            if character_stat_info.get("최소 스탯공격력") is not None
             else "알수없음"
         )
         stat_attack_max: str | Literal["알수없음"] = (
-            str(stat_info.get("최대 스탯공격력")).strip()
-            if stat_info.get("최대 스탯공격력") is not None
+            str(character_stat_info.get("최대 스탯공격력")).strip()
+            if character_stat_info.get("최대 스탯공격력") is not None
             else "알수없음"
         )
         stat_damage: str | Literal["알수없음"] = (
-            str(stat_info.get("데미지")).strip()
-            if stat_info.get("데미지") is not None
+            str(character_stat_info.get("데미지")).strip()
+            if character_stat_info.get("데미지") is not None
             else "알수없음"
         )
         stat_boss_damage: str | Literal["알수없음"] = (
-            str(stat_info.get("보스 몬스터 데미지")).strip()
-            if stat_info.get("보스 몬스터 데미지") is not None
+            str(character_stat_info.get("보스 몬스터 데미지")).strip()
+            if character_stat_info.get("보스 몬스터 데미지") is not None
             else "알수없음"
         )
         stat_final_damage: str | Literal["알수없음"] = (
-            str(stat_info.get("최종 데미지")).strip()
-            if stat_info.get("최종 데미지") is not None
+            str(character_stat_info.get("최종 데미지")).strip()
+            if character_stat_info.get("최종 데미지") is not None
             else "알수없음"
         )
         stat_ignore_def: str | Literal["알수없음"] = (
-            str(stat_info.get("방어율 무시")).strip()
-            if stat_info.get("방어율 무시") is not None
+            str(character_stat_info.get("방어율 무시")).strip()
+            if character_stat_info.get("방어율 무시") is not None
             else "알수없음"
         )
         stat_crit_rate: str | Literal["알수없음"] = (
-            str(stat_info.get("크리티컬 확률")).strip()
-            if stat_info.get("크리티컬 확률") is not None
+            str(character_stat_info.get("크리티컬 확률")).strip()
+            if character_stat_info.get("크리티컬 확률") is not None
             else "알수없음"
         )
         stat_crit_damage: str | Literal["알수없음"] = (
-            str(stat_info.get("크리티컬 데미지")).strip()
-            if stat_info.get("크리티컬 데미지") is not None
+            str(character_stat_info.get("크리티컬 데미지")).strip()
+            if character_stat_info.get("크리티컬 데미지") is not None
             else "알수없음"
         )
         stat_status_resist: str | Literal["알수없음"] = (
-            str(stat_info.get("상태이상 내성")).strip()
-            if stat_info.get("상태이상 내성") is not None
+            str(character_stat_info.get("상태이상 내성")).strip()
+            if character_stat_info.get("상태이상 내성") is not None
             else "알수없음"
         )
         stat_stance: str | Literal["알수없음"] = (
-            str(stat_info.get("스탠스")).strip()
-            if stat_info.get("스탠스") is not None
+            str(character_stat_info.get("스탠스")).strip()
+            if character_stat_info.get("스탠스") is not None
             else "알수없음"
         )
         stat_defense: str | Literal["알수없음"] = (
-            str(stat_info.get("방어력")).strip()
-            if stat_info.get("방어력") is not None
+            str(character_stat_info.get("방어력")).strip()
+            if character_stat_info.get("방어력") is not None
             else "알수없음"
         )
         stat_move_speed: str | Literal["알수없음"] = (
-            str(stat_info.get("이동속도")).strip()
-            if stat_info.get("이동속도") is not None
+            str(character_stat_info.get("이동속도")).strip()
+            if character_stat_info.get("이동속도") is not None
             else "알수없음"
         )
         stat_jump: str | Literal["알수없음"] = (
-            str(stat_info.get("점프력")).strip()
-            if stat_info.get("점프력") is not None
+            str(character_stat_info.get("점프력")).strip()
+            if character_stat_info.get("점프력") is not None
             else "알수없음"
         )
         stat_starforce: str | Literal["알수없음"] = (
-            str(stat_info.get("스타포스")).strip()
-            if stat_info.get("스타포스") is not None
+            str(character_stat_info.get("스타포스")).strip()
+            if character_stat_info.get("스타포스") is not None
             else "알수없음"
         )
         stat_arcane_force: str | Literal["알수없음"] = (
-            str(stat_info.get("아케인포스")).strip()
-            if stat_info.get("아케인포스") is not None
+            str(character_stat_info.get("아케인포스")).strip()
+            if character_stat_info.get("아케인포스") is not None
             else "알수없음"
         )
         stat_authentic_force: str | Literal["알수없음"] = (
-            str(stat_info.get("어센틱포스")).strip()
-            if stat_info.get("어센틱포스") is not None
+            str(character_stat_info.get("어센틱포스")).strip()
+            if character_stat_info.get("어센틱포스") is not None
             else "알수없음"
         )
         stat_str: int = (
-            int(stat_info.get("STR"))
-            if stat_info.get("STR") is not None
+            int(character_stat_info.get("STR"))
+            if character_stat_info.get("STR") is not None
             else 0
         )
         stat_dex: int = (
-            int(stat_info.get("DEX"))
-            if stat_info.get("DEX") is not None
+            int(character_stat_info.get("DEX"))
+            if character_stat_info.get("DEX") is not None
             else 0
         )
         stat_int: int = (
-            int(stat_info.get("INT"))
-            if stat_info.get("INT") is not None
+            int(character_stat_info.get("INT"))
+            if character_stat_info.get("INT") is not None
             else 0
         )
         stat_luk: int = (
-            int(stat_info.get("LUK"))
-            if stat_info.get("LUK") is not None
+            int(character_stat_info.get("LUK"))
+            if character_stat_info.get("LUK") is not None
             else 0
         )
         stat_hp: int = (
-            int(stat_info.get("HP"))
-            if stat_info.get("HP") is not None
+            int(character_stat_info.get("HP"))
+            if character_stat_info.get("HP") is not None
             else 0
         )
         stat_mp: int = (
-            int(stat_info.get("MP"))
-            if stat_info.get("MP") is not None
+            int(character_stat_info.get("MP"))
+            if character_stat_info.get("MP") is not None
             else 0
         )
         stat_str_ap: int = (
-            int(stat_info.get("AP 배분 STR"))
-            if stat_info.get("AP 배분 STR") is not None
+            int(character_stat_info.get("AP 배분 STR"))
+            if character_stat_info.get("AP 배분 STR") is not None
             else 0
         )
         stat_dex_ap: int = (
-            int(stat_info.get("AP 배분 DEX"))
-            if stat_info.get("AP 배분 DEX") is not None
+            int(character_stat_info.get("AP 배분 DEX"))
+            if character_stat_info.get("AP 배분 DEX") is not None
             else 0
         )
         stat_int_ap: int = (
-            int(stat_info.get("AP 배분 INT"))
-            if stat_info.get("AP 배분 INT") is not None
+            int(character_stat_info.get("AP 배분 INT"))
+            if character_stat_info.get("AP 배분 INT") is not None
             else 0
         )
         stat_luk_ap: int = (
-            int(stat_info.get("AP 배분 LUK"))
-            if stat_info.get("AP 배분 LUK") is not None
+            int(character_stat_info.get("AP 배분 LUK"))
+            if character_stat_info.get("AP 배분 LUK") is not None
             else 0
         )
         stat_hp_ap: int = (
-            int(stat_info.get("AP 배분 HP"))
-            if stat_info.get("AP 배분 HP") is not None
+            int(character_stat_info.get("AP 배분 HP"))
+            if character_stat_info.get("AP 배분 HP") is not None
             else 0
         )
         stat_mp_ap: int = (
-            int(stat_info.get("AP 배분 MP"))
-            if stat_info.get("AP 배분 MP") is not None
+            int(character_stat_info.get("AP 배분 MP"))
+            if character_stat_info.get("AP 배분 MP") is not None
             else 0
         )
         stat_item_drop: str | Literal["알수없음"] = (
-            str(stat_info.get("아이템 드롭률")).strip()
-            if stat_info.get("아이템 드롭률") is not None
+            str(character_stat_info.get("아이템 드롭률")).strip()
+            if character_stat_info.get("아이템 드롭률") is not None
             else "알수없음"
         )
         stat_mesos: str | Literal["알수없음"] = (
-            str(stat_info.get("메소 획득량")).strip()
-            if stat_info.get("메소 획득량") is not None
+            str(character_stat_info.get("메소 획득량")).strip()
+            if character_stat_info.get("메소 획득량") is not None
             else "알수없음"
         )
         stat_buff_duration: str | Literal["알수없음"] = (
-            str(stat_info.get("버프 지속시간")).strip()
-            if stat_info.get("버프 지속시간") is not None
+            str(character_stat_info.get("버프 지속시간")).strip()
+            if character_stat_info.get("버프 지속시간") is not None
             else "알수없음"
         )
         stat_attack_speed: str | Literal["알수없음"] = (
-            str(stat_info.get("공격속도")).strip()
-            if stat_info.get("공격속도") is not None
+            str(character_stat_info.get("공격속도")).strip()
+            if character_stat_info.get("공격속도") is not None
             else "알수없음"
         )
         stat_mob_damage: str | Literal["알수없음"] = (
-            str(stat_info.get("일반 몬스터 데미지")).strip()
-            if stat_info.get("일반 몬스터 데미지") is not None
+            str(character_stat_info.get("일반 몬스터 데미지")).strip()
+            if character_stat_info.get("일반 몬스터 데미지") is not None
             else "알수없음"
         )
         stat_cooltime_reduction_sec: str | Literal["알수없음"] = (
-            str(stat_info.get("재사용 대기시간 감소 (초)")).strip()
-            if stat_info.get("재사용 대기시간 감소 (초)") is not None
+            str(character_stat_info.get("재사용 대기시간 감소 (초)")).strip()
+            if character_stat_info.get("재사용 대기시간 감소 (초)") is not None
             else "알수없음"
         )
         stat_cooltime_reduction_per: str | Literal["알수없음"] = (
-            str(stat_info.get("재사용 대기시간 감소 (%)")).strip()
-            if stat_info.get("재사용 대기시간 감소 (%)") is not None
+            str(character_stat_info.get("재사용 대기시간 감소 (%)")).strip()
+            if character_stat_info.get("재사용 대기시간 감소 (%)") is not None
             else "알수없음"
         )
         stat_cooltime_avoid: str | Literal["알수없음"] = (
-            str(stat_info.get("재사용 대기시간 미적용")).strip()
-            if stat_info.get("재사용 대기시간 미적용") is not None
+            str(character_stat_info.get("재사용 대기시간 미적용")).strip()
+            if character_stat_info.get("재사용 대기시간 미적용") is not None
             else "알수없음"
         )
         stat_ignore_element: str | Literal["알수없음"] = (
-            str(stat_info.get("속성 내성 무시")).strip()
-            if stat_info.get("속성 내성 무시") is not None
+            str(character_stat_info.get("속성 내성 무시")).strip()
+            if character_stat_info.get("속성 내성 무시") is not None
             else "알수없음"
         )
         stat_status_damage: str | Literal["알수없음"] = (
-            str(stat_info.get("상태이상 추가 데미지")).strip()
-            if stat_info.get("상태이상 추가 데미지") is not None
+            str(character_stat_info.get("상태이상 추가 데미지")).strip()
+            if character_stat_info.get("상태이상 추가 데미지") is not None
             else "알수없음"
         )
         stat_weapon_mastery: str | Literal["알수없음"] = (
-            str(stat_info.get("무기 숙련도")).strip()
-            if stat_info.get("무기 숙련도") is not None
+            str(character_stat_info.get("무기 숙련도")).strip()
+            if character_stat_info.get("무기 숙련도") is not None
             else "알수없음"
         )
         stat_bonus_exp: str | Literal["알수없음"] = (
-            str(stat_info.get("추가 경험치 획득")).strip()
-            if stat_info.get("추가 경험치 획득") is not None
+            str(character_stat_info.get("추가 경험치 획득")).strip()
+            if character_stat_info.get("추가 경험치 획득") is not None
             else "알수없음"
         )
         stat_attack: str | Literal["알수없음"] = (
-            str(stat_info.get("공격력")).strip()
-            if stat_info.get("공격력") is not None
+            str(character_stat_info.get("공격력")).strip()
+            if character_stat_info.get("공격력") is not None
             else "알수없음"
         )
         stat_magic: str | Literal["알수없음"] = (
-            str(stat_info.get("마력")).strip()
-            if stat_info.get("마력") is not None
+            str(character_stat_info.get("마력")).strip()
+            if character_stat_info.get("마력") is not None
             else "알수없음"
         )
         stat_battle_power: str | Literal["알수없음"] = (
-            str(stat_info.get("전투력")).strip()
-            if stat_info.get("전투력") is not None
+            str(character_stat_info.get("전투력")).strip()
+            if character_stat_info.get("전투력") is not None
             else "알수없음"
         )
         stat_familiar_duration: str | Literal["알수없음"] = (
-            str(stat_info.get("소환수 지속시간 증가")).strip()
-            if stat_info.get("소환수 지속시간 증가") is not None
+            str(character_stat_info.get("소환수 지속시간 증가")).strip()
+            if character_stat_info.get("소환수 지속시간 증가") is not None
             else "알수없음"
         )
 
@@ -1048,3 +1078,26 @@ def process_maple_stat_info(raw_data: dict) -> Dict[str, str | int | Literal["�
             "stat_familiar_duration": stat_familiar_duration,
         }
         return processed_stat_info
+    
+
+def get_cash_equipment_info(ocid: str):
+    """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 정보를 조회하는 함수
+
+    Args:
+        ocid (str): 캐릭터 OCID
+
+    Reference:
+        https://openapi.nexon.com/ko/game/maplestory/?id=14
+    """
+    service_url = maplestory_service_url.cash_equipment
+    request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    response_data: dict = general_request_handler_nexon(request_url)
+    
+    return_data = {
+        "character_gender": (
+            str(response_data.get("character_gender")).strip()
+            if response_data.get("character_gender") is not None
+            else "기타"
+        )
+    }
+    

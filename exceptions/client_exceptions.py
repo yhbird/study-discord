@@ -13,6 +13,12 @@ from exceptions.base import ClientBaseException
 class NexonAPIError(ClientBaseException):
     """Nexon API 사용 중 발생하는 오류"""
 
+class NexonAPICharacterNotFound(ClientBaseException):
+    """Nexon API 캐릭터 없음 오류"""
+    def __init__(self, message: str = "Nexon API에서 캐릭터를 찾을 수 없어양"):
+        super().__init__(message)
+        self.message = message
+        
 class NexonAPIBadRequest(ClientBaseException):
     """Nexon API Bad Request 오류"""
     def __init__(self, message: str = "Nexon API 요청이 잘못 되었어양"):
