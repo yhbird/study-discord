@@ -87,21 +87,33 @@ async def run_msg_handle_blinkbang(ctx: commands.Context):
 
 @bot.command(name="따라해")
 async def run_msg_handle_repeat(ctx: commands.Context, *, text: str):
-    await basic_command.msg_handle_repeat(ctx, text)
+    try:
+        await basic_command.msg_handle_repeat(ctx, text)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"따라할 문장을 입력하세양 (예: `븜 따라해 안녕하세요!`)")
 
 @bot.command(name="이미지")
 async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
-    await basic_command.msg_handle_image(ctx, search_term)
+    try:
+        await basic_command.msg_handle_image(ctx, search_term)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"이미지 검색어를 입력하세양 (예: `븜 이미지 고양이`)", reference=ctx.message)
 
 # 메이플스토리 명령어 등록 from service.maplestory_command as map_command
 @bot.command(name="기본정보")
 async def run_api_basic_info(ctx: commands.Context, character_name: str):
-    await map_command.maple_basic_info(ctx, character_name)
+    try:
+        await map_command.maple_basic_info(ctx, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"캐릭터 이름을 입력하세양 (예: `븜 기본정보 마법사악`)", reference=ctx.message)
 
 @bot.command(name="상세정보")
 async def run_api_detail_info(ctx: commands.Context, character_name: str):
-    await map_command.maple_detail_info(ctx, character_name)
-    
+    try:
+        await map_command.maple_detail_info(ctx, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"캐릭터 이름을 입력하세양 (예: `븜 상세정보 마법사악`)", reference=ctx.message)
+
 @bot.command(name="피씨방")
 async def run_api_pcbang_notice(ctx: commands.Context):
     await map_command.maple_pcbang_notice(ctx)
@@ -112,34 +124,55 @@ async def run_api_sunday_notice(ctx: commands.Context):
 
 @bot.command(name="어빌리티")
 async def run_api_ability_info(ctx: commands.Context, character_name: str):
-    await map_command.maple_ability_info(ctx, character_name)
+    try:
+        await map_command.maple_ability_info(ctx, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"캐릭터 이름을 입력하세양 (예: `븜 어빌리티 마법사악`)", reference=ctx.message)
 
 @bot.command(name="운세")
 async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str):
-    await map_command.maple_fortune_today(ctx, character_name)
+    try:
+        await map_command.maple_fortune_today(ctx, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"캐릭터 이름을 입력하세양 (예: `븜 운세 마법사악`)", reference=ctx.message)
 
 @bot.command(name="경험치")
 async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
-    await map_command.maple_xp_history(ctx, character_name)
+    try:
+        await map_command.maple_xp_history(ctx, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"캐릭터 이름을 입력하세양 (예: `븜 경험치 마법사악`)", reference=ctx.message)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보")
 async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):
-    await dnf_command.api_dnf_characters(ctx, server_name, character_name)
+    try:
+        await dnf_command.api_dnf_characters(ctx, server_name, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"서버 이름과 캐릭터 이름을 입력하세양 (예: `븜 던파정보 카인 마법사악`)", reference=ctx.message)
 
 @bot.command(name="주간던파")
 async def run_api_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str):
-    await dnf_command.api_dnf_timeline_weekly(ctx, server_name, character_name)
+    try:
+        await dnf_command.api_dnf_timeline_weekly(ctx, server_name, character_name)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"서버 이름과 캐릭터 이름을 입력하세양 (예: `븜 주간던파 카인 마법사악`)", reference=ctx.message)
 
 # 날씨 명령어 등록 from service.weather_command as wth_command
 @bot.command(name="날씨")
 async def run_api_weather(ctx: commands.Context, location: str):
-    await wth_command.api_weather(ctx, location)
+    try:
+        await wth_command.api_weather(ctx, location)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"위치 정보를 입력하세양 (예: `븜 날씨 서울`)", reference=ctx.message)
 
 # 명령어 등록 from service.yfinance_command as yfi_command
 @bot.command(name="미국주식")
 async def run_stk_us_stock_price(ctx: commands.Context, ticker: str):
-    await yfi_command.stk_us_stock_price(ctx, ticker)
+    try:
+        await yfi_command.stk_us_stock_price(ctx, ticker)
+    except commands.errors.MissingRequiredArgument as e:
+        await ctx.send(f"티커 정보를 입력하세양 (예: `븜 미국주식 IBM`)", reference=ctx.message)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])
