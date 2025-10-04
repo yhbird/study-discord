@@ -15,6 +15,10 @@ class InvalidCommandFormat(CommandBaseException):
     """명령어 형식이 올바르지 않을 때 발생하는 오류"""
     pass
 
+class InvalidCommandParameter(CommandBaseException):
+    """명령어 파라미터가 올바르지 않을 때 발생하는 오류"""
+    pass
+
 class CommandFailure(CommandBaseException):
     """명령어 실행에 실패했을 때 발생하는 오류"""
     pass
