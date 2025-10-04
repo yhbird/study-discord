@@ -15,7 +15,7 @@ from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
 from config import NEXON_API_TIME_SLEEP # Nexon Open API Rate Limit 방지용 시간 간격
 from data.json.fortune_message_table import fortune_message_table_raw
 
-from typing import Literal, Optional, Dict, List, Tuple
+from typing import Literal, Optional, Dict, List, Tuple, Any
 
 from exceptions.client_exceptions import *
 from utils.time import parse_iso_string
@@ -29,6 +29,7 @@ class maplestory_service_url:
     basic_info: str = "/maplestory/v1/character/basic"
     stat_info: str = "/maplestory/v1/character/stat"
     cash_equipment: str = "/maplestory/v1/character/cashitem-equipment"
+    beauty_equipment: str = "/maplestory/v1/character/beauty-equipment"
 
 def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
     """Nexon Open API의 일반적인 요청을 처리하는 함수  
@@ -1080,7 +1081,7 @@ def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
         return processed_stat_info
     
 
-def get_cash_equipment_info(ocid: str):
+def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict] | Literal["기타"] | None]:
     """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 정보를 조회하는 함수
 
     Args:
@@ -1099,16 +1100,111 @@ def get_cash_equipment_info(ocid: str):
             if response_data.get("character_gender") is not None
             else "기타"
         ),
+        "character_class": (
+            str(response_data.get("character_class")).strip()
+            if response_data.get("character_class") is not None
+            else "기타"
+        ),
+        "character_look_mode": (
+            str(response_data.get("character_look_mode")).strip()
+            if response_data.get("character_look_mode") is not None
+            else "0"  # 기본 외형 모드
+        ),
         "current_preset_no": (
             int(response_data.get("preset_no"))
             if response_data.get("preset_no") is not None
-            else -1
+            else None
         ),
         "equipment_base_list": (
             response_data.get("cash_item_equipment_base", [])
+        ),
+        "additional_equipment_base_list": (
+            response_data.get("additional_cash_item_equipment_base", [])
         )
     }
     preset = return_data.get("current_preset_no") or 1
-    response_data["equipment_look_list"] = (
-        response_data.get(f"cash_item_equipment_preset_{preset}", [])
+    if return_data["character_look_mode"] == "1":
+        # 드레스업 혹은 베타 모드인 경우, additional_preset 사용
+        target_key_name = f"additional_cash_item_equipment_preset"
+    else:
+        target_key_name = f"cash_item_equipment_preset"
+    return_data["equipment_look_list"] = (
+        response_data.get(f"{target_key_name}_{preset}", [])
     )
+    
+    return return_data
+
+
+def parse_equipment_info(equipment_data: List[Dict[str, Any]]) -> Dict[str, str]:
+    """캐릭터의 장착중인 캐시 아이템 정보를 가공하는 함수
+
+    Args:
+        equipment_data (List[Dict[str, Any]]): 장비 아이템 정보 리스트
+
+    Returns:
+        Dict[str, str]: 부위별 장착 캐시 아이템 정보
+    """
+    equipment_slots = [
+        "눈장식", "장갑", "무기", "반지1", "반지2", "반지3", "반지4",
+        "보조무기", "모자", "망토", "얼굴장식", "상의", "신발", "귀고리", "하의"
+    ]
+    if isinstance(equipment_data, list) and equipment_data:
+        equipment_info: Dict[str, str] = {}
+        for item in equipment_data:
+            item_part: str = (
+                str(item.get("cash_item_equipment_part")).strip()
+                if item.get("cash_item_equipment_part") is not None else "알수없음"
+            )
+            item_slot: str = (
+                str(item.get("cash_item_equipment_slot")).strip()
+                if item.get("cash_item_equipment_slot") is not None else "알수없음"
+            )
+            if item_slot in equipment_slots:
+                item_name: str = (
+                    str(item.get("cash_item_name")).strip()
+                    if item.get("cash_item_name") is not None else "알수없음"
+                )
+                item_label: str = (
+                    str(item.get("cash_item_label")).strip()
+                    if isinstance(item.get("cash_item_label"), str) else "알수없음"
+                )
+                # 아이템 기간제 여부 확인
+                item_date_expire: Optional[str] = (
+                    item.get("date_expire")
+                    if isinstance(item.get("date_expire"), str) else None
+                )
+                # 아이템 옵션 및 기간 정보
+                item_options: Optional[List[Dict[str, str]]] = (
+                    item.get("cash_item_option")
+                    if isinstance(item.get("cash_item_option"), list) else None
+                )
+                item_options_expire: Optional[str] = (
+                    item.get("date_option_expire")
+                    if isinstance(item.get("date_option_expire"), str) else None
+                )
+                # 컬러링 프리즘 정보
+                item_color: Optional[Dict[str, str]] = (
+                    item.get("cash_item_color")
+                    if isinstance(item.get("cash_item_color"), dict) else None
+                )
+
+                display_slot_name = f"{item_slot} ({item_part})"
+                display_item_name = f"[{item_label}] {item_name}" if item_label != "알수없음" else item_name
+                equipment_info[item_slot] = {
+                    "slot_name": display_slot_name,
+                    "item_name": display_item_name,
+
+                }
+
+
+def get_beauty_equipment_info(ocid: str) -> Dict[str, Optional[str | Dict[str, str]]]:
+    """캐릭터의 뷰티(헤어/성형) 정보 조회
+
+    Args:
+        ocid (str): 캐릭터 OCID
+    """
+    service_url = maplestory_service_url.beauty_equipment
+    request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    response_data: dict = general_request_handler_nexon(request_url)
+
+    return response_data

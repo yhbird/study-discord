@@ -75,6 +75,10 @@ async def run_deb_help(ctx: commands.Context, category: str = None):
 async def on_ready():
     logger.info(f'Logged in as... {bot.user}!!')
     deb_clear_memory.start()
+    await bot.change_presence(
+        status=discord.Status.online,
+        activity=discord.Game(name="븜 명령어")
+    )
 
 # 명령어 등록 from service.msg_command
 @bot.command(name="블링크빵")

@@ -1066,8 +1066,11 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     # 캐릭터 basic 정보 조회 (OCID 포함)
     try:
         character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
-        basic_info: dict = await asyncio.to_thread(get_basic_info, character_ocid)
-        cash_equipment_info: dict = await asyncio.to_thread(get_cash_equipment_info, character_ocid)
+        basic_info, cash_equipment_info, beauty_equipment_info = await asyncio.gather(
+            asyncio.to_thread(get_basic_info, character_ocid),
+            asyncio.to_thread(get_cash_equipment_info, character_ocid),
+            asyncio.to_thread(get_beauty_equipment_info, character_ocid)
+        )
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
         return
@@ -1092,3 +1095,18 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
         character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
+
+    character_class: str | Literal["기타"] = cash_equipment_info.get('character_class', '기타')
+    if cash_equipment_info.get("current_preset_no") is None:
+        preset_not_found_msg: str = "프리셋 정보를 찾을 수 없어 1번 프리셋으로 조회할게양!"
+        preset_no: int = 1
+    else:
+        preset_no: int = cash_equipment_info.get('current_preset_no')
+        if preset_no not in [1, 2, 3]:
+            preset_no = 1
+
+    if character_class == "제로":
+        # 제로일 경우 알파와 베타의 base 코디 정보도 같이 표시
+        alpha_equip_base: List[Dict[str, Any]] = cash_equipment_info.get('cash_item_equipment_base', [])
+        beta_equip_base: List[Dict[str, Any]] = cash_equipment_info.get('additional_cash_item_equipment_base', [])
+
