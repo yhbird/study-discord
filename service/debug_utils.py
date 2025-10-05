@@ -18,13 +18,3 @@ def get_memory_usage_mb() -> float:
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss / 1024**2
     return mem
-
-
-# 1시간 마다 메모리 정리
-@tasks.loop(minutes=MEMORY_CLEAR_INTERVAL)
-async def deb_clear_memory():
-    mem_usage : float = get_memory_usage_mb()
-    logger.info(f"Memory clear")
-    gc.collect()
-    logger.info(f"Current memory usage: {mem_usage:.2f} MB")
-
