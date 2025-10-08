@@ -36,6 +36,7 @@ try:
     NEOPLE_API_KEY: str = os.getenv(f'NEOPLE_API_TOKEN_{NEXON_API_RUN_ENV}', None)
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
     NEOPLE_API_HOME: str = os.getenv('NEOPLE_API_HOME')
+    NEXON_CHARACTER_IMAGE_URL: str = os.getenv('NEXON_CHARACTER_IMAGE_URL')
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed Bot loading during Nexon API Key loading: {e}")
@@ -88,11 +89,10 @@ COMMAND_TIMEOUT: int = 30  # seconds
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
 NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 if BOT_TOKEN_RUN == 'dev':
-    NEXON_API_LIMIT_PER_SEC: int = 5  # 개발 환경에서는 낮은 제한
-    NEXON_API_TIME_SLEEP: float = 1.0 / (NEXON_API_LIMIT_PER_SEC - 1)
+    NEXON_API_RPS_LIMIT: int = 5
 else:
-    NEXON_API_LIMIT_PER_SEC: int = 500  # 운영 환경에서는 높은 제한
-    NEXON_API_TIME_SLEEP: float = 1.0 / NEXON_API_LIMIT_PER_SEC
+    NEXON_API_RPS_LIMIT: int = 500
+    
 
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))

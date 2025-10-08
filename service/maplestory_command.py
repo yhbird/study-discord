@@ -16,7 +16,7 @@ from utils.image import get_image_bytes
 from utils.text import preprocess_int_with_korean
 from utils.time import kst_format_now
 from utils.plot import fp_maplestory_light, fp_maplestory_bold
-from config import COMMAND_TIMEOUT
+from config import COMMAND_TIMEOUT, NEXON_CHARACTER_IMAGE_URL
 
 from exceptions.client_exceptions import *
 from exceptions.command_exceptions import *
@@ -101,6 +101,8 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
+        character_image_look: str = character_image.split("/character/look/")[-1]
+        character_image_url_v2: str = f"{NEXON_CHARACTER_IMAGE_URL}{character_image_look}.png"
         character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
@@ -166,7 +168,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
-        embed.set_image(url=character_image_url)
+        embed.set_image(url=character_image_url_v2)
     embed.set_footer(text=embed_footer)
     if character_gender in ["남성", "남"]:
         embed.colour = discord.Colour.from_rgb(0, 128, 255)
@@ -941,7 +943,7 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
         time_offset: int = 1
 
     try:
-        xp_history_data: List[Tuple[str, int, str]] = get_weekly_xp_history(character_ocid, time_offset)
+        xp_history_data: List[Tuple[str, int, str]] = await get_weekly_xp_history(character_ocid, time_offset)
     except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
         raise CommandFailure(f"Character '{character_name}' basic info not found")
