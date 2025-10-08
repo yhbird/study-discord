@@ -4,8 +4,10 @@ import difflib
 from discord.ext import commands
 
 from bot_logger import logger
-from bot_helper import build_command_help, resolve_command, build_command_hint, auto_clear_memory
-from config import BOT_TOKEN, BOT_DEVELOPER_ID, SECRET_COMMANDS, SECRET_ADMIN_COMMAND
+from bot_helper import build_command_help, resolve_command, build_command_hint #도움말 예외처리
+from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리, 봇 상태 갱신
+from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
+from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
 
 # Matplotlib 한글 폰트 설정
 from utils.plot import set_up_matplotlib_korean
@@ -29,7 +31,7 @@ from exceptions.command_exceptions import InvalidCommandParameter
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot_command_prefix = "븜 "
+bot_command_prefix = BOT_COMMAND_PREFIX
 
 bot = commands.Bot(command_prefix=bot_command_prefix, intents=intents, help_command=None)
 admin_commands = SECRET_ADMIN_COMMAND
@@ -126,6 +128,10 @@ async def run_api_dnf_characters(ctx: commands.Context, server_name: str, charac
 async def run_api_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str):
     await dnf_command.api_dnf_timeline_weekly(ctx, server_name, character_name)
 
+@bot.command(name="던파장비", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 장비 정보를 조회해양. 예: `븜 던파장비 카인 마법사악`")
+async def run_api_dnf_equipment(ctx: commands.Context, server_name: str, character_name: str):
+    await dnf_command.api_dnf_equipment(ctx, server_name, character_name)
+
 
 # 날씨 명령어 등록 from service.weather_command as wth_command
 @bot.command(name="날씨", usage="지역명", help="특정 지역의 날씨를 조회해양. 예: `븜 날씨 서울`")
@@ -156,9 +162,10 @@ async def run_hidden_command_3(ctx: commands.Context):
 async def on_ready():
     logger.info(f'Logged in as... {bot.user}!!')
     auto_clear_memory.start()
+    update_bot_presence.start(bot)
     await bot.change_presence(
         status=discord.Status.online,
-        activity=discord.Game(name="븜 명령어")
+        activity=discord.Game(name="븜 명령어 | 메이플스토리")
     )
 
     

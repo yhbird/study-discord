@@ -1,5 +1,7 @@
 import os
 import gc
+import random
+import discord
 import psutil
 import difflib
 
@@ -8,6 +10,33 @@ from discord.ext import tasks
 
 from bot_logger import logger
 from config import MEMORY_CLEAR_INTERVAL
+from config import PRESENCE_UPDATE_INTERVAL
+from typing import List
+
+
+games: List[str] = [
+    "MapleStory",
+    "던전앤파이터",
+    "DJMAX RESPECT V",
+    "Persona 5 Royal",
+    "StarCraft",
+    "Overwatch 2",
+    "Apex Legends",
+    "VALORANT",
+    "League of Legends",
+    "PUBG: BATTLEGROUNDS",
+    "Valheim",
+    "Delta Force",
+    "Minecraft",
+    "Needy Streamer Overload",
+    "VRChat",
+    "Lost Ark",
+    "Hearthstone",
+    "Sid Meier's Civilization V",
+    "BlueStacks 5",
+    "Battlefield 6",
+]
+
 
 # 1시간 마다 메모리 정리
 @tasks.loop(minutes=MEMORY_CLEAR_INTERVAL)
@@ -17,6 +46,16 @@ async def auto_clear_memory():
     logger.info(f"Memory clear")
     gc.collect()
     logger.info(f"Current memory usage: {mem_usage:.2f} MB")
+
+
+# 봇 현재상태 주기적 갱신
+@tasks.loop(minutes=PRESENCE_UPDATE_INTERVAL)
+async def update_bot_presence(bot: commands.Bot):
+    random_game = random.choice(games)
+    await bot.change_presence(
+        status=discord.Status.online,
+        activity=discord.Game(name=f"븜 명령어 | {random_game}")
+    )
 
 
 def build_command_help(prefix: str, attempt: str, command: commands.Command) -> str:

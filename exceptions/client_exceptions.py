@@ -7,6 +7,7 @@ API 관련 예외 처리 모듈
 """
 
 from __future__ import annotations
+from typing import Dict
 
 import httpx
 import requests
@@ -159,58 +160,61 @@ def neople_api_error_handler(response: httpx.Response | requests.Response) -> No
     status = response.status_code
     msg = None
     try:
-        payload = response.json()
-        error = payload.get("error") if isinstance(payload, dict) else None
-        msg = (error or {}).get("message")
+        payload: dict = response.json()
+        print(payload)
+        error: Dict[str, str] = payload.get("error") if isinstance(payload, dict) else None
+        error_status = error.get("status", status)
+        error_code = error.get("code") or "Unknown"
+        msg = error.get("message")
     except Exception:
         msg = response.text.strip()
 
-    prefix = f"Neople API Error {status} : "
-    if "API000" in msg:
+    prefix = f"Neople API Error {error_status or status} : "
+    if "API000" in error_code:
         raise NeopleAPIKeyMissing(f"{prefix}{msg or 'API Key is missing.'}")
-    elif "API001" in msg:
+    elif "API001" in error_code:
         raise NeopleAPIInvalidId(f"{prefix}{msg or 'Invalid ID.'}")
-    elif "API002" in msg:
+    elif "API002" in error_code:
         raise NeopleAPILimitExceed(f"{prefix}{msg or 'API limit exceeded.'}")
-    elif "API003" in msg:
+    elif "API003" in error_code:
         raise NeopleAPIInvalidAPIkey(f"{prefix}{msg or 'Invalid API key.'}")
-    elif "API004" in msg:
+    elif "API004" in error_code:
         raise NeopleAPIBlockedAPIKey(f"{prefix}{msg or 'Blocked API key.'}")
-    elif "API005" in msg:
+    elif "API005" in error_code:
         raise NeopleAPIWrongGameKey(f"{prefix}{msg or 'Wrong game key for the API.'}")
-    elif "API006" in msg:
+    elif "API006" in error_code:
         raise NeopleAPIInvalidParams(f"{prefix}{msg or 'Invalid parameters.'}")
-    elif "API007" in msg:
+    elif "API007" in error_code:
         raise NeopleAPIClientSocketError(f"{prefix}{msg or 'Client socket error.'}")
-    elif "API900" in msg:
+    elif "API900" in error_code:
         raise NeopleAPIInvalidURL(f"{prefix}{msg or 'Invalid URL.'}")
-    elif "API901" in msg:
+    elif "API901" in error_code:
         raise NeopleAPIInvalidRequestParams(f"{prefix}{msg or 'Invalid request parameters.'}")
-    elif "API999" in msg:
+    elif "API999" in error_code:
         raise NeopleAPISystemError(f"{prefix}{msg or 'api system error.'}")
-    elif "DNF000" in msg:
+    elif "DNF000" in error_code:
         raise NeopleDNFInvalidServerID(f"{prefix}{msg or 'Invalid server ID.'}")
-    elif "DNF003" in msg:
+    elif "DNF003" in error_code:
         raise NeopleDNFInvalidCharacterInfo(f"{prefix}{msg or 'Invalid character information.'}")
-    elif "DNF004" in msg:
+    elif "DNF004" in error_code:
         raise NeopleDNFInvalidAuctionInfo(f"{prefix}{msg or 'Invalid auction information.'}")
-    elif "DNF005" in msg:
+    elif "DNF005" in error_code:
         raise NeopleDNFInvalidSkillInfo(f"{prefix}{msg or 'Invalid skill information.'}")
-    elif "DNF006" in msg:
+    elif "DNF006" in error_code:
         raise NeopleDNFInvalidTimelineParams(f"{prefix}{msg or 'Invalid timeline parameters.'}")
-    elif "DNF007" in msg:
+    elif "DNF007" in error_code:
         raise NeopleDNFSearchAuctionItemOptionException(f"{prefix}{msg or 'Search auction item option exception.'}")
-    elif "DNF008" in msg:
+    elif "DNF008" in error_code:
         raise NeopleDNFSearchAuctionMultipleItemOptionException(f"{prefix}{msg or 'Search auction multiple item option exception.'}")
-    elif "DNF009" in msg:
+    elif "DNF009" in error_code:
         raise NeopleDNFSearchAvatarMarketOptionException(f"{prefix}{msg or 'Search avatar market option exception.'}")
-    elif "DNF900" in msg:
+    elif "DNF900" in error_code:
         raise NeopleDNFInvalidURL(f"{prefix}{msg or 'Invalid URL.'}")
-    elif "DNF901" in msg:
+    elif "DNF901" in error_code:
         raise NeopleDNFInvalidRequestParams(f"{prefix}{msg or 'Invalid request parameters.'}")
-    elif "DNF980" in msg:
+    elif "DNF980" in error_code:
         raise NeopleDNFSystemMaintenance(f"{prefix}{msg or 'System maintenance in progress.'}")
-    elif "DNF999" in msg:
+    elif "DNF999" in error_code:
         raise NeopleDNFSystemError(f"{prefix}{msg or 'System error.'}")
     else:
         raise NeopleAPIError(f"{prefix}{msg or 'Unknown error.'}")

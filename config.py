@@ -80,14 +80,24 @@ if load_dotenv('./env/secret.env'):
 else:
     raise BotInitializationError("Failed loading secret.env file!!")
 
+### Bot configuration variables
+"""
+# 명령어 실행 관련 유틸리티 설정
+"""
+# 봇 명령어 접두사
+BOT_COMMAND_PREFIX: str = "븜 "
+
 # 봇 명령어 timeout 설정 (초)
 COMMAND_TIMEOUT: int = 30  # seconds
 
-
-# configuration variables
 # 메모리 정리 주기 (분)
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
-NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
+
+# 봇 상태 갱신 주기 (분)
+PRESENCE_UPDATE_INTERVAL: int = 10  # minutes
+
+# API 결과 캐싱 시간 (초)
+NEXON_API_REFRESH_INTERVAL: int = 15  # seconds
 if BOT_TOKEN_RUN == 'dev':
     NEXON_API_CACHE_TTL: int = 60
     NEXON_API_CACHE_NEG_TTL: int = 10

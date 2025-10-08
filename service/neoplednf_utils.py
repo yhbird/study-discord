@@ -24,6 +24,8 @@ class neople_service_url:
     dnf_character_info: str = "/df/servers/{serverId}/characters/{characterId}"
     dnf_timeline: str = "/df/servers/{serverId}/characters/{characterId}/timeline"
     dnf_character_image: str =  "https://img-api.neople.co.kr/df/servers/{sid}/characters/{cid}?zoom=1"
+    dnf_character_equipment: str = "/df/servers/{serverId}/characters/{characterId}/equip/equipment"
+    dnf_item: str = f"/df/items"
 
 
 class dnf_timeline_codes:
@@ -216,12 +218,12 @@ async def get_dnf_character_info(sid: str, cid: str) -> Dict[str, Any]:
     request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
     response_data: dict = await general_request_handler_neople(request_url)
 
-    adv_name : str | None = response_data.get("characterName")
-    c_level : int | None = response_data.get("level")
-    c_job_name : str | None = response_data.get("jobName")
-    c_job_grow : str | None = response_data.get("jobGrowName")
-    c_fame : int | None = response_data.get("fame")
-    c_guild_name : str | None = response_data.get("guildName")
+    adv_name : Optional[str] = response_data.get("characterName")
+    c_level : Optional[int] = response_data.get("level")
+    c_job_name : Optional[str] = response_data.get("jobName")
+    c_job_grow : Optional[str] = response_data.get("jobGrowName")
+    c_fame : Optional[int] = response_data.get("fame")
+    c_guild_name : Optional[str] = response_data.get("guildName")
 
     return_data = {
         "adventure_name": adv_name or "몰라양",
@@ -297,6 +299,333 @@ async def get_dnf_weekly_timeline(sid: str, cid: str) -> Dict[str, Any]:
 
     # 타임라인 데이터 반환
     return response_data
+
+
+def _get_memorial_option_data(tune: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """아이템 조율 정보에서 '새겨진 볕의 기억' 옵션 데이터 추출
+
+    Args:
+        tune (Dict[str, Any]): 아이템 조율 정보
+
+    Returns:
+        List[Dict[str, str]]: '새겨진 볕의 기억' 옵션 데이터 리스트
+    """
+    memorial_options: Dict[str, str] = {}
+    memorial_status: List[Dict[str, str]] = tune.get("status", [])
+    for option in memorial_status:
+        option_name: str = option.get("name")
+        option_value: str = option.get("value")
+        if option_name and option_value:
+            memorial_options[option_name] = option_value
+        else:
+            return None
+    
+    return memorial_options
+
+
+def _get_tune_status_data(tune: Dict[str, Any]) -> Optional[Dict[str, str | int | bool]]:
+    """아이템 조율 정보에서 옵션 데이터 추출
+
+    Args:
+        tune (Dict[str, Any]): 아이템 조율 정보
+
+    Returns:
+        List[Dict[str, str]]: 옵션 데이터 리스트
+    """
+    tune_level: int = tune.get("level", 0)
+    tune_grade: bool = tune.get("upgrade", False)
+    tune_setpoint: int = tune.get("setPoint", 0)
+    tune_status: List[Dict[str, str]] = tune.get("status", [])
+    tune_option: Dict[str, Any] = {
+        "tune_level" : tune_level, # 조율 횟수 (1~3)
+        "tune_grade" : tune_grade, # 조율 등급 (True: 업그레이드 가능, False: 불가)
+        "tune_setpoint" : tune_setpoint, # 조율포함 아이템의 최종 세트포인트
+    }
+    if tune_status is not None and not tune_status:
+        for option in tune_status:
+            option_name: str = option.get("name")
+            option_value: str = option.get("value")
+            if option_name and option_value:
+                tune_option[option_name] = option_value
+            else:
+                continue
+
+    return tune_option
+
+
+def _get_upgrade_info_data(upgrade_info: Dict[str, str | int]) -> Dict[str, str | int]:
+    """115레벨 시즌 방어구/엑세서리/특수장비 융합석 장착 데이터 추출
+
+    Args:
+        upgrade_info (Dict[str, str  |  int]): 융합석 정보
+
+    Returns:
+        Dict[str, str | int]: 융합석 장착 데이터
+    """
+    upgrade_item_id: str = upgrade_info.get("itemId", "")
+    upgrade_item_name: str = upgrade_info.get("itemName", "")
+    upgrade_item_rarity: str = upgrade_info.get("itemRarity", "")
+    upgrade_set_item_id: str = upgrade_info.get("setItemId", "")
+    upgrade_set_item_name: str = upgrade_info.get("setItemName", "")
+    upgrade_set_item_setpoint: int = upgrade_info.get("setPoint", 0)
+    return_data: Dict[str, str | int] = {
+        "upgrade_item_id": upgrade_item_id,
+        "upgrade_item_name": upgrade_item_name,
+        "upgrade_item_rarity": upgrade_item_rarity,
+        "upgrade_set_item_id": upgrade_set_item_id,
+        "upgrade_set_item_name": upgrade_set_item_name,
+        "upgrade_set_item_setpoint": upgrade_set_item_setpoint,
+    }
+    return return_data
+
+
+def _get_fusion_option_data(fusion_option: Dict[str, Any]) -> Optional[Dict]:
+    """115레벨 시즌 방어구/악세서리/특수장비 융합석 옵션 데이터 추출
+
+    Args:
+        item (Dict[str, Any]): 아이템 정보
+
+    Returns:
+        Optional[Dict]: 융합석 옵션 데이터
+    """
+    return_data: Dict[str, str | int] = {}
+    fusion_options: List[Dict[str, str | int]] = fusion_option.get("options", [])
+    if isinstance(fusion_options, list) and fusion_options:
+        option = fusion_options[0]
+        fusion_buff: int = option.get("buff", 0)
+        fusion_dealer_options: str = option.get("explain", "")
+        fusion_buffer_options: str = option.get("buffExplain", "")
+    
+    return_data = {
+        "fusion_buff": fusion_buff,
+        "fusion_dealer_options": fusion_dealer_options,
+        "fusion_buffer_options": fusion_buffer_options,
+    }
+    return return_data
+
+
+def _process_set_item_info(set_item_info: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """115레벨 시즌 세트장비 정보 처리
+
+    Args:
+        set_item_info (List[Dict[str, Any]]): 세트장비 정보 리스트
+
+    Returns:
+        Dict[str, Any]: 세트장비 정보
+    """
+    return_data: Dict[str, Any] = {}
+    set_item_info_dict: Dict[str, Any] = set_item_info[0]
+    set_item_id: str | Literal["모름"] = set_item_info_dict.get("setItemId") or "모름"
+    set_item_name: str | Literal["모름"] = set_item_info_dict.get("setItemName") or "모름"
+    set_item_rarity: str | Literal["모름"] = set_item_info_dict.get("setItemRarityName") or "모름"
+    active_option: Dict[str, Any] = set_item_info_dict.get("active") or {}
+
+    if isinstance(active_option, dict) and active_option:
+        set_item_explain: str = active_option.get("explain") or "모름"
+        set_item_explain_detail: str = active_option.get("explainDetail") or "모름"
+        set_item_status: List[Dict[str, str|int]] = active_option.get("status") or []
+        set_item_setpoint: Dict[str, int] = active_option.get("setPoint") or {}
+        min_setpoint: int = set_item_setpoint.get("min") if set_item_setpoint else 0
+        max_setpoint: int = set_item_setpoint.get("max") if set_item_setpoint else 0
+        current_setpoint: int = set_item_setpoint.get("current") if set_item_setpoint else 0
+
+        return_data = {
+            "set_item_id": set_item_id,
+            "set_item_name": set_item_name,
+            "set_item_rarity": set_item_rarity,
+            "set_item_explain": set_item_explain,
+            "set_item_explain_detail": set_item_explain_detail,
+            "set_item_status": set_item_status,
+            "set_item_setpoint": {
+                "min": min_setpoint,
+                "max": max_setpoint,
+                "current": current_setpoint,
+            },
+        }
+    else:
+        return_data = {
+            "set_item_id": set_item_id,
+            "set_item_name": set_item_name,
+            "set_item_rarity": set_item_rarity,
+            "set_item_explain": "모름",
+            "set_item_explain_detail": "모름",
+            "set_item_status": [],
+            "set_item_setpoint": {
+                "min": 0,
+                "max": 0,
+                "current": 0,
+            },
+        }
+        
+    return return_data
+
+
+def calculate_final_setpoint(stats: Dict[str, int]) -> tuple[str, int]:
+    """던전앤파이터 캐릭터의 최종 세트포인트 계산
+
+    Args:
+        stats (Dict[str, int]): 세트포인트 정보
+
+    Returns:
+        str: 최종 세트포인트 문자열
+    """
+    
+    unique_setname = "고유 장비"
+    unique_setpoint = stats.get(unique_setname, 0)
+    best_setname = "없음"
+    best_setpoint = 0
+    for setname, point in stats.items():
+        if setname != unique_setname and point > 0:
+            total_setpoint = unique_setpoint + point
+            if total_setpoint > best_setpoint:
+                best_setpoint = total_setpoint
+                best_setname = setname
+        else:
+            continue
+
+    return best_setname, best_setpoint
+
+
+def check_setpoint_bonus(setpoint: int) -> str:
+    """2550pt를 초과한 세트포인트에 70pt 마다 추가 보너스 효과 부여
+
+    Args:
+        setpoint (int): 세트포인트
+
+    Returns:
+        str: 보너스 효과 문자열
+    """
+    if setpoint > 2620:
+        bonus = (setpoint - 2550) // 70
+        return f"{setpoint}pt (+{bonus*70}pt)"
+    return f"{setpoint}pt"
+
+
+async def get_dnf_character_equipment(sid: str, cid: str) -> Dict[str, Dict[str, str | int | Dict | Literal["..."]]]:
+    """던전앤파이터 캐릭터의 장비 slot별 장착 아이템 정보 조회
+    
+    Args:
+        sid (str): 던전앤파이터 서버 ID
+        cid (str): 던전앤파이터 캐릭터 ID
+
+    Returns:
+        List[Dict[str, Any]]: 던전앤파이터 캐릭터 장비 아이템 정보 리스트
+
+    Reference:
+        https://developers.neople.co.kr/contents/apiDocs/df 
+
+    Usage:
+        - 캐릭터의 장착 아이템 정보 확인
+        - 캐릭터의 세트아이템 정보 확인
+    """
+    service_url = neople_service_url.dnf_character_equipment.format(
+        serverId=sid, characterId=cid
+    )
+    request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
+    response_data: dict = await general_request_handler_neople(request_url)
+
+    equipment_list: List[Dict[str, Any]] = response_data.get("equipment", [])
+    equipment_data = {}
+
+    # 장착 아이템별 정보 수집
+    for item in equipment_list:
+
+        slot_id: Optional[str] = item.get("slotId")
+        slot_name: Optional[str] = item.get("slotName")
+        item_id: Optional[str] = item.get("itemId")
+        item_name: Optional[str] = item.get("itemName")
+        item_type: Optional[str] = item.get("itemType")
+        item_type_detail: Optional[str] = item.get("itemTypeDetail")
+        item_available_level: Optional[int] = item.get("itemAvailableLevel")
+        item_rarity: Optional[str] = item.get("itemRarity")
+        set_item_id: Optional[str] = item.get("setItemId")
+        set_item_name: Optional[str] = item.get("setItemName")
+        item_reinforce: Optional[int] = item.get("reinforce") # 강화/증폭 수치
+        if item.get("amplificationName") is None:
+            item_reinforce_type = "강화"
+        else:
+            item_reinforce_type = "증폭"
+        item_grade_name: Optional[str] = item.get("itemGradeName")
+        enchant_info: Optional[Dict[str, Any]] = item.get("enchant", {})
+        item_refine = item.get("refine", 0) # 제련 수치
+        item_fusion_option: Optional[Dict[str, Any]] = item.get("fusionOption") # 융합석 효과
+        if isinstance(item_fusion_option, dict) and item_fusion_option:
+            fusion_options: Optional[Dict] = _get_fusion_option_data(item_fusion_option)
+        else:
+            fusion_options = {}
+        item_tune_info: List[Dict[str, Any]] = item.get("tune") # 조율 정보
+        upgrade_info: Dict[str, str | int] = item.get("upgradeInfo")
+        memorial_options: Optional[List[Dict[str, str]]] = []
+        tune_level = 0
+        tune_setpoint = 0
+        fusion_setpoint = 0
+        tune_options: Optional[Dict[str, str | int | bool]] = {}
+
+        if isinstance(item_tune_info, list) and item_tune_info:
+            for tune in item_tune_info:
+                # 조율 정보 수집 
+                if tune.get("level") is not None and slot_id != "WEAPON":
+                    tune_options = _get_tune_status_data(tune)
+                    print(tune_options)
+                    tune_level = tune_options.get("tune_level", 0)
+                    tune_setpoint = tune_options.get("tune_setpoint", 0)
+
+                # "새겨진 볕의 기억" 정보 수집
+                elif tune.get("name") == "새겨진 볕의 기억" and slot_id == "WEAPON":
+                    memorial_options = _get_memorial_option_data(tune)
+
+                else:
+                    continue
+
+
+        if isinstance(upgrade_info, dict) and upgrade_info:
+            # 융합석 정보 수집
+            upgrade_data: Dict[str, str | int] = _get_upgrade_info_data(upgrade_info)
+        else:
+            upgrade_data = {}
+
+        # 최종 세트포인트 계산
+        final_setpoint: int = 0
+        if isinstance(tune_options, dict) and tune_options:
+            tune_setpoint = tune_options.get("tune_setpoint", 0)
+            final_setpoint += tune_setpoint
+        if isinstance(upgrade_data, dict) and upgrade_data:
+            fusion_setpoint = upgrade_data.get("upgrade_set_item_setpoint", 0)
+            final_setpoint += fusion_setpoint
+
+        item_data: Dict[str, str | int | Dict | Literal["..."]] = {
+            "slot_id": slot_id or "몰라양",
+            "slot_name": slot_name or "몰라양",
+            "item_id": item_id or "몰라양",
+            "tune_level": tune_level or 0,
+            "item_name": item_name or "몰라양",
+            "item_type": item_type or "몰라양",
+            "item_type_detail": item_type_detail or "몰라양",
+            "item_available_level": item_available_level or 0,
+            "item_rarity": item_rarity or "몰라양",
+            "set_item_id": set_item_id or "없음",
+            "set_item_name": set_item_name or "없음",
+            "item_reinforce": item_reinforce or 0,
+            "item_reinforce_type": item_reinforce_type or "강화",
+            "item_grade_name": item_grade_name or "몰라양",
+            "item_enchant_info": enchant_info or {},
+            "item_refine": item_refine or 0,
+            "tune_options": tune_options or {},
+            "memorial_options": memorial_options or [],
+            "upgrade_info": upgrade_data or {},
+            "fusion_options": fusion_options or {},
+            "fusion_setpoint": fusion_setpoint or 0,
+            "tune_setpoint": tune_setpoint or 0,
+            "final_setpoint": final_setpoint,
+        }
+        equipment_data[slot_name] = item_data
+
+    # 세트아이템 정보 수집
+    set_item_info_raw: List[Dict[str, Any]] = response_data.get("setItemInfo", [])
+    set_item_info = _process_set_item_info(set_item_info_raw) if set_item_info_raw else {}
+    equipment_data["set_item_info"] = set_item_info or {}
+
+    return equipment_data
 
 
 def dnf_get_clear_flag(flag: bool, clear_date: Optional[str] = None) -> str:
