@@ -59,9 +59,10 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
             low_52w_krw = low_52w * currency_rate
             low_52w_krw_text = f"({low_52w_krw:,.2f} KRW)"
             footer_text_extra = (
-                f"\n환율 정보 제공: 네이버 금융 (하나은행)\n"
+                f"\n--- 환율안내 ---\n"
+                f"환율 정보 제공: 네이버 금융 (하나은행)\n"
                 f"기준 환율: 1 {stock_currency} -> {currency_rate:.2f} KRW\n"
-                f"환율 우대, 거래 수수료에 따라 주식가격이 다를 수 있어양."
+                f"환율 우대, 거래 수수료에 따라 주식가격이 다를 수 있어양.\n"
             )
         else:
             pc_krw_text = ""
@@ -94,10 +95,9 @@ async def stk_us_stock_price(ctx: commands.Context, ticker: str) -> float:
         )
         footer_text = (
             f"현지 시간: {stock_time} ({stock_timezone_short})\n"
-            f"한국 시간: {kst_time} (KST)"
-            f"\n--- 환율안내 ---"
+            f"한국 시간: {kst_time} (KST)\n"
             f"{footer_text_extra}"
-            f"정보 제공: yahoo finance API (최대 15분 지연)\n"
+            f"\n정보 제공: yahoo finance API (최대 15분 지연)\n"
         )
         stock_embed = discord.Embed(
             title=f"{stock_name} ({stock_ticker})",

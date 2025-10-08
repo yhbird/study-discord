@@ -7,192 +7,142 @@ API 관련 예외 처리 모듈
 """
 
 from __future__ import annotations
+from typing import Dict
 
+import httpx
+import requests
 from exceptions.base import ClientBaseException
 
 class NexonAPIError(ClientBaseException):
     """Nexon API 사용 중 발생하는 오류"""
 
+class NexonAPICharacterNotFound(ClientBaseException):
+    """Nexon API 캐릭터 없음 오류"""
+        
 class NexonAPIBadRequest(ClientBaseException):
     """Nexon API Bad Request 오류"""
-    def __init__(self, message: str = "Nexon API 요청이 잘못 되었어양"):
-        super().__init__(message)
-        self.message = message
 
 class NexonAPIForbidden(ClientBaseException):
     """Nexon API Forbidden 오류"""
-    def __init__(self, message: str = "Nexon API 접근 권한이 없어양"):
-        super().__init__(message)
-        self.message = message
 
 class NexonAPITooManyRequests(ClientBaseException):
     """Nexon API Too Many Requests 오류"""
-    def __init__(self, message: str = "Nexon API 요청이 너무 많아양"):
-        super().__init__(message)
-        self.message = message
 
 class NexonAPIServiceUnavailable(ClientBaseException):
     """Nexon API Service Unavailable 오류"""
-    def __init__(self, message: str = "Nexon API 서비스가 사용 불가능 해양"):
-        super().__init__(message)
-        self.message = message
 
 class NexonAPIOCIDNotFound(ClientBaseException):
     """Nexon API OCID Not Found 오류"""
-    def __init__(self, message: str = "Nexon API에서 OCID를 찾을 수 없어양"):
-        super().__init__(message)
-        self.message = message
 
+def nexon_api_error_handler(response: httpx.Response):
+    status = response.status_code
+    msg = None
+    try:
+        payload = response.json()
+        error = payload.get("error") if isinstance(payload, dict) else None
+        msg = (error or {}).get("message")
+    except Exception:
+        msg = response.text.strip()
+
+    prefix = f"{status} : "
+    if status == 400:
+        raise NexonAPIBadRequest(f"{prefix}{msg or 'Bad Request'}")
+    elif status == 403:
+        raise NexonAPIForbidden(f"{prefix}{msg or 'Forbidden'}")
+    elif status == 429:
+        raise NexonAPITooManyRequests(f"{prefix}{msg or 'Too Many Requests'}")
+    elif status == 500:
+        raise NexonAPIServiceUnavailable(f"{prefix}{msg or 'Internal Server Error'}")
+    else:
+        raise NexonAPIError(f"{prefix}{msg or 'Unknown Error'}")
+    
 
 class NeopleAPIError(ClientBaseException):
     """Neople API 사용 중 발생하는 오류"""
     pass
 
+class DNFServerNotFound(NeopleAPIError):
+    """던전앤파이터 서버 조회 실패"""
+
+class DNFCharacterNotFound(NeopleAPIError):
+    """던전앤파이터 캐릭터 조회 실패"""
+
+class DNFCIDNotFound(NeopleAPIError):
+    """던전앤파이터 캐릭터 고유ID 조회 실패"""
+
 class NeopleAPIKeyMissing(ClientBaseException):
     """Neople API Key 미입력 (API000)"""
-    def __init__(self, message: str = "네오플 API 키가 입력되지 않거나 잘못되었어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIInvalidId(ClientBaseException):
     """Neople API 유효하지 않은 게임아이디 (API001)"""
-    def __init__(self, message: str = "유효하지 않은 게임아이디를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPILimitExceed(ClientBaseException):
     """Neople API 요청 제한 초과 (API002)"""
-    def __init__(self, message: str = "네오플 API 요청 제한을 초과했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIInvalidAPIkey(ClientBaseException):
     """Neople API 잘못된 API 키 (API003)"""
-    def __init__(self, message: str = "유효하지 않은 API 키를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIBlockedAPIKey(ClientBaseException):
     """Neople API 차단된 API 키 (API004)"""
-    def __init__(self, message: str = "차단된 네오플 API 키를 사용하고 있어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIWrongGameKey(ClientBaseException):
     """Neople API 잘못된 게임 키 (API005)"""
-    def __init__(self, message: str = "다른 게임의 네오플 API를 호출했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIInvalidParams(ClientBaseException):
     """Neople API 잘못된 파라미터 (API006)"""
-    def __init__(self, message: str = "잘못된 API 요청 파라미터를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIClientSocketError(ClientBaseException):
     """Neople API 클라이언트 소켓 오류 (API007)"""
-    def __init__(self, message: str = "네오플 API와 통신 중에 오류가 발생했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIInvalidURL(ClientBaseException):
     """Neople API 잘못된 URL (API900)"""
-    def __init__(self, message: str = "잘못된 API 요청 URL을 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPIInvalidRequestParams(ClientBaseException):
     """Neople API 잘못된 요청 파라미터 (API901)"""
-    def __init__(self, message: str = "잘못된 API 요청 파라미터를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleAPISystemError(ClientBaseException):
     """Neople API 시스템 오류 (API999)"""
-    def __init__(self, message: str = "네오플 API 시스템 오류가 발생했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidServerID(ClientBaseException):
     """Neople API 유효하지 않은 서버 ID (DNF000)"""
-    def __init__(self, message: str = "잘못된 서버명(ID)를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidCharacterInfo(ClientBaseException):
     """Neople API 유효하지 않은 캐릭터 정보 (DNF001)"""
-    def __init__(self, message: str = "잘못된 캐릭터 정보를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidItemInfo(ClientBaseException):
     """Neople API 유효하지 않은 아이템 정보 (DNF003)"""
-    def __init__(self, message: str = "잘못된 아이템 정보를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidAuctionInfo(ClientBaseException):
     """Neople API 유효하지 않은 경매장 정보 (DNF004)"""
-    def __init__(self, message: str = "잘못된 경매장 정보를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidSkillInfo(ClientBaseException):
     """Neople API 유효하지 않은 스킬 정보 (DNF005)"""
-    def __init__(self, message: str = "잘못된 스킬 정보를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidTimelineParams(ClientBaseException):
     """Neople API 유효하지 않은 타임라인 검색 시간 파라미터 (DNF006)"""
-    def __init__(self, message: str = "타임라인을 불러오는데 문제가 발생했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFSearchAuctionItemOptionException(ClientBaseException):
     """Neople API 경매장 아이템 검색 갯수 제한 (DNF007)"""
-    def __init__(self, message: str = "경매장 아이템 검색 갯수 제한에 걸렸어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFSearchAuctionMultipleItemOptionException(ClientBaseException):
     """Neople API 다중 아이템 검색 갯수 제한 (DNF008)"""
-    def __init__(self, message: str = "다중 아이템 검색 갯수 제한에 걸렸어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFSearchAvatarMarketOptionException(ClientBaseException):
     """Neople API 아바타 마켓 검색 갯수 제한 (DNF009)"""
-    def __init__(self, message: str = "아바타 마켓 검색 갯수 제한에 걸렸어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidURL(ClientBaseException):
     """Neople API 유효하지 않은 URL (DNF900)"""
-    def __init__(self, message: str = "잘못된 API 요청 URL을 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFInvalidRequestParams(ClientBaseException):
     """Neople API 유효하지 않은 요청 파라미터 (DNF901)"""
-    def __init__(self, message: str = "잘못된 API 요청 파라미터를 입력했어양"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFSystemMaintenance(ClientBaseException):
     """Neople API 서비스 점검중 (DNF980)"""
-    def __init__(self, message: str = "던파 서비스 점검 중이에양!"):
-        super().__init__(message)
-        self.message = message
 
 class NeopleDNFSystemError(ClientBaseException):
     """Neople API 시스템 오류 (DNF999)"""
-    def __init__(self, message: str = "던파 API 시스템 오류가 발생했어양"):
-        super().__init__(message)
-        self.message = message
 
-def neople_api_error_handler(error_code: str) -> None:
+def neople_api_error_handler(response: httpx.Response | requests.Response) -> None:
     """Neople API 오류 처리 함수
 
     Args:
@@ -204,79 +154,80 @@ def neople_api_error_handler(error_code: str) -> None:
     Returns:
         No return
     """
-    if not isinstance(error_code, str):
-        raise NeopleAPIError("Invalid Neople API error code")
-    else:
-        error_code = error_code.strip().upper()
+    if not isinstance(response, (httpx.Response, requests.Response)):
+        raise NeopleAPIError("Invalid Neople API error response")
 
-    # Neople API 오류 로직처리
+    status = response.status_code
+    msg = None
+    try:
+        payload: dict = response.json()
+        print(payload)
+        error: Dict[str, str] = payload.get("error") if isinstance(payload, dict) else None
+        error_status = error.get("status", status)
+        error_code = error.get("code") or "Unknown"
+        msg = error.get("message")
+    except Exception:
+        msg = response.text.strip()
+
+    prefix = f"Neople API Error {error_status or status} : "
     if "API000" in error_code:
-        raise NeopleAPIKeyMissing(error_code)
+        raise NeopleAPIKeyMissing(f"{prefix}{msg or 'API Key is missing.'}")
     elif "API001" in error_code:
-        raise NeopleAPIInvalidId(error_code)
+        raise NeopleAPIInvalidId(f"{prefix}{msg or 'Invalid ID.'}")
     elif "API002" in error_code:
-        raise NeopleAPILimitExceed(error_code)
+        raise NeopleAPILimitExceed(f"{prefix}{msg or 'API limit exceeded.'}")
     elif "API003" in error_code:
-        raise NeopleAPIInvalidAPIkey(error_code)
+        raise NeopleAPIInvalidAPIkey(f"{prefix}{msg or 'Invalid API key.'}")
     elif "API004" in error_code:
-        raise NeopleAPIBlockedAPIKey(error_code)
+        raise NeopleAPIBlockedAPIKey(f"{prefix}{msg or 'Blocked API key.'}")
     elif "API005" in error_code:
-        raise NeopleAPIWrongGameKey(error_code)
+        raise NeopleAPIWrongGameKey(f"{prefix}{msg or 'Wrong game key for the API.'}")
     elif "API006" in error_code:
-        raise NeopleAPIInvalidParams(error_code)
+        raise NeopleAPIInvalidParams(f"{prefix}{msg or 'Invalid parameters.'}")
     elif "API007" in error_code:
-        raise NeopleAPIClientSocketError(error_code)
+        raise NeopleAPIClientSocketError(f"{prefix}{msg or 'Client socket error.'}")
     elif "API900" in error_code:
-        raise NeopleAPIInvalidURL(error_code)
+        raise NeopleAPIInvalidURL(f"{prefix}{msg or 'Invalid URL.'}")
     elif "API901" in error_code:
-        raise NeopleAPIInvalidRequestParams(error_code)
+        raise NeopleAPIInvalidRequestParams(f"{prefix}{msg or 'Invalid request parameters.'}")
     elif "API999" in error_code:
-        raise NeopleAPISystemError(error_code)
+        raise NeopleAPISystemError(f"{prefix}{msg or 'api system error.'}")
     elif "DNF000" in error_code:
-        raise NeopleDNFInvalidServerID(error_code)
-    elif "DNF001" in error_code:
-        raise NeopleDNFInvalidCharacterInfo(error_code)
+        raise NeopleDNFInvalidServerID(f"{prefix}{msg or 'Invalid server ID.'}")
     elif "DNF003" in error_code:
-        raise NeopleDNFInvalidItemInfo(error_code)
+        raise NeopleDNFInvalidCharacterInfo(f"{prefix}{msg or 'Invalid character information.'}")
     elif "DNF004" in error_code:
-        raise NeopleDNFInvalidAuctionInfo(error_code)
+        raise NeopleDNFInvalidAuctionInfo(f"{prefix}{msg or 'Invalid auction information.'}")
     elif "DNF005" in error_code:
-        raise NeopleDNFInvalidSkillInfo(error_code)
+        raise NeopleDNFInvalidSkillInfo(f"{prefix}{msg or 'Invalid skill information.'}")
     elif "DNF006" in error_code:
-        raise NeopleDNFInvalidTimelineParams(error_code)
+        raise NeopleDNFInvalidTimelineParams(f"{prefix}{msg or 'Invalid timeline parameters.'}")
     elif "DNF007" in error_code:
-        raise NeopleDNFSearchAuctionItemOptionException(error_code)
+        raise NeopleDNFSearchAuctionItemOptionException(f"{prefix}{msg or 'Search auction item option exception.'}")
     elif "DNF008" in error_code:
-        raise NeopleDNFSearchAuctionMultipleItemOptionException(error_code)
+        raise NeopleDNFSearchAuctionMultipleItemOptionException(f"{prefix}{msg or 'Search auction multiple item option exception.'}")
     elif "DNF009" in error_code:
-        raise NeopleDNFSearchAvatarMarketOptionException(error_code)
+        raise NeopleDNFSearchAvatarMarketOptionException(f"{prefix}{msg or 'Search avatar market option exception.'}")
     elif "DNF900" in error_code:
-        raise NeopleDNFInvalidURL(error_code)
+        raise NeopleDNFInvalidURL(f"{prefix}{msg or 'Invalid URL.'}")
     elif "DNF901" in error_code:
-        raise NeopleDNFInvalidRequestParams(error_code)
+        raise NeopleDNFInvalidRequestParams(f"{prefix}{msg or 'Invalid request parameters.'}")
     elif "DNF980" in error_code:
-        raise NeopleDNFSystemMaintenance(error_code)
+        raise NeopleDNFSystemMaintenance(f"{prefix}{msg or 'System maintenance in progress.'}")
     elif "DNF999" in error_code:
-        raise NeopleDNFSystemError(error_code)
+        raise NeopleDNFSystemError(f"{prefix}{msg or 'System error.'}")
     else:
-        raise NeopleAPIError(f"Unknown Neople API error code: {error_code}")
-    
+        raise NeopleAPIError(f"{prefix}{msg or 'Unknown error.'}")
 
+    
 class KakaoAPIError(ClientBaseException):
     """Kakao API 사용 중 발생하는 오류"""
-    pass
 
 class KakaoNoLocalInfo(ClientBaseException):
     """카카오 로컬 API 지역정보 검색결과 없음"""
-    def __init__(self, message: str = "Kakao API에서 지역 정보를 찾을 수 없어양"):
-        super().__init__(message)
-        self.message = message
 
 class KKO_LOCAL_API_ERROR(ClientBaseException):
     """카카오 로컬 API 관련 오류"""
-    def __init__(self, message: str):
-        super().__init__(message)
-        self.message = message
 
 class WeatherAPIError(ClientBaseException):
     """날씨 API 사용 중 발생하는 오류"""
@@ -401,9 +352,7 @@ class YFinanceAPIError(ClientBaseException):
 
 class STKException(YFinanceAPIError):
     """주식 관련 예외 클래스"""
-    def __init__(self, message: str = "주식 관련 오류가 발생했어양"):
-        super().__init__(message)
-        self.message = message
+    pass
 
 class YFI_NO_RATE_WARNING(YFinanceAPIError):
     """환율 정보를 찾을 수 없는 예외

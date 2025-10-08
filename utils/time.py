@@ -22,19 +22,9 @@ class KstFormatter(logging.Formatter):
             return dt.strftime(dtformat)
         else:
             return dt.strftime('%Y-%m-%d %H:%M:%S')
-        
-
-def kst_format_now() -> str:
-    """현재 시각을 KST로 포맷팅
-
-    Returns:
-        str: KST로 포맷된 현재 시각 문자열 (예: '2024-06-15 14:30:00')
-    """
-    kst = timezone('Asia/Seoul')
-    return datetime.now(tz=kst).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def kst_format_now_v2() -> datetime:
+def kst_format_now() -> datetime:
     """현재 시각을 KST로 포맷팅하여 datetime 객체로 반환
 
     Returns:

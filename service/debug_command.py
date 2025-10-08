@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from service.debug_utils import *
 
 from bot_logger import logger, log_command, with_timeout
-from utils.time import kst_format_now, kst_format_now_v2
+from utils.time import kst_format_now, kst_format_now
 import config as config
 import bot_logger as bl
 
@@ -42,7 +42,7 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
         f"**봇 이름:** {bot_name}\n"
         f"**봇 시작 시간:** {config.BOT_START_DT.strftime('%Y년 %m월 %d일 %H시 %M분 %S초')}"
     )
-    now_dt: datetime = kst_format_now_v2()
+    now_dt: datetime = kst_format_now()
     uptime: timedelta = now_dt - config.BOT_START_DT
     # uptime의 일, 시간, 분, 초 계산
     up_d: int = uptime.days
@@ -217,6 +217,11 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
+            name="븜 코디 <캐릭터 이름> (개발중)",
+            value="메이플스토리 캐릭터의 코디(외형) 정보를 조회합니다.\n*캐릭터가 착용중인 코디 아이템을 보여줘양*\n ",
+            inline=False
+        )
+        embed.add_field(
             name="븜 피씨방",
             value="최근 피씨방 공지사항을 조회합니다.\n*이미지가 길쭉해서 좀 오래걸려양*\n ",
             inline=False
@@ -383,9 +388,12 @@ async def deb_command_stats(ctx: commands.Context) -> None:
         for idx, (cmd_name, info) in enumerate(top10_commands)
     )
 
-    now_kst = kst_format_now_v2().strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 명령어 통계 ({now_kst})"
+    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
+    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
+    embed_title = f"븜끼봇 명령어 통계"
     stats_message = (
+        f"통계 집계 기준: {bot_start} (KST) 이후\n"
+        f"현재 시간: {now_kst} (KST)\n\n"
         f"지금 까지 실행된 상위 10개 명령어 통계에양!\n"
         f"```ini\n"
         f"[상위 명령어 통계 top 10]\n"
@@ -444,9 +452,12 @@ async def deb_user_stats(ctx: commands.Context) -> None:
         f"({max(info['command_counts'].values(), default=0)}회)\n"
         for idx, (user_id, info) in enumerate(top3_users)
     )
-    now_kst = kst_format_now_v2().strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 사용자 통계 ({now_kst})"
+    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
+    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
+    embed_title = f"븜끼봇 사용자 통계"
     stats_message = (
+        f"통계 집계 기준: {bot_start} (KST) 이후\n"
+        f"현재 시간: {now_kst} (KST)\n\n"
         f"지금 까지 명령어를 가장 많이 호출한 사용자 통계에양!\n"
         f"\n[상위 사용자 3명 명령어 통계]\n"
         f"{user_stats}\n"

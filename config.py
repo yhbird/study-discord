@@ -36,6 +36,7 @@ try:
     NEOPLE_API_KEY: str = os.getenv(f'NEOPLE_API_TOKEN_{NEXON_API_RUN_ENV}', None)
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
     NEOPLE_API_HOME: str = os.getenv('NEOPLE_API_HOME')
+    NEXON_CHARACTER_IMAGE_URL: str = os.getenv('NEXON_CHARACTER_IMAGE_URL')
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed Bot loading during Nexon API Key loading: {e}")
@@ -79,19 +80,40 @@ if load_dotenv('./env/secret.env'):
 else:
     raise BotInitializationError("Failed loading secret.env file!!")
 
+### Bot configuration variables
+"""
+# 명령어 실행 관련 유틸리티 설정
+"""
+# 봇 명령어 접두사
+BOT_COMMAND_PREFIX: str = "븜 "
+
 # 봇 명령어 timeout 설정 (초)
 COMMAND_TIMEOUT: int = 30  # seconds
 
-
-# configuration variables
 # 메모리 정리 주기 (분)
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
-NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
+
+# 봇 상태 갱신 주기 (분)
+PRESENCE_UPDATE_INTERVAL: int = 10  # minutes
+
+# API 결과 캐싱 시간 (초)
+NEXON_API_REFRESH_INTERVAL: int = 15  # seconds
+if BOT_TOKEN_RUN == 'dev':
+    NEXON_API_CACHE_TTL: int = 60
+    NEXON_API_CACHE_NEG_TTL: int = 10
+    NEXON_API_RPS_LIMIT: int = 5
+    NEOPLE_API_RPS_LIMIT: int = 1000
+else:
+    NEXON_API_CACHE_TTL: int = 3600
+    NEXON_API_CACHE_NEG_TTL: int = 60
+    NEXON_API_RPS_LIMIT: int = 500
+    NEOPLE_API_RPS_LIMIT: int = 1000
+    
 
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))
 BOT_START_TIME_STR: str = BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20250928-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20251004-{BOT_TOKEN_RUN}"
 
 
 # 디버그 모드 설정
