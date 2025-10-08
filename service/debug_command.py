@@ -388,9 +388,12 @@ async def deb_command_stats(ctx: commands.Context) -> None:
         for idx, (cmd_name, info) in enumerate(top10_commands)
     )
 
-    now_kst = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 명령어 통계 ({now_kst})"
+    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
+    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
+    embed_title = f"븜끼봇 명령어 통계"
     stats_message = (
+        f"통계 집계 기준: {bot_start} (KST) 이후\n"
+        f"현재 시간: {now_kst} (KST)\n\n"
         f"지금 까지 실행된 상위 10개 명령어 통계에양!\n"
         f"```ini\n"
         f"[상위 명령어 통계 top 10]\n"
@@ -449,9 +452,12 @@ async def deb_user_stats(ctx: commands.Context) -> None:
         f"({max(info['command_counts'].values(), default=0)}회)\n"
         for idx, (user_id, info) in enumerate(top3_users)
     )
-    now_kst = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 사용자 통계 ({now_kst})"
+    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
+    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
+    embed_title = f"븜끼봇 사용자 통계"
     stats_message = (
+        f"통계 집계 기준: {bot_start} (KST) 이후\n"
+        f"현재 시간: {now_kst} (KST)\n\n"
         f"지금 까지 명령어를 가장 많이 호출한 사용자 통계에양!\n"
         f"\n[상위 사용자 3명 명령어 통계]\n"
         f"{user_stats}\n"

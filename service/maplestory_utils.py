@@ -23,8 +23,6 @@ from typing import Literal, Optional, Dict, List, Tuple, Any
 from exceptions.client_exceptions import *
 from utils.time import parse_iso_string
 
-_httpx_client: Optional[httpx.AsyncClient] = None
-
 
 class maplestory_service_url:
     ocid : str = "/maplestory/v1/id"
@@ -59,38 +57,16 @@ class APIRateLimiter:
                 wait = self.period - (now - self.calls[0])
                 await asyncio.sleep(wait)
 
-api_rate_limiter: Dict[str, APIRateLimiter] = {
+
+_httpx_client: Optional[httpx.AsyncClient] = None
+_api_rate_limiter: Dict[str, APIRateLimiter] = {
     NEXON_API_KEY : APIRateLimiter(max_calls=NEXON_API_RPS_LIMIT, period=1.0)
 }
 
-
 async def _rate_limit_request(request: httpx.Request):
     api_key = request.headers.get("x-nxopen-api-key")
-    limiter = api_rate_limiter.get(api_key) or APIRateLimiter(max_calls=NEXON_API_RPS_LIMIT, period=1.0)
+    limiter = _api_rate_limiter.get(api_key) or APIRateLimiter(max_calls=NEXON_API_RPS_LIMIT, period=1.0)
     await limiter.acquire()
-
-
-def _raise_nexon_api_error(response: httpx.Response):
-    status = response.status_code
-    msg = None
-    try:
-        payload = response.json()
-        error = payload.get("error") if isinstance(payload, dict) else None
-        msg = (error or {}).get("message")
-    except Exception:
-        msg = response.text.strip()
-
-    prefix = f"{status} : "
-    if status == 400:
-        raise NexonAPIBadRequest(f"{prefix}{msg or 'Bad Request'}")
-    elif status == 403:
-        raise NexonAPIForbidden(f"{prefix}{msg or 'Forbidden'}")
-    elif status == 429:
-        raise NexonAPITooManyRequests(f"{prefix}{msg or 'Too Many Requests'}")
-    elif status == 500:
-        raise NexonAPIServiceUnavailable(f"{prefix}{msg or 'Internal Server Error'}")
-    else:
-        raise NexonAPIError(f"{prefix}{msg or 'Unknown Error'}")
 
 
 def get_httpx_client() -> httpx.AsyncClient:
@@ -138,7 +114,7 @@ async def general_request_handler_nexon(request_path: str, headers: Optional[dic
         except json.JSONDecodeError as e:
             return {"raw": response.text, "status": response.status_code}
 
-    _raise_nexon_api_error(response)
+    nexon_api_error_handler(response)
 
 
 async def get_ocid(character_name: str) -> str:
