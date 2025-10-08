@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup
 
 from service.maplestory_utils import *
-from service.maplestory_resolver import CharacterOCIDResolver
+from service.maplestory_resolver import AsyncCharacterOCIDResolver
 
 from bot_logger import log_command, with_timeout
 from utils.image import get_image_bytes
@@ -21,7 +21,7 @@ from config import COMMAND_TIMEOUT, NEXON_CHARACTER_IMAGE_URL
 from exceptions.client_exceptions import *
 from exceptions.command_exceptions import *
 
-ocid_resolver = CharacterOCIDResolver(get_ocid, ttl_sec=3600, negative_ttl_sec=60)
+ocid_resolver = AsyncCharacterOCIDResolver(get_ocid, ttl_sec=3600, negative_ttl_sec=60)
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -46,10 +46,10 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         return 
     
     try:
-        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
         basic_info, character_popularity = await asyncio.gather(
-            asyncio.to_thread(get_basic_info, character_ocid),
-            asyncio.to_thread(get_popularity, character_ocid)
+            get_basic_info(character_ocid),
+            get_popularity(character_ocid) 
         )
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -102,8 +102,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
         character_image_look: str = character_image.split("/character/look/")[-1]
-        character_image_url_v2: str = f"{NEXON_CHARACTER_IMAGE_URL}{character_image_look}.png"
-        character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
+        character_image_url: str = f"{NEXON_CHARACTER_IMAGE_URL}{character_image_look}.png"
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -168,7 +167,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
-        embed.set_image(url=character_image_url_v2)
+        embed.set_image(url=character_image_url)
     embed.set_footer(text=embed_footer)
     if character_gender in ["남성", "남"]:
         embed.colour = discord.Colour.from_rgb(0, 128, 255)
@@ -194,7 +193,7 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
         https://openapi.nexon.com/ko/game/maplestory/?id=24
     """
     try:
-        notice_data: dict = get_notice(target_event="pcbang")
+        notice_data: dict = await get_notice(target_event="pcbang")
     except NexonAPIBadRequest as e:
         await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
         raise CommandFailure("PC Bang notice not found")
@@ -283,7 +282,7 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
         https://openapi.nexon.com/ko/game/maplestory/?id=24
     """
     try:
-        notice_data: dict = get_notice(target_event="sunday")
+        notice_data: dict = await get_notice(target_event="sunday")
     except NexonAPIBadRequest as e:
         await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
         raise CommandFailure("PC Bang notice not found")
@@ -316,7 +315,7 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
             f"공지사항 날짜: {notice_date}\n"
         )
         # 공지사항 이미지 URL 추출
-        notice_detail_data: dict = get_notice_details(notice_id)
+        notice_detail_data: dict = await get_notice_details(notice_id)
         notice_contents: str = (
             str(notice_detail_data.get('contents')).strip()
             if notice_detail_data.get('contents') is not None
@@ -391,11 +390,11 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
     try:
-        character_ocid = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_ocid = await ocid_resolver.ocid_resolve(character_name)
         basic_info, stat_info, character_popularity = await asyncio.gather(
-            asyncio.to_thread(get_basic_info, character_ocid),
-            asyncio.to_thread(get_stat_info, character_ocid),
-            asyncio.to_thread(get_popularity, character_ocid)
+            get_basic_info(character_ocid),
+            get_stat_info(character_ocid),
+            get_popularity(character_ocid)
         )
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -447,7 +446,8 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?action=A00.2&emotion=E00&wmotion=W00&width=200&height=200"
+        character_image_look: str = character_image.split("/character/look/")[-1]
+        character_image_url: str = f"{NEXON_CHARACTER_IMAGE_URL}{character_image_look}.png"
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -692,12 +692,12 @@ async def maple_ability_info(ctx: commands.Context, character_name: str) -> None
         return
     
     try:
-        character_ocid = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_ocid = await ocid_resolver.ocid_resolve(character_name)
         
         # 동기 함수 병렬 실행
         ability_info, basic_info = await asyncio.gather(
-            asyncio.to_thread(get_ability_info, character_ocid),
-            asyncio.to_thread(get_basic_info, character_ocid)
+            get_ability_info(character_ocid),
+            get_basic_info(character_ocid)
         )
 
         character_name: str = basic_info.get('character_name', character_name)
@@ -912,8 +912,8 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
-        character_basic_info = await asyncio.to_thread(get_basic_info, character_ocid)
+        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_basic_info = await get_basic_info(character_ocid)
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
         raise CommandFailure("Character not found")
@@ -1067,11 +1067,11 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     
     # 캐릭터 basic 정보 조회 (OCID 포함)
     try:
-        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
         basic_info, cash_equipment_info, beauty_equipment_info = await asyncio.gather(
-            asyncio.to_thread(get_basic_info, character_ocid),
-            asyncio.to_thread(get_cash_equipment_info, character_ocid),
-            asyncio.to_thread(get_beauty_equipment_info, character_ocid)
+            get_basic_info(character_ocid),
+            get_cash_equipment_info(character_ocid),
+            get_beauty_equipment_info(character_ocid)
         )
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")

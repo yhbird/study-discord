@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import requests
 import asyncio
 import hashlib
 import random
@@ -38,64 +37,115 @@ class maplestory_service_url:
     cash_equipment: str = "/maplestory/v1/character/cashitem-equipment"
     beauty_equipment: str = "/maplestory/v1/character/beauty-equipment"
 
-def general_request_handler_nexon(request_url: str, headers: Optional[dict] = None) -> dict:
-    """Nexon Open API의 일반적인 요청을 처리하는 함수  
-    요청 URL과 헤더를 받아서 GET 요청을 수행하고, 응답 데이터를 반환함
+
+class APIRateLimiter:
+    def __init__(self, max_calls: int = NEXON_API_RPS_LIMIT, period: float = 1.0):
+        self.max_calls = max_calls
+        self.period = period
+        self.calls = deque()
+        self._lock = asyncio.Lock()
+
+    async def acquire(self):
+        while True:
+            async with self._lock:
+                now = time.monotonic()
+                while self.calls and (now - self.calls[0]) >= self.period:
+                    self.calls.popleft()
+
+                if len(self.calls) < self.max_calls:
+                    self.calls.append(now)
+                    return
+
+                wait = self.period - (now - self.calls[0])
+                await asyncio.sleep(wait)
+
+api_rate_limiter: Dict[str, APIRateLimiter] = {
+    NEXON_API_KEY : APIRateLimiter(max_calls=NEXON_API_RPS_LIMIT, period=1.0)
+}
+
+
+async def _rate_limit_request(request: httpx.Request):
+    api_key = request.headers.get("x-nxopen-api-key")
+    limiter = api_rate_limiter.get(api_key) or APIRateLimiter(max_calls=NEXON_API_RPS_LIMIT, period=1.0)
+    await limiter.acquire()
+
+
+def _raise_nexon_api_error(response: httpx.Response):
+    status = response.status_code
+    msg = None
+    try:
+        payload = response.json()
+        error = payload.get("error") if isinstance(payload, dict) else None
+        msg = (error or {}).get("message")
+    except Exception:
+        msg = response.text.strip()
+
+    prefix = f"{status} : "
+    if status == 400:
+        raise NexonAPIBadRequest(f"{prefix}{msg or 'Bad Request'}")
+    elif status == 403:
+        raise NexonAPIForbidden(f"{prefix}{msg or 'Forbidden'}")
+    elif status == 429:
+        raise NexonAPITooManyRequests(f"{prefix}{msg or 'Too Many Requests'}")
+    elif status == 500:
+        raise NexonAPIServiceUnavailable(f"{prefix}{msg or 'Internal Server Error'}")
+    else:
+        raise NexonAPIError(f"{prefix}{msg or 'Unknown Error'}")
+
+
+def get_httpx_client() -> httpx.AsyncClient:
+    global _httpx_client
+    if _httpx_client is None:
+        _httpx_client = httpx.AsyncClient(
+            base_url=f"{NEXON_API_HOME}",
+            timeout=httpx.Timeout(10.0, connect=5.0),
+            event_hooks={"request": [_rate_limit_request]},
+            headers={"x-nxopen-api-key": NEXON_API_KEY}
+        )
+    return _httpx_client
+
+
+async def general_request_handler_nexon(request_path: str, headers: Optional[dict] = None) -> dict:
+    """Nexon Open API의 일반적인 요청을 처리하는 비동기 함수(v2)
 
     Args:
-        request_url (str): 요청할 URL
+        request_path (str): 요청할 경로
         headers (Optional[dict], optional): 요청 헤더. Defaults to None.
 
     Returns:
         dict: 응답 데이터
-
-    Raises:
-        Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    if headers is None:
-        headers = {
-            "x-nxopen-api-key": NEXON_API_KEY,
-        }
+    client = get_httpx_client()
 
-    response: requests.Response = requests.get(url=request_url, headers=headers)
+    request_headers = dict(client.headers)
+    if headers:
+        request_headers.update(headers)
 
-    # general_request_error_handler 함수 통합 (2025.09.01)
-    if response.status_code != 200:
-        response_status_code: str = str(response.status_code)
-        exception_msg_prefix: str = f"{response_status_code} : "
-        response_data: dict = response.json()
-        exception_msg: dict = response_data.get('error')
-        if response.status_code == 400:
-            default_exception_msg = "Bad Request"
-            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-            raise NexonAPIBadRequest(exception_msg)
-        elif response.status_code == 403:
-            default_exception_msg = "Forbidden"
-            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-            raise NexonAPIForbidden(exception_msg)
-        elif response.status_code == 429:
-            default_exception_msg = "Too Many Requests"
-            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-            raise NexonAPITooManyRequests(exception_msg)
-        elif response.status_code == 500:
-            default_exception_msg = "Internal Server Error"
-            exception_msg = f"{exception_msg_prefix}{exception_msg.get('message', default_exception_msg)}"
-            raise NexonAPIServiceUnavailable(exception_msg)
-        else:
-            if not exception_msg.get('message'):
-                raise NexonAPIError
-            else :
-                exception_msg = f"{exception_msg_prefix}{exception_msg.get('message')}"
-                raise NexonAPIError(exception_msg)
-    return response.json()
+    response = await client.get(request_path, headers=request_headers)
+
+    if response.status_code == 429:
+        retry_after = response.headers.get("Retry-After")
+        try:
+            wait_time = int(retry_after) if retry_after else 1
+        except ValueError:
+            wait_time = 1
+        await asyncio.sleep(wait_time)
+        response = await client.get(request_path, headers=request_headers)
+
+    if response.status_code == 200:
+        try:
+            return response.json()
+        except json.JSONDecodeError as e:
+            return {"raw": response.text, "status": response.status_code}
+
+    _raise_nexon_api_error(response)
 
 
-def get_ocid(character_name: str) -> str:
-    """character_name의 OCID를 검색
+async def get_ocid(character_name: str) -> str:
+    """character_name의 OCID를 비동기적으로 검색
 
     Args:
         character_name (str): 캐릭터 이름
-        캐릭터 이름을 base64로 인코딩하여 Nexon Open API를 통해 OCID를 검색
 
     Returns:
         str: OCID (string)
@@ -111,10 +161,10 @@ def get_ocid(character_name: str) -> str:
     url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
     try:
-        response_data: dict = general_request_handler_nexon(request_url)
+        response_data: dict = await general_request_handler_nexon(request_url)
     except NexonAPIBadRequest as e:
         raise NexonAPICharacterNotFound("Character not found") from e
-    
+
     # 정상적으로 OCID를 찾았을 때
     ocid: str = str(response_data.get('ocid'))
     if ocid:
@@ -123,7 +173,7 @@ def get_ocid(character_name: str) -> str:
         raise NexonAPICharacterNotFound("OCID not found in response")
 
 
-def get_popularity(ocid: str) -> str:
+async def get_popularity(ocid: str) -> str:
     """OCID에 해당하는 캐릭터의 인기도를 가져오는 함수
 
     Args:
@@ -138,15 +188,15 @@ def get_popularity(ocid: str) -> str:
     service_url = maplestory_service_url.pop
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     try:
-        response_data: dict = general_request_handler_nexon(request_url)
+        response_data: dict = await general_request_handler_nexon(request_url)
         popularity: int = response_data.get('popularity', "몰라양")
         return popularity
     except NexonAPIError:
         return "몰라양"  # 예외 발생 시 기본값으로 "몰라양" 반환
+    
 
-
-def get_ability_info(ocid: str) -> dict:
-    """OCID에 해당하는 캐릭터의 어빌리티 정보를 가져오는 함수
+async def get_ability_info(ocid: str) -> dict:
+    """OCID에 해당하는 캐릭터의 어빌리티 정보를 비동기적으로 가져오는 함수
 
     Args:
         ocid (str): 캐릭터 OCID
@@ -156,7 +206,7 @@ def get_ability_info(ocid: str) -> dict:
     """
     service_url = maplestory_service_url.ability
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
-    response_data: dict = general_request_handler_nexon(request_url)
+    response_data: dict = await general_request_handler_nexon(request_url)
     return response_data
 
 
@@ -346,7 +396,7 @@ def maple_convert_grade_text(grade_text: str) -> str:
     return grade_mapping.get(grade_text, "몰라양")
 
 
-def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dict] | Dict[str, str | Literal["알수없음"]]:
+async def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dict] | Dict[str, str | Literal["알수없음"]]:
     """Nexon Open API를 통해 메이플스토리 공지사항을 가져오는 함수
 
     Args:
@@ -365,7 +415,7 @@ def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dic
     """
     service_url = maplestory_service_url.notice
     request_url = f"{NEXON_API_HOME}{service_url}"
-    response_data: dict = general_request_handler_nexon(request_url)
+    response_data: dict = await general_request_handler_nexon(request_url)
     notices: list = response_data.get('event_notice', [])
     if target_event is None:
         notice_filter = None
@@ -447,7 +497,7 @@ def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dic
         return return_data
 
 
-def get_notice_details(notice_id: str) -> dict:
+async def get_notice_details(notice_id: str) -> dict:
     """Nexon Open API를 통해 특정 공지사항의 상세 정보를 가져오는 함수
 
     Args:
@@ -461,7 +511,7 @@ def get_notice_details(notice_id: str) -> dict:
     """
     service_url = maplestory_service_url.notice_detail
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
-    response_data: dict = general_request_handler_nexon(request_url)
+    response_data: dict = await general_request_handler_nexon(request_url)
     return response_data
 
 
@@ -640,7 +690,7 @@ async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tup
     for param_date in date_list:
         request_service_url: str = maplestory_service_url.basic_info
         request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
-        response_data: dict = general_request_handler_nexon(request_url)
+        response_data: dict = await general_request_handler_nexon(request_url)
         character_level: int = (
             int(response_data.get("character_level", -1))
             if response_data.get("character_level") is not None
@@ -656,7 +706,7 @@ async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tup
     return return_data
 
 
-def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["..."]]:
+async def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["..."]]:
     """메이플스토리 캐릭터 기본 정보 데이터를 가져와서 가공하는 함수
 
     Args:
@@ -670,7 +720,7 @@ def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["..."]]:
     service_url = maplestory_service_url.basic_info
     requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
 
-    response_data: dict = general_request_handler_nexon(requests_url)
+    response_data: dict = await general_request_handler_nexon(requests_url)
 
     if isinstance(character_ocid, str):
         return_data: dict = {
@@ -791,7 +841,7 @@ def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["..."]]:
     return return_data
 
 
-def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
+async def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
     """메이플스토리 캐릭터 상세 정보 데이터를 가공하는 함수
 
     Args:
@@ -802,7 +852,7 @@ def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
     """
     service_url = maplestory_service_url.stat_info
     requests_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
-    response_data: dict = general_request_handler_nexon(requests_url)
+    response_data: dict = await general_request_handler_nexon(requests_url)
     stat_list: List[dict] = response_data.get('final_stat', [])
     
     if isinstance(stat_list, list) and stat_list:
@@ -1088,7 +1138,7 @@ def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
         return processed_stat_info
     
 
-def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict] | Literal["기타"] | None]:
+async def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict] | Literal["기타"] | None]:
     """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 정보를 조회하는 함수
 
     Args:
@@ -1099,7 +1149,7 @@ def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict] | Lit
     """
     service_url = maplestory_service_url.cash_equipment
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
-    response_data: dict = general_request_handler_nexon(request_url)
+    response_data: dict = await general_request_handler_nexon(request_url)
     
     return_data = {
         "character_gender": (
@@ -1204,7 +1254,7 @@ def parse_equipment_info(equipment_data: List[Dict[str, Any]]) -> Dict[str, str]
                 }
 
 
-def get_beauty_equipment_info(ocid: str) -> Dict[str, Optional[str | Dict[str, str]]]:
+async def get_beauty_equipment_info(ocid: str) -> Dict[str, Optional[str | Dict[str, str]]]:
     """캐릭터의 뷰티(헤어/성형) 정보 조회
 
     Args:

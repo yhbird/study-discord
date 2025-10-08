@@ -89,9 +89,15 @@ COMMAND_TIMEOUT: int = 30  # seconds
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
 NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 if BOT_TOKEN_RUN == 'dev':
+    NEXON_API_CACHE_TTL: int = 60
+    NEXON_API_CACHE_NEG_TTL: int = 10
     NEXON_API_RPS_LIMIT: int = 5
+    NEOPLE_API_RPS_LIMIT: int = 1000
 else:
+    NEXON_API_CACHE_TTL: int = 3600
+    NEXON_API_CACHE_NEG_TTL: int = 60
     NEXON_API_RPS_LIMIT: int = 500
+    NEOPLE_API_RPS_LIMIT: int = 1000
     
 
 # Bot 시작 시간 기록
