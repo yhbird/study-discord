@@ -1,10 +1,14 @@
 node_modules/
 .git/
+.gitignore
+*.swp
+.DS_Store
+.idea/
 .vscode/
 *.log
 *.json
 *.sh
 temp/
-data/
 __pycache__/
 README.md
+!pyproject.toml/requirements.txt
