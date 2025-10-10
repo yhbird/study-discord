@@ -405,7 +405,10 @@ async def get_notice(target_event: str = None, recent_notice: bool = True) -> Li
         notices = [notice for notice in notices if notice_filter in notice.get('title', '')]
 
     if not notices:
-        raise NexonAPIError("No notices found")
+        if target_event == "sunday":
+            raise NexonAPISundayEventNotFound("No sunday notices found")
+        else:
+            raise NexonAPINoticeNotFound("No notices found")
 
     if recent_notice:
         notice_data: dict = notices[0]

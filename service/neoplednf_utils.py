@@ -10,8 +10,10 @@ from urllib.parse import quote
 from collections import deque
 from datetime import datetime, timedelta
 from pytz import timezone
+from pathlib import Path
+from PIL import Image, ImageDraw, ImageOps
 
-from typing import Optional, Dict, List, Any, Literal
+from typing import Optional, Dict, List, Any, Literal, Tuple
 from config import NEOPLE_API_HOME, NEOPLE_API_KEY
 from config import NEOPLE_API_RPS_LIMIT
 from utils.image import get_image_bytes
@@ -23,9 +25,10 @@ class neople_service_url:
     dnf_character: str = "/df/servers/{serverId}/characters"
     dnf_character_info: str = "/df/servers/{serverId}/characters/{characterId}"
     dnf_timeline: str = "/df/servers/{serverId}/characters/{characterId}/timeline"
-    dnf_character_image: str =  "https://img-api.neople.co.kr/df/servers/{sid}/characters/{cid}?zoom=1"
     dnf_character_equipment: str = "/df/servers/{serverId}/characters/{characterId}/equip/equipment"
-    dnf_item: str = f"/df/items"
+    dnf_item_detail: str = "/df/items/{itemId}"
+    dnf_character_image: str =  "https://img-api.neople.co.kr/df/servers/{sid}/characters/{cid}?zoom=1"
+    dnf_item_image: str = "https://img-api.neople.co.kr/df/items/{itemId}"
 
 
 class dnf_timeline_codes:
@@ -495,10 +498,39 @@ def check_setpoint_bonus(setpoint: int) -> str:
     Returns:
         str: 보너스 효과 문자열
     """
-    if setpoint > 2620:
+    if setpoint >= 2620:
         bonus = (setpoint - 2550) // 70
         return f"{setpoint}pt (+{bonus*70}pt)"
     return f"{setpoint}pt"
+
+
+async def get_dnf_character_set_equipment_info(sid: str, cid: str) -> Dict[str, Any]:
+    """던전앤파이터 캐릭터의 세트장비 정보 조회
+    
+    Args:
+        sid (str): 던전앤파이터 서버 ID
+        cid (str): 던전앤파이터 캐릭터 ID
+
+    Returns:
+        Dict[str, Any]: 던전앤파이터 캐릭터 세트장비 정보
+
+    Reference:
+        https://developers.neople.co.kr/contents/apiDocs/df 
+
+    Usage:
+        - 캐릭터의 세트아이템 정보 확인
+    """
+    service_url = neople_service_url.dnf_character_equipment.format(
+        serverId=sid, characterId=cid
+    )
+    request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
+    response_data: dict = await general_request_handler_neople(request_url)
+
+    # 세트아이템 정보 수집
+    set_item_info_raw: List[Dict[str, Any]] = response_data.get("setItemInfo", [])
+    set_item_info = set_item_info_raw[0]
+
+    return set_item_info
 
 
 async def get_dnf_character_equipment(sid: str, cid: str) -> Dict[str, Dict[str, str | int | Dict | Literal["..."]]]:
@@ -566,7 +598,6 @@ async def get_dnf_character_equipment(sid: str, cid: str) -> Dict[str, Dict[str,
                 # 조율 정보 수집 
                 if tune.get("level") is not None and slot_id != "WEAPON":
                     tune_options = _get_tune_status_data(tune)
-                    print(tune_options)
                     tune_level = tune_options.get("tune_level", 0)
                     tune_setpoint = tune_options.get("tune_setpoint", 0)
 
@@ -661,9 +692,199 @@ def dnf_convert_grade_text(grade: str) -> str:
         "신화" : "🟢",
         "에픽" : "🟡",
         "레전더리" : "🟠",
-        "유니크" : "🟣",
+        "유니크" : "🔴", # 핑크색
+        "레어" : "🟣", # 보라색
         "크로니클" : "🔴",
         "언커먼" : "🔵",
         "커먼" : "⚪",
     }
     return grade_mapping.get(grade.lower(), grade)
+
+
+async def get_set_item_id(item_id: str) -> Optional[str]:
+    """아이템 ID로부터 아이템 세트 ID 조회
+
+    Args:
+        item_id (str): 아이템 ID
+
+    Returns:
+        Optional[str]: 세트 아이템 ID
+    """
+    service_url = neople_service_url.dnf_item_detail.format(itemId=item_id)
+    request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
+    response_data: dict = await general_request_handler_neople(request_url)
+
+    return response_data
+
+
+def get_item_icon_url(item_id: str) -> str:
+    """아이템 ID로부터 아이템 아이콘 URL 생성
+
+    Args:
+        item_id (str): 아이템 ID
+
+    Returns:
+        str: 아이템 아이콘 URL
+    """
+    return neople_service_url.dnf_item_image.format(itemId=item_id)
+
+
+ICON_SIZE = 28
+ICON_CELL_PAD = ICON_SIZE // 8 
+OUTER_CANVAS_PAD = 12
+GRID_GAP = 8
+CANVAS_BG_COLOR = (18, 18, 24, 255)
+SLOT_BG_COLOR = (28, 28, 36, 255)
+SLOT_BORDER_OUTER_COLOR = (12, 12, 16, 255)
+SLOT_BORDER_INNER_COLOR = (60, 60, 78, 255)
+
+ARMOR_SLOT_GRID = [
+    ("머리어깨", (0, 1)), ("상의", (1, 2)), ("벨트", (0, 2)), ("하의", (1, 1)), ("신발", (0, 3)),
+]
+WEAPON_SLOT_GRID = [
+    ("무기", (0, 0)), ("칭호", (1, 0)),
+    ("팔찌", (0, 1)), ("목걸이", (1, 1)), ("반지", (1, 2)),
+    ("보조장비", (0, 2)), ("귀걸이", (0, 3)), ("마법석", (1, 3)),
+]
+
+SLOT_GRID = [
+    ("무기", (2, 0)), ("칭호", (3, 0)),
+    ("머리어깨", (0, 1)), ("상의", (1, 1)), ("벨트", (0, 2)), ("하의", (1, 2)), ("신발", (0, 3)),
+    ("팔찌", (2, 1)), ("목걸이", (3, 1)), ("반지", (3, 2)),
+    ("보조장비", (2, 2)), ("귀걸이", (2, 3)), ("마법석", (3, 3)),
+]
+
+EQUIPMENT_PLACEHOLDER_ICON = Path("assets/icon/dnf_rare_equip.png")
+CHARACTER_FRAME_LEFT = 10
+CHARACTER_FRAME_TOP = 10
+CHARACTER_FRAME_SIZE = (200, 230)
+
+
+def _slot_pixel(origin: Tuple[int, int], col: int, row: int) -> Tuple[int, int]:
+    x0, y0 = origin
+    cell = ICON_SIZE + ICON_CELL_PAD
+    return x0 + col * cell, y0 + row * cell
+
+def _draw_slot(draw: ImageDraw.ImageDraw, canvas: Image.Image, xy: Tuple[int, int]):
+    x, y = xy
+    w = ICON_SIZE
+    h = ICON_SIZE
+
+    # 배경
+    draw.rectangle((x, y, x + w, y + h), fill=SLOT_BG_COLOR)
+    # 외곽 테두리
+    draw.rectangle((x, y, x + w, y + h), outline=SLOT_BORDER_OUTER_COLOR, width=1)
+    # 외곽 테두리 안쪽
+    draw.rectangle((x + 1, y + 1, x + w - 1, y + h - 1), outline=SLOT_BORDER_INNER_COLOR, width=1)
+
+def _paste_icon(canvas: Image.Image, icon_bytes: io.BytesIO, position: Tuple[int, int]):
+    icon = Image.open(icon_bytes).convert("RGBA")
+    icon = ImageOps.contain(icon, (ICON_SIZE - 2 * ICON_CELL_PAD, ICON_SIZE - 2 * ICON_CELL_PAD))
+    x, y = position
+    ox = x + (ICON_SIZE - icon.width) // 2
+    oy = y + (ICON_SIZE - icon.height) // 2
+    canvas.alpha_composite(icon, (ox, oy))
+
+def _paste_character_image(
+        canvas: Image.Image,
+        frame_xy: Tuple[int, int],
+        frame_size: Tuple[int, int],
+        character_image: io.BytesIO,
+    ):
+    fx, fy = frame_xy
+    fw, fh = frame_size
+    frame_rect = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+
+    # 캐릭터 프레임 배경
+    draw = ImageDraw.Draw(frame_rect)
+    draw.rounded_rectangle([0, 0, fw-1, fh-1], radius=10, fill=(24, 24, 30, 255), outline=(60, 60, 78, 255))
+
+    # 캐릭터 이미지 삽입
+    char = Image.open(character_image).convert("RGBA")
+    char = ImageOps.contain(char, (fw - 12, fh - 12))
+    cx = (fw- char.width) // 2
+    cy = (fh - char.height) // 2
+    frame_rect.alpha_composite(char, (cx, cy))
+    canvas.alpha_composite(frame_rect, (fx, fy))
+
+def _load_icon_bytes(item_id: Optional[str]) -> io.BytesIO:
+    if item_id is None:
+        return io.BytesIO(EQUIPMENT_PLACEHOLDER_ICON.read_bytes())
+    try:
+        return get_image_bytes(get_item_icon_url(item_id))
+    except Exception:
+        return io.BytesIO(EQUIPMENT_PLACEHOLDER_ICON.read_bytes())
+
+def build_equipment_board(
+    item_ids: Dict[str, Optional[str]],
+    character_image: Optional[io.BytesIO] = None,
+):
+    """던전앤파이터 장비창 이미지 생성
+
+    Args:
+        item_ids (Dict[str, Optional[str]]): 아이템 ID 맵핑 데이터 (슬롯명: 아이템ID)
+        character_image (Optional[io.BytesIO], optional): 캐릭터 이미지. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
+    # 좌/우 그리드 칸 고정
+    left_grid_colds, left_grid_rows = 2, 4
+    right_grid_colds, right_grid_rows = 2, 4
+
+    # 그리드(슬롯) 영역 크기 계산
+    def grid_block_size(cols: int, rows: int) -> Tuple[int, int]:
+        w = cols * ICON_SIZE + (cols -1) * 0 + 0
+        h = rows * ICON_SIZE + (rows -1) * 0 + 0
+        return w, h
+    
+    left_w, left_h = grid_block_size(left_grid_colds, left_grid_rows)
+    right_w, right_h = grid_block_size(right_grid_colds, right_grid_rows)
+    frame_w, frame_h = CHARACTER_FRAME_SIZE
+
+    # 캔버스 크기 계산
+    canvas_w = OUTER_CANVAS_PAD + left_w + GRID_GAP + frame_w + GRID_GAP + right_w + OUTER_CANVAS_PAD
+    canvas_h = OUTER_CANVAS_PAD + max(left_h, right_h, frame_h) + OUTER_CANVAS_PAD
+
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), CANVAS_BG_COLOR)
+    draw = ImageDraw.Draw(canvas)
+
+    # 좌측 Armor slots 이미지 생성
+    left_origin = (OUTER_CANVAS_PAD, OUTER_CANVAS_PAD + (max(left_h, frame_h, right_h) - left_h) // 2)
+    # 중앙 Character image 삽입
+    center_origin = (left_origin[0] + left_w + GRID_GAP, OUTER_CANVAS_PAD + (max(left_h, frame_h, right_h) - frame_h)//2)
+    # 우측 무기 / 악세서리 / 특수장비 slots 이미지 생성
+    right_origin = (center_origin[0] + frame_w + GRID_GAP, OUTER_CANVAS_PAD + (max(left_h, frame_h, right_h) - right_h)//2)
+
+    # ===== 1) 좌측 방어구 슬롯 =====
+    for slot_name, (c, r) in ARMOR_SLOT_GRID:
+        xy = _slot_pixel(left_origin, c, r)
+        _draw_slot(draw, canvas, xy)
+        icon_bytes = _load_icon_bytes(item_ids.get(slot_name))
+        _paste_icon(canvas, icon_bytes, xy)
+
+    # ===== 2) 중앙 캐릭터 이미지 =====
+    if character_image is not None:
+        character_image.seek(0)
+        _paste_character_image(canvas, center_origin, CHARACTER_FRAME_SIZE, character_image)
+    else:
+        # 캐릭터 이미지가 없을 때도 프레임은 그려줌
+        frame = Image.new("RGBA", CHARACTER_FRAME_SIZE, (0, 0, 0, 0))
+        d2 = ImageDraw.Draw(frame)
+        d2.rounded_rectangle(
+            [0, 0, CHARACTER_FRAME_SIZE[0]-1, CHARACTER_FRAME_SIZE[1]-1],
+            radius=10, fill=(24, 24, 30, 255), outline=(60, 60, 70, 255)
+        )
+        canvas.alpha_composite(frame, center_origin)
+
+    # ===== 3) 우측 무기 / 악세서리 / 특수장비 슬롯 =====
+    for slot_name, (c, r) in WEAPON_SLOT_GRID:
+        xy = _slot_pixel(right_origin, c, r)
+        _draw_slot(draw, canvas, xy)
+        icon_bytes = _load_icon_bytes(item_ids.get(slot_name))
+        _paste_icon(canvas, icon_bytes, xy)
+
+    output = io.BytesIO()
+    canvas.save(output, format="PNG")
+    output.seek(0)
+    return output  # ctx.send(file=discord.File(output, filename="equip.png"))
