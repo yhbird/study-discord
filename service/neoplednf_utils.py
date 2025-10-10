@@ -115,8 +115,11 @@ async def general_request_handler_neople(request_path: str, headers: Optional[di
         request_headers.update(headers)
 
     response: httpx.Response = await client.get(url=request_path, headers=request_headers)
+    retry_times = 0
+    retry_times_limit = 5
 
-    if response.status_code == 429:
+    # 재시도 로직 (429 Too Many Requests)
+    while retry_times < retry_times_limit and response.status_code == 429:
         retry_after = response.headers.get("Retry-After")
         try:
             wait_time = int(retry_after) if retry_after else 1
@@ -124,7 +127,11 @@ async def general_request_handler_neople(request_path: str, headers: Optional[di
             wait_time = 1
         await asyncio.sleep(wait_time)
         response = await client.get(url=request_path, headers=request_headers)
+        retry_times += 1
 
+        if retry_times == retry_times_limit:
+            raise NeopleAPILimitExceed("Neople API 요청 초과로 실패했어양...")
+    
     if response.status_code == 200:
         try:
             return response.json()
