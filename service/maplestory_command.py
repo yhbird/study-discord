@@ -219,15 +219,15 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
         notice_date: str = notice_data.get("notice_date")
-        notice_start_date: str = notice_data.get("date_event_start")
-        notice_end_date: str = notice_data.get("date_event_end")
+        notice_start_date: str = notice_data.get("notice_start_date")
+        notice_end_date: str = notice_data.get("notice_end_date")
 
         footer_notice_text: str = (
             f"공지사항 날짜: {notice_date}\n"
         )
 
         # 공지사항 이미지 URL 추출
-        notice_detail_data: dict = get_notice_details(notice_id)
+        notice_detail_data: dict = await get_notice_details(notice_id)
         notice_contents: str = (
             str(notice_detail_data.get('contents', '알 수 없음'))
             if notice_detail_data.get('contents') is not None
@@ -284,8 +284,8 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
     try:
         notice_data: dict = await get_notice(target_event="sunday")
     except NexonAPIBadRequest as e:
-        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
-        raise CommandFailure("PC Bang notice not found")
+        await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
+        raise CommandFailure("Sunday event notice not found")
     except NexonAPIForbidden as e:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
@@ -295,10 +295,13 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
     except NexonAPIServiceUnavailable as e:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
         raise CommandFailure("Nexon Open API Internal server error")
+    except NexonAPISundayEventNotFound as e:
+        await ctx.send("썬데이 이벤트 공지사항이 아직 없어양!!\n매주 금요일 오전 10시에 업데이트 되니 참고해양!!")
+        return
     except NexonAPIError as e:
-        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
-        raise CommandFailure("PC Bang notice not found")
-        
+        await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
+        raise CommandFailure("Sunday event notice not found")
+
     # 공지사항 데이터 전처리
     if notice_data:
         # 공지사항 제목, 링크, 내용(HTML)
@@ -308,8 +311,8 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
 
         # 공지사항 날짜 정보 예시 "2025-07-17T10:00+09:00" -> "2025년 7월 17일 10:00 (KST)"
         notice_date: str = notice_data.get("notice_date")
-        notice_start_date: str = notice_data.get("date_event_start")
-        notice_end_date: str = notice_data.get("date_event_end")
+        notice_start_date: str = notice_data.get("notice_start_date")
+        notice_end_date: str = notice_data.get("notice_end_date")
 
         footer_notice_text: str = (
             f"공지사항 날짜: {notice_date}\n"

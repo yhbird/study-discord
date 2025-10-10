@@ -94,21 +94,21 @@ COMMAND_TIMEOUT: int = 30  # seconds
 MEMORY_CLEAR_INTERVAL: int = 60  # minutes
 
 # 봇 상태 갱신 주기 (분)
-PRESENCE_UPDATE_INTERVAL: int = 10  # minutes
+PRESENCE_UPDATE_INTERVAL: int = 30  # minutes
 
 # API 결과 캐싱 시간 (초)
-NEXON_API_REFRESH_INTERVAL: int = 15  # seconds
+NEXON_API_REFRESH_INTERVAL: int = 15  # minutes
 if BOT_TOKEN_RUN == 'dev':
-    NEXON_API_CACHE_TTL: int = 60
-    NEXON_API_CACHE_NEG_TTL: int = 10
-    NEXON_API_RPS_LIMIT: int = 5
-    NEOPLE_API_RPS_LIMIT: int = 1000
+    NEXON_API_CACHE_TTL: int = 60 # seconds
+    NEXON_API_CACHE_NEG_TTL: int = 10 # seconds
+    NEXON_API_RPS_LIMIT: int = 5 # rate per second
+    NEOPLE_API_RPS_LIMIT: int = 1000 # rate per second
 else:
-    NEXON_API_CACHE_TTL: int = 3600
-    NEXON_API_CACHE_NEG_TTL: int = 60
-    NEXON_API_RPS_LIMIT: int = 500
-    NEOPLE_API_RPS_LIMIT: int = 1000
-    
+    NEXON_API_CACHE_TTL: int = 3600 # seconds
+    NEXON_API_CACHE_NEG_TTL: int = 60 # seconds
+    NEXON_API_RPS_LIMIT: int = 500 # rate per second
+    NEOPLE_API_RPS_LIMIT: int = 1000 # rate per second
+
 
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))

@@ -5,6 +5,7 @@ from service.neoplednf_utils import *
 from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import log_command
+from utils.time import kst_format_now
 
 
 @log_command(alt_func_name="븜 던파정보")
@@ -149,6 +150,7 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
         - 세트 옵션 정보 포함
     """
     # 캐릭터 고유 ID 조회 -> 캐릭터 정보 조회
+    character_image = None
     try:
         server_id, character_id = (
             await get_dnf_server_id(server_name),
@@ -156,6 +158,7 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
         )
         character_info = await get_dnf_character_info(server_id, character_id)
         equipment_info = await get_dnf_character_equipment(server_id, character_id)
+        character_image = await get_dnf_character_image(server_id, character_id)
     
     except NeopleAPIInvalidId as e:
         await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
@@ -215,13 +218,20 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
     plus_setname = "고유 장비"
     character_set_items[plus_setname] = 0 # 고유 장비 세트 포인트
     total_plus_setpoint = 0
+    equipment_icon: Dict[str, str] = {}
 
     for slot in slots:
         equipment_data = equipment_info.get(slot)
         if equipment_data is None:
             slot_info_text = f"{slot}: 없음 (비어있음)\n"
+            equipment_icon[slot] = None
         else:
             plus_setpoint = 0
+            item_id: str = equipment_data.get("item_id", "몰라양")
+            if item_id != "몰라양":
+                equipment_icon[slot] = item_id
+            else:
+                equipment_icon[slot] = None
             item_rare: str = equipment_data.get("item_rarity", "몰라양")
             item_name: str = equipment_data.get("item_name", "몰라양")
             # 조율 정보
@@ -233,9 +243,11 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
             # 강화 정보
             item_reinforce: int = equipment_data.get("item_reinforce", 0)
             item_reinforce_type: str = equipment_data.get("item_reinforce_type", "강화")
+            item_refine: int = equipment_data.get("item_refine", 0)
+            item_refine_text: str = f"({item_refine})" if item_refine > 0 else ""
             reinforce_text: str = (
-                f"+{item_reinforce}{item_reinforce_type}"
-                if slot == "칭호" else ""
+                f"+{item_reinforce}{item_reinforce_type}{item_refine_text}"
+                if slot != "칭호" else ""
             )
 
             # 세트 옵션 정보
@@ -283,25 +295,31 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
             )
         slot_info_text_list.append(slot_info_text)
 
-    set_info = equipment_data.get("set_item_info", {})
+    set_info = equipment_info.get("set_item_info", {})
 
-    if set_info is not None:
+    if set_info != {}:
         set_item_name: str = set_info.get("set_item_name", "몰라양")
         set_item_rare: str = set_info.get("set_item_rarity", "몰라양")
         set_point_info: Dict[str, int] = set_info.get("set_item_setpoint", {})
         current_setpoint: int = set_point_info.get("current", 0)
         best_setname_text: str = f"{dnf_convert_grade_text(set_item_rare)} {set_item_name}"
         best_setpoint_text: str = check_setpoint_bonus(current_setpoint)
+        best_set_text: str = f"**{best_setname_text} {best_setpoint_text}**"
     else:
         best_set, best_setpoint = calculate_final_setpoint(character_set_items)
         best_setname_text: str = f"{best_set}"
         best_setpoint_text = check_setpoint_bonus(best_setpoint)
-
         best_set_text: str = f"**{best_setname_text} {best_setpoint_text}**"
 
     slot_info_text: str = "\n".join(slot_info_text_list)
 
     # Discord Embed 객체 생성
+    # 장비 아이콘 이미지 생성
+    equipment_board_image = build_equipment_board(equipment_icon, character_image)
+    kst_now: str = kst_format_now().strftime("%Y%m%d%H%M")
+    image_file_name: str = f"{server_id}_{character_id}_equipment_{kst_now}.png"
+    equipment_board_image_file: discord.File = discord.File(equipment_board_image, filename=image_file_name)
+
     # 모험단 이름 추출
     adventure_name: str | Literal["몰라양"] = character_info.get("adventure_name")
     # 캐릭터 레벨 추출
@@ -324,6 +342,11 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
     else:
         dfgear_url_desc = f"[🔗 DFGEAR 사이트 이동]({dfgear_url_c})\n"
 
+    msg_content: str = (
+        f"**세트:** {best_set_text}\n\n"
+        f"{slot_info_text}"
+    )
+
     embed_title: str = f"{server_name}서버 '{character_name}' 모험가님의 장비 정보에양!"
     embed_description: str = (
         f"[🔗 던담 사이트 이동]({dundam_url})\n"
@@ -333,10 +356,7 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
         f"**직업:** {character_job_name}\n"
         f"**전직:** {character_job_grow_name}\n"
         f"**명성:** {character_fame:,}\n"
-        f"--------------------------------\n"
-        f"**세트 효과:** {best_set_text}\n"
-        f"--------------------------------\n"
-        f"{slot_info_text}"
+        f"\n{msg_content}"
     )
     embed_footer: str = (
         f"시즌 패치 기준: 2025년 10월 2월 (중천)\n"
@@ -349,7 +369,7 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
         color=discord.Color.blue()
     )
     embed.set_footer(text=embed_footer)
-    await ctx.send(embed=embed)
+    await ctx.send(file=equipment_board_image_file, embed=embed)
     return
 
 
@@ -383,6 +403,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
             await get_dnf_server_id(server_name),
             await get_dnf_character_id(server_name, character_name)
         )
+        set_item_info: Dict[str, Any] = await get_dnf_character_set_equipment_info(server_id, character_id)
         timeline_data: dict = await get_dnf_weekly_timeline(server_id, character_id)
     except NeopleAPIInvalidId as e:
         await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
@@ -427,6 +448,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
     
     character_timeline: dict = timeline_data.get("timeline")
     timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
+    character_set_item_id: str = set_item_info.get("set_item_id") # 세트 아이템 ID
     if len(timeline_rows) == 0:
         await ctx.send(f"이번주에 레전더리 이상 등급의 득템 기록이나, 레이드/레기온 클리어 기록이 없어양!")
         return
@@ -463,30 +485,29 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
             # 아이템 획득
             if 600 > timeline_code >= 500:
                 item_id: str = timeline_data.get("itemId", "몰라양")
+                item_setid: str = await get_set_item_id(item_id)
                 item_name: str = timeline_data.get("itemName", "몰라양")
                 item_rare: str = timeline_data.get("itemRarity", "몰라양")
 
                 # 태초 아이템 획득 시 하이라이트 메시지 생성
-                if item_rare == "태초":
+                if (item_rare == "태초") or (item_setid == character_set_item_id and item_rare == "에픽"):
 
-                    # 던전 카드 보상에서 태초 아이템 획득 시
+                    # 던전 카드 보상에서 태초 아이템 획득 시 or 세트 아이템 에픽 획득 시
                     if timeline_code == dnf_timeline_codes.reward_clear_dungeon_card:
                         dungeon_name: str = timeline_data.get("dungeonName", "몰라양")
-                        get_primeval_count += 1
+
                         timeline_highlight += (
                             f"던전 {dungeon_name}에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
                         )
 
                     # 레이드 카드 보상에서 태초 아이템 획득 시
                     elif timeline_code == dnf_timeline_codes.reward_clear_raid_card:
-                        get_primeval_count += 1
                         timeline_highlight += (
                             f"레이드에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
                         )
 
                     # 항아리&상자 보상에서 태초 아이템 획득 시
                     elif timeline_code == dnf_timeline_codes.reward_pot_and_box:
-                        get_primeval_count += 1
                         timeline_highlight += (
                             f"항아리&상자를 개봉해서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
                         )
@@ -495,7 +516,6 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                     else:
                         channel_name = timeline_data.get("channelName", "알수없음")
                         channel_no = timeline_data.get("channelNo", "알수없음")
-                        get_primeval_count += 1
                         timeline_highlight += (
                             f"{channel_name} {channel_no}채널에서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
                         )
@@ -508,6 +528,10 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                         f"융합석 업글레이드를 통해 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
                     )
                 
+                # 태초 아이템 획득
+                if item_rare == "태초":
+                    get_primeval_count += 1
+
                 # 에픽 아이템 획득
                 if item_rare == "에픽":
                     get_epic_count += 1

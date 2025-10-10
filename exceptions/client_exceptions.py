@@ -16,23 +16,29 @@ from exceptions.base import ClientBaseException
 class NexonAPIError(ClientBaseException):
     """Nexon API 사용 중 발생하는 오류"""
 
-class NexonAPICharacterNotFound(ClientBaseException):
+class NexonAPICharacterNotFound(NexonAPIError):
     """Nexon API 캐릭터 없음 오류"""
         
-class NexonAPIBadRequest(ClientBaseException):
+class NexonAPIBadRequest(NexonAPIError):
     """Nexon API Bad Request 오류"""
 
-class NexonAPIForbidden(ClientBaseException):
+class NexonAPIForbidden(NexonAPIError):
     """Nexon API Forbidden 오류"""
 
-class NexonAPITooManyRequests(ClientBaseException):
+class NexonAPITooManyRequests(NexonAPIError):
     """Nexon API Too Many Requests 오류"""
 
-class NexonAPIServiceUnavailable(ClientBaseException):
+class NexonAPIServiceUnavailable(NexonAPIError):
     """Nexon API Service Unavailable 오류"""
 
-class NexonAPIOCIDNotFound(ClientBaseException):
+class NexonAPIOCIDNotFound(NexonAPIError):
     """Nexon API OCID Not Found 오류"""
+
+class NexonAPINoticeNotFound(NexonAPIError):
+    """Nexon API 공지사항 없음 오류"""
+
+class NexonAPISundayEventNotFound(NexonAPIError):
+    """Nexon API 썬데이 이벤트 공지사항 없음 오류"""
 
 def nexon_api_error_handler(response: httpx.Response):
     status = response.status_code
@@ -70,76 +76,76 @@ class DNFCharacterNotFound(NeopleAPIError):
 class DNFCIDNotFound(NeopleAPIError):
     """던전앤파이터 캐릭터 고유ID 조회 실패"""
 
-class NeopleAPIKeyMissing(ClientBaseException):
+class NeopleAPIKeyMissing(NeopleAPIError):
     """Neople API Key 미입력 (API000)"""
 
-class NeopleAPIInvalidId(ClientBaseException):
+class NeopleAPIInvalidId(NeopleAPIError):
     """Neople API 유효하지 않은 게임아이디 (API001)"""
 
-class NeopleAPILimitExceed(ClientBaseException):
+class NeopleAPILimitExceed(NeopleAPIError):
     """Neople API 요청 제한 초과 (API002)"""
 
-class NeopleAPIInvalidAPIkey(ClientBaseException):
+class NeopleAPIInvalidAPIkey(NeopleAPIError):
     """Neople API 잘못된 API 키 (API003)"""
 
-class NeopleAPIBlockedAPIKey(ClientBaseException):
+class NeopleAPIBlockedAPIKey(NeopleAPIError):
     """Neople API 차단된 API 키 (API004)"""
 
-class NeopleAPIWrongGameKey(ClientBaseException):
+class NeopleAPIWrongGameKey(NeopleAPIError):
     """Neople API 잘못된 게임 키 (API005)"""
 
-class NeopleAPIInvalidParams(ClientBaseException):
+class NeopleAPIInvalidParams(NeopleAPIError):
     """Neople API 잘못된 파라미터 (API006)"""
 
-class NeopleAPIClientSocketError(ClientBaseException):
+class NeopleAPIClientSocketError(NeopleAPIError):
     """Neople API 클라이언트 소켓 오류 (API007)"""
 
-class NeopleAPIInvalidURL(ClientBaseException):
+class NeopleAPIInvalidURL(NeopleAPIError):
     """Neople API 잘못된 URL (API900)"""
 
-class NeopleAPIInvalidRequestParams(ClientBaseException):
+class NeopleAPIInvalidRequestParams(NeopleAPIError):
     """Neople API 잘못된 요청 파라미터 (API901)"""
 
-class NeopleAPISystemError(ClientBaseException):
+class NeopleAPISystemError(NeopleAPIError):
     """Neople API 시스템 오류 (API999)"""
 
-class NeopleDNFInvalidServerID(ClientBaseException):
+class NeopleDNFInvalidServerID(NeopleAPIError):
     """Neople API 유효하지 않은 서버 ID (DNF000)"""
 
-class NeopleDNFInvalidCharacterInfo(ClientBaseException):
+class NeopleDNFInvalidCharacterInfo(NeopleAPIError):
     """Neople API 유효하지 않은 캐릭터 정보 (DNF001)"""
 
-class NeopleDNFInvalidItemInfo(ClientBaseException):
+class NeopleDNFInvalidItemInfo(NeopleAPIError):
     """Neople API 유효하지 않은 아이템 정보 (DNF003)"""
 
-class NeopleDNFInvalidAuctionInfo(ClientBaseException):
+class NeopleDNFInvalidAuctionInfo(NeopleAPIError):
     """Neople API 유효하지 않은 경매장 정보 (DNF004)"""
 
-class NeopleDNFInvalidSkillInfo(ClientBaseException):
+class NeopleDNFInvalidSkillInfo(NeopleAPIError):
     """Neople API 유효하지 않은 스킬 정보 (DNF005)"""
 
-class NeopleDNFInvalidTimelineParams(ClientBaseException):
+class NeopleDNFInvalidTimelineParams(NeopleAPIError):
     """Neople API 유효하지 않은 타임라인 검색 시간 파라미터 (DNF006)"""
 
-class NeopleDNFSearchAuctionItemOptionException(ClientBaseException):
+class NeopleDNFSearchAuctionItemOptionException(NeopleAPIError):
     """Neople API 경매장 아이템 검색 갯수 제한 (DNF007)"""
 
-class NeopleDNFSearchAuctionMultipleItemOptionException(ClientBaseException):
+class NeopleDNFSearchAuctionMultipleItemOptionException(NeopleAPIError):
     """Neople API 다중 아이템 검색 갯수 제한 (DNF008)"""
 
-class NeopleDNFSearchAvatarMarketOptionException(ClientBaseException):
+class NeopleDNFSearchAvatarMarketOptionException(NeopleAPIError):
     """Neople API 아바타 마켓 검색 갯수 제한 (DNF009)"""
 
-class NeopleDNFInvalidURL(ClientBaseException):
+class NeopleDNFInvalidURL(NeopleAPIError):
     """Neople API 유효하지 않은 URL (DNF900)"""
 
-class NeopleDNFInvalidRequestParams(ClientBaseException):
+class NeopleDNFInvalidRequestParams(NeopleAPIError):
     """Neople API 유효하지 않은 요청 파라미터 (DNF901)"""
 
-class NeopleDNFSystemMaintenance(ClientBaseException):
+class NeopleDNFSystemMaintenance(NeopleAPIError):
     """Neople API 서비스 점검중 (DNF980)"""
 
-class NeopleDNFSystemError(ClientBaseException):
+class NeopleDNFSystemError(NeopleAPIError):
     """Neople API 시스템 오류 (DNF999)"""
 
 def neople_api_error_handler(response: httpx.Response | requests.Response) -> None:
@@ -223,69 +229,69 @@ def neople_api_error_handler(response: httpx.Response | requests.Response) -> No
 class KakaoAPIError(ClientBaseException):
     """Kakao API 사용 중 발생하는 오류"""
 
-class KakaoNoLocalInfo(ClientBaseException):
+class KakaoNoLocalInfo(KakaoAPIError):
     """카카오 로컬 API 지역정보 검색결과 없음"""
 
-class KKO_LOCAL_API_ERROR(ClientBaseException):
+class KKO_LOCAL_API_ERROR(KakaoAPIError):
     """카카오 로컬 API 관련 오류"""
 
 class WeatherAPIError(ClientBaseException):
     """날씨 API 사용 중 발생하는 오류"""
     pass
 
-class WTH_API_INTERNAL_ERROR(ClientBaseException):
+class WTH_API_INTERNAL_ERROR(WeatherAPIError):
     """날씨 API 내부 오류"""
     pass
 
-class WTH_API_DATA_ERROR(ClientBaseException):
+class WTH_API_DATA_ERROR(WeatherAPIError):
     """날씨 API 데이터 오류"""
     pass
 
-class WTH_API_DATA_NOT_FOUND(ClientBaseException):
+class WTH_API_DATA_NOT_FOUND(WeatherAPIError):
     """날씨 API 데이터 없음"""
     pass
 
-class WTH_API_HTTP_ERROR(ClientBaseException):
+class WTH_API_HTTP_ERROR(WeatherAPIError):
     """날씨 API 잘못된 요청"""
     pass
 
-class WTH_API_TIMEOUT(ClientBaseException):
+class WTH_API_TIMEOUT(WeatherAPIError):
     """날씨 API 타임아웃 오류"""
     pass
 
-class WTH_API_INVALID_PARAMS(ClientBaseException):
+class WTH_API_INVALID_PARAMS(WeatherAPIError):
     """날씨 API 잘못된 파라미터"""
     pass
 
-class WTH_API_INVALID_REGION(ClientBaseException):
+class WTH_API_INVALID_REGION(WeatherAPIError):
     """날씨 API 잘못된 지역"""
     pass
 
-class WTH_API_DEPRECATED(ClientBaseException):
+class WTH_API_DEPRECATED(WeatherAPIError):
     """날씨 API 사용 중단"""
     pass
 
-class WTH_API_UNAUTHORIZED(ClientBaseException):
+class WTH_API_UNAUTHORIZED(WeatherAPIError):
     """날씨 API 서비스 접근 거부"""
     pass
 
-class WTH_API_KEY_TEMP_ERROR(ClientBaseException):
+class WTH_API_KEY_TEMP_ERROR(WeatherAPIError):
     """날씨 API 키 일시적 오류"""
     pass
 
-class WTH_API_KEY_LIMIT_EXCEEDED(ClientBaseException):
+class WTH_API_KEY_LIMIT_EXCEEDED(WeatherAPIError):
     """날씨 API 키 요청 제한 초과"""
     pass
 
-class WTH_API_KEY_INVALID(ClientBaseException):
+class WTH_API_KEY_INVALID(WeatherAPIError):
     """날씨 API 잘못된 API 키 사용"""
     pass
 
-class WTH_API_KEY_EXPIRED(ClientBaseException):
+class WTH_API_KEY_EXPIRED(WeatherAPIError):
     """날씨 API API 키 만료"""
     pass
 
-class WTH_API_OTHER_ERROR(ClientBaseException):
+class WTH_API_OTHER_ERROR(WeatherAPIError):
     """날씨 API 기타 오류"""
     pass
 
