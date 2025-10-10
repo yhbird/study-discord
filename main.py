@@ -116,6 +116,10 @@ async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str
 
 @bot.command(name="경험치", usage="캐릭터명", help="메이플스토리 캐릭터의 1주간 경험치 히스토리를 조회해양. 예: `븜 경험치 마법사악`")
 async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
+    await map_command.maple_xp_history_v2(ctx, character_name)
+
+@bot.command(name="경험치v1", usage="캐릭터명", help="메이플스토리 캐릭터의 1주간 경험치 히스토리를 조회해양. 예: `븜 경험치 마법사악`")
+async def run_api_maple_xp_history_v1(ctx: commands.Context, character_name: str):
     await map_command.maple_xp_history(ctx, character_name)
 
 

@@ -217,6 +217,11 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
+            name="븜 경험치v1 <캐릭터 이름>",
+            value="메이플스토리 캐릭터의 경험치 그래프를 조회합니다. (구버전)\n*최근 7일간 경험치 변화를 그래프로 보여줘양*\n ",
+            inline=False
+        )
+        embed.add_field(
             name="븜 코디 <캐릭터 이름> (개발중)",
             value="메이플스토리 캐릭터의 코디(외형) 정보를 조회합니다.\n*캐릭터가 착용중인 코디 아이템을 보여줘양*\n ",
             inline=False

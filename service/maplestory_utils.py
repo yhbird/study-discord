@@ -82,7 +82,9 @@ def get_httpx_client() -> httpx.AsyncClient:
 
 
 async def general_request_handler_nexon(request_path: str, headers: Optional[dict] = None) -> dict:
-    """Nexon Open API의 일반적인 요청을 처리하는 비동기 함수(v2)
+    """Nexon Open API의 일반적인 요청을 처리하는 비동기 함수(v2)  
+
+    API 초당 호출 횟수 제한 (RPS)에 걸리지 않도록 Rate Limiter 적용
 
     Args:
         request_path (str): 요청할 경로
@@ -98,8 +100,10 @@ async def general_request_handler_nexon(request_path: str, headers: Optional[dic
         request_headers.update(headers)
 
     response = await client.get(request_path, headers=request_headers)
+    retry_times = 0
+    retry_times_limit = 5
 
-    if response.status_code == 429:
+    while retry_times < retry_times_limit and response.status_code == 429:
         retry_after = response.headers.get("Retry-After")
         try:
             wait_time = int(retry_after) if retry_after else 1
@@ -107,6 +111,10 @@ async def general_request_handler_nexon(request_path: str, headers: Optional[dic
             wait_time = 1
         await asyncio.sleep(wait_time)
         response = await client.get(request_path, headers=request_headers)
+        retry_times += 1
+
+        if retry_times == retry_times_limit:
+            raise NexonAPITooManyRequests("Nexon API 요청 초과로 실패했어양...")
 
     if response.status_code == 200:
         try:
@@ -685,7 +693,79 @@ async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tup
     return return_data
 
 
-async def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["..."]]:
+async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tuple[str, int, str]]:
+    """메이플 스토리 캐릭터의 1주일 간 경험치 추세 데이터 수집_v2
+    
+    Args:
+        character_ocid (str): 캐릭터 고유 ID
+
+    Returns:
+        List[Tuple[str, int, float]]: 날짜, 레벨, 경험치 퍼센트 데이터 (1주일치)
+        (예: ("2023-10-01", 250, "75.321%"))
+
+    Raises:
+        1일전 데이터 호출 실패한 경우: 2일전 데이터 호출
+        NexonAPIError: API 호출 오류
+
+    Reference:
+        https://openapi.nexon.com/ko/game/maplestory/?id=14
+    """
+
+    kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))
+    if kst_now.hour < 6:
+        time_offset: int = 2
+    else:
+        time_offset: int = 1
+    
+    start_date: datetime = datetime.now(tz=timezone("Asia/Seoul")).date() - timedelta(days=time_offset)
+    MAX_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
+
+    if search_end < MAX_SEARCH_END:
+        search_end = MAX_SEARCH_END
+
+    search_index_date: datetime = start_date
+    search_end_date: datetime = search_end.date()
+    return_data: List[Tuple[str, int, str]] = []
+    search_flag_exp = 0
+
+    while len(return_data) < 7 and search_index_date >= search_end_date:
+        param_date: str = search_index_date.strftime("%Y-%m-%d")
+        basic_info_data: dict = await get_basic_info(ocid, date_param=param_date)
+        character_level: int = (
+            int(basic_info_data.get("character_level", -1))
+            if basic_info_data.get("character_level") is not None
+            else -1
+        )
+        character_exp_rate: str = (
+            str(basic_info_data.get("character_exp_rate")).strip()
+            if basic_info_data.get("character_exp_rate") is not None
+            else "0.000%"
+        )
+        character_exp: int = (
+            int(basic_info_data.get("character_exp", -1))
+            if basic_info_data.get("character_exp") is not None
+            else -1
+        )
+
+        # 경험치가 변동된 경우에만 데이터 추가
+        if character_exp != search_flag_exp:
+            return_data.append((param_date, character_level, character_exp_rate))
+            search_flag_exp = character_exp
+
+        # 7일치 데이터 수집 완료 시 종료
+        if len(return_data) >= 7:
+            break
+
+        # 검색 종료일 도달 시 종료
+        if search_index_date == search_end_date:
+            break
+        else:
+            search_index_date -= timedelta(days=1)
+
+    return return_data
+
+
+async def get_basic_info(ocid: str, date_param: Optional[str] = None) -> Dict[str, str | int | bool | Literal["..."]]:
     """메이플스토리 캐릭터 기본 정보 데이터를 가져와서 가공하는 함수
 
     Args:
@@ -697,7 +777,10 @@ async def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["...
     character_ocid: str = ocid
 
     service_url = maplestory_service_url.basic_info
-    requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
+    if date_param is not None and isinstance(date_param, str):
+        requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}&date={date_param}"
+    else:
+        requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
 
     response_data: dict = await general_request_handler_nexon(requests_url)
 
@@ -801,6 +884,7 @@ async def get_basic_info(ocid: str) -> Dict[str, str | int | bool | Literal["...
             if response_data.get('character_access_flag') is not None
             else "알수없음"
         )
+
         if character_access_flag == "true":
             character_access_flag = True
         elif character_access_flag == "false":
