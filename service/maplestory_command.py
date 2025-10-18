@@ -46,7 +46,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         return 
     
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         basic_info, character_popularity = await asyncio.gather(
             get_basic_info(character_ocid),
             get_popularity(character_ocid) 
@@ -392,7 +392,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
     try:
-        character_ocid = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid = await ocid_resolver.resolve(character_name)
         basic_info, stat_info, character_popularity = await asyncio.gather(
             get_basic_info(character_ocid),
             get_stat_info(character_ocid),
@@ -693,7 +693,7 @@ async def maple_ability_info(ctx: commands.Context, character_name: str) -> None
         return
     
     try:
-        character_ocid = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid = await ocid_resolver.resolve(character_name)
         
         # 동기 함수 병렬 실행
         ability_info, basic_info = await asyncio.gather(
@@ -811,7 +811,7 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
 
     except NexonAPIBadRequest as e:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -836,10 +836,10 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     
     # 캐릭터 월드/생성일 확인
     try:
-        basic_info: dict = await asyncio.to_thread(get_basic_info, character_ocid)
+        basic_info: dict = await get_basic_info(character_ocid)
     except NexonAPIBadRequest as e:
-        await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' detail info not found")
+        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+        raise CommandFailure(f"Character '{character_name}' basic info not found")
     except NexonAPIForbidden as e:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
@@ -913,7 +913,7 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         character_basic_info = await get_basic_info(character_ocid)
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -1068,7 +1068,7 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     
     # 캐릭터 basic 정보 조회 (OCID 포함)
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         basic_info, cash_equipment_info, beauty_equipment_info = await asyncio.gather(
             get_basic_info(character_ocid),
             get_cash_equipment_info(character_ocid),
@@ -1095,6 +1095,7 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
         str(basic_info.get('character_world')).strip()
         if basic_info.get('character_world') is not None else '알수없음'
     )
+    character_gender: str | Literal["제로"] = basic_info.get('character_gender')
 
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
@@ -1195,8 +1196,13 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     embed: discord.Embed = discord.Embed(
         title=embed_title,
         description=f"<뷰티 정보>\n{embed_description_beauty}\n\n<코디 정보>\n{embed_description_cordinate}",
-        color=discord.Colour.from_rgb(255, 182, 193)  # light pink
     )
+    if character_gender in ["남성", "남"]:
+        embed.colour = discord.Colour.from_rgb(0, 128, 255)
+    elif character_gender in ["여성", "여"]:
+        embed.colour = discord.Colour.from_rgb(239, 111, 148)
+    else:
+        embed.colour = discord.Colour.from_rgb(128, 128, 128)
     embed.set_image(url=character_image_url)
     await ctx.send(embed=embed)
 
@@ -1218,7 +1224,7 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         character_basic_info = await get_basic_info(character_ocid)
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -1391,7 +1397,7 @@ async def maple_cordinate_history(ctx: commands.Context, character_name: str) ->
     
     # 캐릭터 basic 정보 조회 (OCID 포함)
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         basic_info, cash_equipment_info = await asyncio.gather(
             get_basic_info(character_ocid),
             get_cash_equipment_info(character_ocid)
