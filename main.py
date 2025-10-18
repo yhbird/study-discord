@@ -122,6 +122,13 @@ async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
 async def run_api_maple_xp_history_v1(ctx: commands.Context, character_name: str):
     await map_command.maple_xp_history(ctx, character_name)
 
+@bot.command(name="코디", usage="캐릭터명", help="메이플스토리 캐릭터의 현재 코디 이미지를 조회해양. 예: `븜 코디 마법사악`")
+async def run_api_maple_cash_equipment_info(ctx: commands.Context, character_name: str):
+    await map_command.maple_cash_equipment_info(ctx, character_name)
+
+@bot.command(name="컬렉션", usage="캐릭터명", help="메이플스토리 캐릭터의 코디 모음 이미지를 만들어줘양(최대 8개). 예: `븜 컬렉션 마법사악`")
+async def run_api_maple_cordinate_history(ctx: commands.Context, character_name: str):
+    await map_command.maple_cordinate_history(ctx, character_name)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")

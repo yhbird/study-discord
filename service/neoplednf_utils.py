@@ -41,6 +41,13 @@ class dnf_timeline_codes:
     reward_clear_dungeon_card: int = 513 # 던전 카드 보상
 
 
+class placeholder_image_path:
+    dnf_character_image: Path = Path("assets/imags/character_image_sample.png")
+    dnf_item_icon_rare: Path = Path("assets/icon/dnf_rare_equip.png")
+    dnf_item_icon_unique: Path = Path("assets/icon/dnf_unique_equip.png")
+    dnf_item_icon_legendary: Path = Path("assets/icon/dnf_legendary_equip.png")
+    dnf_item_icon_epic: Path = Path("assets/icon/dnf_epic_equip.png")
+
 class neople_api_limiter:
     def __init__(self, max_calls: int = NEOPLE_API_RPS_LIMIT, period: float = 1.0):
         self.max_calls = max_calls
@@ -761,7 +768,7 @@ SLOT_GRID = [
     ("보조장비", (2, 2)), ("귀걸이", (2, 3)), ("마법석", (3, 3)),
 ]
 
-EQUIPMENT_PLACEHOLDER_ICON = Path("assets/icon/dnf_rare_equip.png")
+EQUIPMENT_PLACEHOLDER_ICON = placeholder_image_path.dnf_item_icon_rare
 CHARACTER_FRAME_LEFT = 10
 CHARACTER_FRAME_TOP = 10
 CHARACTER_FRAME_SIZE = (200, 230)
@@ -825,7 +832,7 @@ def _load_icon_bytes(item_id: Optional[str]) -> io.BytesIO:
 def build_equipment_board(
     item_ids: Dict[str, Optional[str]],
     character_image: Optional[io.BytesIO] = None,
-):
+) -> io.BytesIO:
     """던전앤파이터 장비창 이미지 생성
 
     Args:

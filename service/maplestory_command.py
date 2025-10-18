@@ -46,7 +46,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         return 
     
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         basic_info, character_popularity = await asyncio.gather(
             get_basic_info(character_ocid),
             get_popularity(character_ocid) 
@@ -101,8 +101,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
-        character_image_look: str = character_image.split("/character/look/")[-1]
-        character_image_url: str = f"{NEXON_CHARACTER_IMAGE_URL}{character_image_look}.png"
+        character_image_url: str = get_character_image_url(character_image)
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -393,7 +392,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
     try:
-        character_ocid = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid = await ocid_resolver.resolve(character_name)
         basic_info, stat_info, character_popularity = await asyncio.gather(
             get_basic_info(character_ocid),
             get_stat_info(character_ocid),
@@ -449,8 +448,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
-        character_image_look: str = character_image.split("/character/look/")[-1]
-        character_image_url: str = f"{NEXON_CHARACTER_IMAGE_URL}{character_image_look}.png"
+        character_image_url: str = get_character_image_url(character_image)
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -596,7 +594,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
         character_stat_drop_str: str = f"{character_stat_drop}%"
     else:
         character_stat_drop_str: str = "몰라양"
-    character_stat_meso: str | Literal["알수없음"] = stat_info.get('stat_meso')
+    character_stat_meso: str | Literal["알수없음"] = stat_info.get('stat_mesos')
     if character_stat_meso != "알수없음":
         character_stat_meso_str: str = f"{character_stat_meso}%"
     else:
@@ -695,7 +693,7 @@ async def maple_ability_info(ctx: commands.Context, character_name: str) -> None
         return
     
     try:
-        character_ocid = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid = await ocid_resolver.resolve(character_name)
         
         # 동기 함수 병렬 실행
         ability_info, basic_info = await asyncio.gather(
@@ -813,7 +811,7 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await asyncio.to_thread(ocid_resolver.ocid_resolve, character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
 
     except NexonAPIBadRequest as e:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -838,10 +836,10 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     
     # 캐릭터 월드/생성일 확인
     try:
-        basic_info: dict = await asyncio.to_thread(get_basic_info, character_ocid)
+        basic_info: dict = await get_basic_info(character_ocid)
     except NexonAPIBadRequest as e:
-        await ctx.send(f"캐릭터 '{character_name}'의 상세 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' detail info not found")
+        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+        raise CommandFailure(f"Character '{character_name}' basic info not found")
     except NexonAPIForbidden as e:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
@@ -915,7 +913,7 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         character_basic_info = await get_basic_info(character_ocid)
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -1070,7 +1068,7 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     
     # 캐릭터 basic 정보 조회 (OCID 포함)
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         basic_info, cash_equipment_info, beauty_equipment_info = await asyncio.gather(
             get_basic_info(character_ocid),
             get_cash_equipment_info(character_ocid),
@@ -1097,23 +1095,116 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
         str(basic_info.get('character_world')).strip()
         if basic_info.get('character_world') is not None else '알수없음'
     )
+    character_gender: str | Literal["제로"] = basic_info.get('character_gender')
+
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
-        character_image_url: str = f"{character_image}?emotion=E00&width=150&height=150"
+        character_image_url: str = get_character_image_url(character_image)
 
-    character_class: str | Literal["기타"] = cash_equipment_info.get('character_class', '기타')
-    if cash_equipment_info.get("current_preset_no") is None:
-        preset_not_found_msg: str = "프리셋 정보를 찾을 수 없어 1번 프리셋으로 조회할게양!"
-        preset_no: int = 1
+    look_mode: str = cash_equipment_info.get('character_look_mode')
+
+    current_cordinate_info: Dict[str, Dict[str, str]] = get_current_cash_equipment_info(
+        current_cash_equipment_data=cash_equipment_info,
+    )
+
+    current_beauty_info :Dict[str, Dict[str, str]] = get_current_beauty_equipment_info(
+        current_beauty_equipment_data=beauty_equipment_info,
+        look_mode=look_mode,
+    )
+
+    current_hair = current_beauty_info.get("hair")
+    current_face = current_beauty_info.get("face")
+    current_skin = current_beauty_info.get("skin")
+
+    # 헤어 정보 조회
+    current_hair_name: str = current_hair.get("hair_name")
+    current_hair_base_color: str = current_hair.get("base_color")
+    current_hair_mix_color: str = current_hair.get("mix_color")
+    current_hair_mix_rate: str = current_hair.get("mix_rate")
+    if current_hair_mix_color is None:
+        current_hair_name_str: str = current_hair_name
     else:
-        preset_no: int = cash_equipment_info.get('current_preset_no')
-        if preset_no not in [1, 2, 3]:
-            preset_no = 1
+        current_hair_base_rate: int = 100 - int(current_hair_mix_rate)
+        # 앞에 "OO색 " 문자열 제거
+        hair_name: str = " ".join(current_hair_name.split(" ")[1:])
+        color_mix_str: str = (
+            f"({current_hair_base_color} {current_hair_base_rate}% + "
+            f"{current_hair_mix_color} {current_hair_mix_rate}%)"
+        )
+        current_hair_name_str: str = f"믹스 {hair_name} {color_mix_str}"
 
-    if character_class == "제로":
-        # 제로일 경우 알파와 베타의 base 코디 정보도 같이 표시
-        alpha_equip_base: List[Dict[str, Any]] = cash_equipment_info.get('cash_item_equipment_base', [])
-        beta_equip_base: List[Dict[str, Any]] = cash_equipment_info.get('additional_cash_item_equipment_base', [])
+    # 얼굴 정보 조회
+    current_face_name: str = current_face.get("face_name")
+    current_face_base_color: str = current_face.get("base_color")
+    current_face_mix_color: str = current_face.get("mix_color")
+    current_face_mix_rate: str = current_face.get("mix_rate")
+    if current_face_mix_color is None:
+        current_face_name_str: str = f"{current_face_base_color} {current_face_name}"
+    else:
+        current_face_base_rate: int = 100 - int(current_face_mix_rate)
+        color_mix_str: str = (
+            f"({current_face_base_color} {current_face_base_rate}% + "
+            f"{current_face_mix_color} {current_face_mix_rate}%)"
+        )
+        current_face_name_str: str = f"믹스 {current_face_name} {color_mix_str}"
+
+    # 스킨 정보 조회
+    current_skin_name: str = current_skin.get("skin_name")
+    current_skin_color_style: str = current_skin.get("color_style")
+    if current_skin_color_style is None:
+        current_skin_name_str: str = current_skin_name
+    else:
+        current_skin_hue = current_skin.get("hue")
+        current_skin_saturation = current_skin.get("saturation")
+        current_skin_brightness = current_skin.get("brightness")
+        current_skin_name_str: str = (
+            f"{current_skin_name}\n({current_skin_color_style})"
+            f" [색조: {current_skin_hue}, 채도: {current_skin_saturation}, 명도: {current_skin_brightness}]"
+        )
+    
+    # 뷰티 정보 Embed 문자열 생성
+    embed_description_beauty: str = (
+        f"- 헤어: {current_hair_name_str}\n"
+        f"- 얼굴: {current_face_name_str}\n"
+        f"- 스킨: {current_skin_name_str}"
+    )
+
+    current_cordinate_descriptions: List[str] = []
+    for item_slot, item_info in current_cordinate_info.items():
+        part_name: str = item_info.get("part_name")
+        item_name: str = item_info.get("item_name")
+        item_label: str = item_info.get("cash_label")
+        item_gender: str = item_info.get("item_gender")
+        freestyle_flag: str = item_info.get("freestyle_flag")
+        if item_label == "없음":
+            item_label_str: str = ""
+        else:
+            item_label_str: str = f"[{item_label}]"
+        if item_gender == "공용":
+            item_gender_str: str = ""
+        else:
+            item_gender_str: str = f"({item_gender})"
+        if freestyle_flag == "0":
+            freestyle_str: str = ""
+        else:
+            freestyle_str: str = " (프리스타일 쿠폰 적용중)"
+        item_name_str: str = f"- {item_slot}({part_name}): {item_gender_str}{item_name}{item_label_str}{freestyle_str}"
+        current_cordinate_descriptions.append(item_name_str)
+
+    embed_description_cordinate: str = "\n".join(current_cordinate_descriptions)
+    embed_title: str = f"{character_world}월드 '{character_name}' 용사님의 현재 코디 정보에양!!"
+    embed: discord.Embed = discord.Embed(
+        title=embed_title,
+        description=f"<뷰티 정보>\n{embed_description_beauty}\n\n<코디 정보>\n{embed_description_cordinate}",
+    )
+    if character_gender in ["남성", "남"]:
+        embed.colour = discord.Colour.from_rgb(0, 128, 255)
+    elif character_gender in ["여성", "여"]:
+        embed.colour = discord.Colour.from_rgb(239, 111, 148)
+    else:
+        embed.colour = discord.Colour.from_rgb(128, 128, 128)
+    embed.set_image(url=character_image_url)
+    await ctx.send(embed=embed)
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -1133,7 +1224,7 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
     """
     # 캐릭터 OCID 조회
     try:
-        character_ocid: str = await ocid_resolver.ocid_resolve(character_name)
+        character_ocid: str = await ocid_resolver.resolve(character_name)
         character_basic_info = await get_basic_info(character_ocid)
     except NexonAPICharacterNotFound:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
@@ -1286,3 +1377,83 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
         file = discord.File(buffer, filename=f"{character_ocid}_{now_kst}.png")
         await ctx.send(content=f"캐릭터 생성일: {character_date_create_str}", file=file)
         buffer.close()
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 컬렉션")
+async def maple_cordinate_history(ctx: commands.Context, character_name: str) -> None:
+    """메이플스토리 캐릭터 코디 컬렉션 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 캐릭터 이름
+
+    Note:
+        - 캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 조회
+        - 메코디 사이트의 코디 컬렉션, 룩복 기능 참고
+    """
+    if ctx.message.author.bot:
+        return
+    
+    # 캐릭터 basic 정보 조회 (OCID 포함)
+    try:
+        character_ocid: str = await ocid_resolver.resolve(character_name)
+        basic_info, cash_equipment_info = await asyncio.gather(
+            get_basic_info(character_ocid),
+            get_cash_equipment_info(character_ocid)
+        )
+    except NexonAPICharacterNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
+        return
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 코디 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character cash equipment info not found")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
+    
+    character_name: str = basic_info.get('character_name', character_name)
+    character_world: str = (
+        str(basic_info.get('character_world')).strip()
+        if basic_info.get('character_world') is not None else '알수없음'
+    )
+    character_date_create_str: str = (
+        str(basic_info.get('character_date_create')).strip()
+        if basic_info.get('character_date_create') is not None else '알수없음'
+    )
+    if character_date_create_str != '알 수 없음':
+        character_date_create: datetime = datetime.strptime(
+            character_date_create_str.split("T")[0], "%Y-%m-%d"
+        ) 
+
+    if character_date_create_str != '알수없음':
+        create_date = character_date_create_str.split("T")[0]  # "2023-12-21" 형태로 변환
+        create_date_ymd = create_date.split("-")
+        content_create_date: str = (
+            f"{int(create_date_ymd[0])}년 "
+            f"{int(create_date_ymd[1])}월 "
+            f"{int(create_date_ymd[2])}일"
+        )
+
+    cordinate_collections: List[Tuple[str, str]] = await get_cordinate_collections(character_ocid, character_date_create)
+    if not cordinate_collections or len(cordinate_collections) == 0:
+        await ctx.send(f"캐릭터 '{character_name}'의 코디 컬렉션 정보를 찾을 수 없어양!")
+        return
+    
+    collection_title: str = f"{character_world}월드 '{character_name}' 용사님의 코디 컬렉션"
+    cordinate_collections_image: io.BytesIO = await generate_cordinate_collection_image(cordinate_collections, collection_title)
+
+    if cordinate_collections_image is None:
+        await ctx.send(f"캐릭터 '{character_name}'의 코디 컬렉션 이미지 생성에 실패했어양!")
+        return
+    else:
+        now_kst: str = datetime.now(tz=timezone("Asia/Seoul")).strftime("%Y%m%d")
+        file = discord.File(cordinate_collections_image, filename=f"{character_ocid}_cordinate_{now_kst}.png")
+        await ctx.send(content=f"캐릭터 생성일: {content_create_date}", file=file)
+        cordinate_collections_image.close()

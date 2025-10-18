@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import asyncio
 import hashlib
 import random
@@ -13,18 +14,22 @@ from urllib.parse import quote
 from collections import deque
 from datetime import datetime, timedelta
 from pytz import timezone
+from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
-from config import NEXON_API_RPS_LIMIT # Nexon Open API Rate Limit 방지용 시간 간격
+from config import NEXON_API_RPS_LIMIT, NEXON_CHARACTER_IMAGE_URL # Nexon Open API Rate Limit 방지용 시간 간격
 from data.json.fortune_message_table import fortune_message_table_raw
 
 from typing import Literal, Optional, Dict, List, Tuple, Any
 
 from exceptions.client_exceptions import *
 from utils.time import parse_iso_string
+from utils.image import get_image_bytes
+
+API_MAX_DATE_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
 
 
-class maplestory_service_url:
+class maplestory_urls:
     ocid : str = "/maplestory/v1/id"
     pop : str = "/maplestory/v1/character/popularity"
     ability : str = "/maplestory/v1/character/ability"
@@ -34,6 +39,29 @@ class maplestory_service_url:
     stat_info: str = "/maplestory/v1/character/stat"
     cash_equipment: str = "/maplestory/v1/character/cashitem-equipment"
     beauty_equipment: str = "/maplestory/v1/character/beauty-equipment"
+    character_image_url: str = NEXON_CHARACTER_IMAGE_URL
+
+
+class cordinate_vars:
+    # 이미지 크기 및 설정
+    image_size = 180
+    caption_height = 28
+    images_grid_cols = 4
+    images_grid_rows = 2
+    cell_padding_size = 16
+    board_margin = 24
+    cell_radius = 10
+    bg_color = (255, 255, 255, 255)
+    fg_color = (33, 37, 41, 255)
+    cell_bg_color = (255, 255, 255, 255)
+    cell_shadow = (0, 0, 0, 40)
+    shadow_offset = (0, 2)
+    title_font_path = "./assets/font/Maplestory_Bold.ttf"
+    caption_font_path = "./assets/font/Maplestory_Light.ttf"
+    default_font_path = "./assets/font/NanumGothic.ttf"
+    font_size = 18
+    title_font_padding = 12
+    place_holder_image_path = "./assets/image/maplestory_character_image_sample.png"
 
 
 class APIRateLimiter:
@@ -79,6 +107,21 @@ def get_httpx_client() -> httpx.AsyncClient:
             headers={"x-nxopen-api-key": NEXON_API_KEY}
         )
     return _httpx_client
+
+
+def get_character_image_url(character_image: str) -> str:
+    """캐릭터 이미지 URL 생성 함수
+    캐릭터 정보로 얻은 이미지 URL을 avatar.maplestory.nexon.com 도메인으로 변경
+
+
+    Args:
+        character_image (str): 캐릭터 이미지 파일명
+
+    Returns:
+        str: 캐릭터 이미지 URL
+    """
+    look_value = character_image.split("/character/look/")[-1]
+    return f"{maplestory_urls.character_image_url}{look_value}.png"
 
 
 async def general_request_handler_nexon(request_path: str, headers: Optional[dict] = None) -> dict:
@@ -141,7 +184,7 @@ async def get_ocid(character_name: str) -> str:
         Reference에 있는 URL 참조
         (예외처리는 함수 밖에서 처리)
     """
-    service_url = maplestory_service_url.ocid
+    service_url = maplestory_urls.ocid
     url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
     try:
@@ -169,7 +212,7 @@ async def get_popularity(ocid: str) -> str:
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    service_url = maplestory_service_url.pop
+    service_url = maplestory_urls.pop
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     try:
         response_data: dict = await general_request_handler_nexon(request_url)
@@ -188,7 +231,7 @@ async def get_ability_info(ocid: str) -> dict:
     Returns:
         dict: 캐릭터의 어빌리티 정보
     """
-    service_url = maplestory_service_url.ability
+    service_url = maplestory_urls.ability
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     response_data: dict = await general_request_handler_nexon(request_url)
     return response_data
@@ -397,7 +440,7 @@ async def get_notice(target_event: str = None, recent_notice: bool = True) -> Li
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=24
     """
-    service_url = maplestory_service_url.notice
+    service_url = maplestory_urls.notice
     request_url = f"{NEXON_API_HOME}{service_url}"
     response_data: dict = await general_request_handler_nexon(request_url)
     notices: list = response_data.get('event_notice', [])
@@ -496,7 +539,7 @@ async def get_notice_details(notice_id: str) -> dict:
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    service_url = maplestory_service_url.notice_detail
+    service_url = maplestory_urls.notice_detail
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
     response_data: dict = await general_request_handler_nexon(request_url)
     return response_data
@@ -675,7 +718,7 @@ async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tup
     return_data: List[Tuple[str, int, str]] = []
 
     for param_date in date_list:
-        request_service_url: str = maplestory_service_url.basic_info
+        request_service_url: str = maplestory_urls.basic_info
         request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
         response_data: dict = await general_request_handler_nexon(request_url)
         character_level: int = (
@@ -717,20 +760,21 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
     else:
         time_offset: int = 1
     
-    start_date: datetime = datetime.now(tz=timezone("Asia/Seoul")).date() - timedelta(days=time_offset)
-    MAX_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
+    start_date: datetime = kst_now.date() - timedelta(days=time_offset)
 
-    if search_end < MAX_SEARCH_END:
-        search_end = MAX_SEARCH_END
+    if search_end < API_MAX_DATE_SEARCH_END:
+        search_end = API_MAX_DATE_SEARCH_END
 
     search_index_date: datetime = start_date
     search_end_date: datetime = search_end.date()
     return_data: List[Tuple[str, int, str]] = []
     search_flag_exp = 0
 
+    # 경험치 변동이 있는 최근 7일치 데이터 수집
     while len(return_data) < 7 and search_index_date >= search_end_date:
-        param_date: str = search_index_date.strftime("%Y-%m-%d")
-        basic_info_data: dict = await get_basic_info(ocid, date_param=param_date)
+        index_date: str = search_index_date.strftime("%Y-%m-%d")
+
+        basic_info_data: dict = await get_basic_info(ocid, date_param=index_date)
         character_level: int = (
             int(basic_info_data.get("character_level", -1))
             if basic_info_data.get("character_level") is not None
@@ -749,7 +793,7 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
 
         # 경험치가 변동된 경우에만 데이터 추가
         if character_exp != search_flag_exp:
-            return_data.append((param_date, character_level, character_exp_rate))
+            return_data.append((index_date, character_level, character_exp_rate))
             search_flag_exp = character_exp
 
         # 7일치 데이터 수집 완료 시 종료
@@ -759,8 +803,9 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
         # 검색 종료일 도달 시 종료
         if search_index_date == search_end_date:
             break
-        else:
-            search_index_date -= timedelta(days=1)
+        
+        # 1일 전으로 이동
+        search_index_date -= timedelta(days=1)
 
     return return_data
 
@@ -776,7 +821,7 @@ async def get_basic_info(ocid: str, date_param: Optional[str] = None) -> Dict[st
     """
     character_ocid: str = ocid
 
-    service_url = maplestory_service_url.basic_info
+    service_url = maplestory_urls.basic_info
     if date_param is not None and isinstance(date_param, str):
         requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}&date={date_param}"
     else:
@@ -913,7 +958,7 @@ async def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없�
     Returns:
         dict: 가공된 캐릭터 상세 정보 데이터
     """
-    service_url = maplestory_service_url.stat_info
+    service_url = maplestory_urls.stat_info
     requests_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     response_data: dict = await general_request_handler_nexon(requests_url)
     stat_list: List[dict] = response_data.get('final_stat', [])
@@ -1201,7 +1246,11 @@ async def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없�
         return processed_stat_info
     
 
-async def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict] | Literal["기타"] | None]:
+async def get_cash_equipment_info(
+        ocid: str,
+        date_param: Optional[str] = None,
+        look_mode_pin: Optional[str] = None
+    ) -> Dict[str, str | int | List[dict] | Literal["기타"] | None]:
     """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 정보를 조회하는 함수
 
     Args:
@@ -1210,31 +1259,41 @@ async def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict]
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
-    service_url = maplestory_service_url.cash_equipment
-    request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    service_url = maplestory_urls.cash_equipment
+    if date_param is not None and isinstance(date_param, str):
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}&date={date_param}"
+    else:
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     response_data: dict = await general_request_handler_nexon(request_url)
+
     
     return_data = {
+        # 캐릭터 성별
         "character_gender": (
             str(response_data.get("character_gender")).strip()
             if response_data.get("character_gender") is not None
             else "기타"
         ),
+        # 캐릭터 직업
         "character_class": (
             str(response_data.get("character_class")).strip()
             if response_data.get("character_class") is not None
             else "기타"
         ),
+        # 캐릭터 외형 모드 (0: 기본, 1: 드레스업/베타)
         "character_look_mode": (
-            str(response_data.get("character_look_mode")).strip()
-            if response_data.get("character_look_mode") is not None
-            else "0"  # 기본 외형 모드
+            look_mode_pin
+            if look_mode_pin is not None and isinstance(look_mode_pin, str)
+            else response_data.get("character_look_mode")  # 기본 외형 모드
         ),
+
+        # 현재 프리셋 번호
         "current_preset_no": (
             int(response_data.get("preset_no"))
             if response_data.get("preset_no") is not None
             else None
         ),
+        # 장착중인 캐시 아이템 정보
         "equipment_base_list": (
             response_data.get("cash_item_equipment_base", [])
         ),
@@ -1242,6 +1301,8 @@ async def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict]
             response_data.get("additional_cash_item_equipment_base", [])
         )
     }
+    if return_data["character_look_mode"] is None:
+        return_data["character_look_mode"] = "0"
     preset = return_data.get("current_preset_no") or 1
     if return_data["character_look_mode"] == "1":
         # 드레스업 혹은 베타 모드인 경우, additional_preset 사용
@@ -1255,76 +1316,310 @@ async def get_cash_equipment_info(ocid: str) -> Dict[str, str | int | List[dict]
     return return_data
 
 
-def parse_equipment_info(equipment_data: List[Dict[str, Any]]) -> Dict[str, str]:
+def get_current_beauty_equipment_info(
+        current_beauty_equipment_data: Dict[str, str | Dict[str, str] | None],
+        look_mode: str = "0"
+    ) -> Dict[str, Dict[str, str]]:
+    """캐릭터의 뷰티(헤어/성형) 정보 가공하는 함수
+
+    Args:
+        beauty_equipment_data (Dict[str, str | Dict[str, str] | None]): 캐릭터 뷰티 장비 정보
+        look_mode (str, optional): 캐릭터 외형 모드 (0: 기본, 1: 드레스업/베타). Defaults to "0".
+
+    Returns:
+        Dict[str, str]: 가공된 뷰티 장비 정보
+    """
+    if look_mode == "0":
+        hair_info = current_beauty_equipment_data.get("character_hair")
+        face_info = current_beauty_equipment_data.get("character_face")
+        skin_info = current_beauty_equipment_data.get("character_skin")
+    else:
+        hair_info = current_beauty_equipment_data.get("additional_character_hair")
+        face_info = current_beauty_equipment_data.get("additional_character_face")
+        skin_info = current_beauty_equipment_data.get("additional_character_skin")
+
+    return_info: Dict[str, Dict[str, str]] = {
+        "hair" : hair_info,
+        "face" : face_info,
+        "skin" : skin_info
+    }
+
+    return return_info
+
+
+def get_current_cash_equipment_info(
+        current_cash_equipment_data: Dict[str, str | int | List[dict] | Literal["기타"] | None]
+    ) -> Dict[str, Dict[str, str]]:
     """캐릭터의 장착중인 캐시 아이템 정보를 가공하는 함수
 
     Args:
-        equipment_data (List[Dict[str, Any]]): 장비 아이템 정보 리스트
+        cash_equipment_data (Dict[str, str | int | List[dict] | Literal["기타"] | None]): 캐릭터 장착중인 캐시 아이템 정보
 
     Returns:
-        Dict[str, str]: 부위별 장착 캐시 아이템 정보
+        Dict[str, Dict[str, str]]: 부위별 장착 캐시 아이템 정보
     """
-    equipment_slots = [
-        "눈장식", "장갑", "무기", "반지1", "반지2", "반지3", "반지4",
-        "보조무기", "모자", "망토", "얼굴장식", "상의", "신발", "귀고리", "하의"
-    ]
-    if isinstance(equipment_data, list) and equipment_data:
-        equipment_info: Dict[str, str] = {}
-        for item in equipment_data:
-            item_part: str = (
-                str(item.get("cash_item_equipment_part")).strip()
-                if item.get("cash_item_equipment_part") is not None else "알수없음"
-            )
-            item_slot: str = (
-                str(item.get("cash_item_equipment_slot")).strip()
-                if item.get("cash_item_equipment_slot") is not None else "알수없음"
-            )
-            if item_slot in equipment_slots:
-                item_name: str = (
-                    str(item.get("cash_item_name")).strip()
-                    if item.get("cash_item_name") is not None else "알수없음"
-                )
-                item_label: str = (
-                    str(item.get("cash_item_label")).strip()
-                    if isinstance(item.get("cash_item_label"), str) else "알수없음"
-                )
-                # 아이템 기간제 여부 확인
-                item_date_expire: Optional[str] = (
-                    item.get("date_expire")
-                    if isinstance(item.get("date_expire"), str) else None
-                )
-                # 아이템 옵션 및 기간 정보
-                item_options: Optional[List[Dict[str, str]]] = (
-                    item.get("cash_item_option")
-                    if isinstance(item.get("cash_item_option"), list) else None
-                )
-                item_options_expire: Optional[str] = (
-                    item.get("date_option_expire")
-                    if isinstance(item.get("date_option_expire"), str) else None
-                )
-                # 컬러링 프리즘 정보
-                item_color: Optional[Dict[str, str]] = (
-                    item.get("cash_item_color")
-                    if isinstance(item.get("cash_item_color"), dict) else None
-                )
+    return_info: Dict[str, Dict[str, str]] = {}
+    base_equipment_map: List[Dict[str, Any]] = current_cash_equipment_data.get("equipment_base_list")
+    for base in base_equipment_map:
+        part_name: str = base.get("cash_item_equipment_part", "알수없음") # 장착 장비 종류
+        slot_name: str = base.get("cash_item_equipment_slot", "알수없음") # 장착 부위
+        item_name: str = base.get("cash_item_name", "알수없음") # 캐시 아이템 이름
+        item_icon: str = base.get("cash_item_icon", "") # 캐시 아이템 아이콘 URL
+        cash_label: str = base.get("cash_label") or "없음"
+        cash_coloring_prism: str = base.get("cash_coloring_prism") or "없음"
+        item_gender: str = base.get("item_gender") or "공용"
+        freestyle_flag: str = base.get("freestyle_flag") or "0" # 프리스타일 쿠폰 사용 여부
 
-                display_slot_name = f"{item_slot} ({item_part})"
-                display_item_name = f"[{item_label}] {item_name}" if item_label != "알수없음" else item_name
-                equipment_info[item_slot] = {
-                    "slot_name": display_slot_name,
-                    "item_name": display_item_name,
+        return_info[slot_name] = {
+            "part_name": part_name,
+            "item_name": item_name,
+            "item_icon": item_icon,
+            "cash_label": cash_label,
+            "cash_coloring_prism": cash_coloring_prism,
+            "item_gender": item_gender,
+            "freestyle_flag": freestyle_flag
+        }
 
-                }
+    look_equipment_map: List[Dict[str, Any]] = current_cash_equipment_data.get("equipment_look_list")
+    for look in look_equipment_map:
+        part_name: str = look.get("cash_item_equipment_part", "알수없음") # 장착 장비 종류
+        slot_name: str = look.get("cash_item_equipment_slot", "알수없음") # 장착 부위
+        item_name: str = look.get("cash_item_name", "알수없음") # 캐시 아이템 이름
+        item_icon: str = look.get("cash_item_icon", "") # 캐시 아이템 아이콘 URL
+        cash_label: str = look.get("cash_label") or "없음"
+        cash_coloring_prism: str = look.get("cash_coloring_prism") or "없음"
+        item_gender: str = look.get("item_gender") or "공용"
+        freestyle_flag: str = look.get("freestyle_flag") or "0" # 프리스타일 쿠폰 사용 여부
+
+        # 덮어쓰기 처리
+        return_info[slot_name] = {
+            "part_name": part_name,
+            "item_name": item_name,
+            "item_icon": item_icon,
+            "cash_label": cash_label,
+            "cash_coloring_prism": cash_coloring_prism,
+            "item_gender": item_gender,
+            "freestyle_flag": freestyle_flag
+        }
+
+    return return_info
 
 
-async def get_beauty_equipment_info(ocid: str) -> Dict[str, Optional[str | Dict[str, str]]]:
+async def get_beauty_equipment_info(
+        ocid: str,
+        param_date: Optional[str] = None,
+    ) -> Dict[str, Optional[str | Dict[str, str]]]:
     """캐릭터의 뷰티(헤어/성형) 정보 조회
 
     Args:
         ocid (str): 캐릭터 OCID
     """
-    service_url = maplestory_service_url.beauty_equipment
-    request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
-    response_data: dict = general_request_handler_nexon(request_url)
+    service_url = maplestory_urls.beauty_equipment
+    if param_date is not None and isinstance(param_date, str):
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}&date={param_date}"
+    else:
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    response_data: dict = await general_request_handler_nexon(request_url)
 
     return response_data
+
+
+async def get_cordinate_collections(ocid: str, search_end: datetime) -> List[Tuple[str, str]]:
+    """캐릭터의 코디 목록 조회 (최대 8개, 멮지지 컬렉션 기능 참고)
+
+    Args:
+        ocid (str): 캐릭터 OCID
+
+    Returns:
+        io.BytesIO: 캐릭터 코디 목록 이미지
+    """
+    kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))
+
+    if kst_now.hour < 6:
+        time_offset: int = 2
+    else:
+        time_offset: int = 1
+
+    search_start_date: datetime = kst_now.date() - timedelta(days=time_offset)
+
+    if search_end < API_MAX_DATE_SEARCH_END:
+        search_end = API_MAX_DATE_SEARCH_END
+
+    # 1일전 캐릭터 외형 이미지 URL 수집
+    search_index_date: datetime = search_start_date
+    search_end_date: datetime = search_end.date()
+
+    cordinate_collections: List[Tuple[str, str]] = []
+    collections_length: int = 4 if NEXON_API_RPS_LIMIT == 5 else 8 # dev 환경에선 4개로 제한
+    daily_cordinate_info_list: List[Dict[str, Any]] = []
+    current_cash_info = await get_cash_equipment_info(ocid)
+    look_mode_pin: str = current_cash_info.get("character_look_mode", "0")
+
+    while len(cordinate_collections) < collections_length and search_index_date >= search_end_date:
+        index_date: str = search_index_date.strftime("%Y-%m-%d")
+
+        # index_date 기준 캐릭터 장착중인 캐시 아이템 정보 조회 -> 외형 모드 확인
+        cash_equipment_data: dict = await get_cash_equipment_info(ocid, date_param=index_date)
+        cash_equipment_data["character_look_mode"] = look_mode_pin  # 외형 모드 고정
+        beauty_equipment_data: dict = await get_beauty_equipment_info(ocid, param_date=index_date)
+
+        # 캐릭터 외관을 구성하는 정보 가공
+        cash_info = get_current_cash_equipment_info(cash_equipment_data)
+        beauty_info = get_current_beauty_equipment_info(beauty_equipment_data, look_mode=look_mode_pin)
+        # 중복을 체크하기 위한 형태로 변환
+        daily_cordinate_info = {
+            "cash_info": cash_info,
+            "beauty_info": beauty_info
+        }
+
+        # index_date 기준 캐릭터 기본 정보 조회 -> 이미지 URL 추출
+        basic_info_data: dict = await get_basic_info(ocid, date_param=index_date)
+        character_image: str = basic_info_data.get("character_image", "")
+        character_image_url = get_character_image_url(character_image)
+
+        # (중복체크) 중복하지 않은 dictionary 데이터만 리스트에 추가
+        if daily_cordinate_info not in daily_cordinate_info_list and character_image_url != "":
+            collections = (index_date, character_image_url)
+            cordinate_collections.append(collections)
+            daily_cordinate_info_list.append(daily_cordinate_info)
+
+        # 4개 코디 데이터 수집 완료 혹은 검색 종료일 도달 시 종료
+        if len(cordinate_collections) >= collections_length:
+            break
+
+        if search_index_date == search_end_date:
+            break
+
+        # 1일 전으로 이동
+        search_index_date -= timedelta(days=1)
+
+    # 코디 데이터가 없는 경우, 빈 리스트 반환
+    if not cordinate_collections:
+        return []
+    else:
+        return cordinate_collections
+
+
+def _load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    try:
+        if font_path:
+            return ImageFont.truetype(font_path, size)
+        else:
+            return ImageFont.truetype(cordinate_vars.default_font_path, size)
+    except Exception as e:
+        return ImageFont.load_default()
+    
+# Image 객체 생성
+def _rounded(im: Image.Image, rad: int) -> Image.Image:
+    if im.mode != "RGBA":
+        im = im.convert("RGBA")
+    w, h = im.size
+    mask = Image.new("L", (w, h), 0)
+    d = ImageDraw.Draw(mask)
+    d.rounded_rectangle([(0, 0), (w, h)], radius=rad, fill=255)
+    return_im = Image.new("RGBA", (w, h))
+    return_im.paste(im, (0, 0), mask)
+    return return_im
+
+async def _fetch_image(client: httpx.AsyncClient, url: str) -> Optional[Image.Image]:
+    try:
+        response = await client.get(url, timeout=10.0)
+        response.raise_for_status()
+        image = Image.open(io.BytesIO(response.content)).convert("RGBA")
+        return image
+    except (httpx.HTTPError, UnidentifiedImageError) as e:
+        return None
+
+def _placeholder() -> Image.Image:
+    return Image.open(cordinate_vars.place_holder_image_path).convert("RGBA")
+
+
+async def generate_cordinate_collection_image(collection: List[Tuple[str, str]], title: str) -> io.BytesIO:
+    """캐릭터의 코디 목록 이미지 생성
+
+    Args:
+        collection (List[Tuple[str, str]]): 캐릭터 코디 목록 데이터
+        title (str): 이미지 상단에 표시할 제목
+
+    Returns:
+        io.BytesIO: 캐릭터 코디 목록 이미지
+    """
+    if not isinstance(collection, list) or not collection:
+        raise ValueError("collection must be a non-empty list")
+
+    if not isinstance(title, str) or not title:
+        raise ValueError("title must be a non-empty string")
+
+    items = (collection[:8] or [])[: cordinate_vars.images_grid_cols * cordinate_vars.images_grid_rows]
+
+    # 캔버스 크기 계산
+    cell_w = cordinate_vars.image_size
+    cell_h = cordinate_vars.image_size + cordinate_vars.caption_height
+
+    n = len(items)
+    rows = math.ceil(n / cordinate_vars.images_grid_cols)
+    grid_w = cordinate_vars.images_grid_cols * cell_w + (cordinate_vars.images_grid_cols - 1) * cordinate_vars.cell_padding_size
+    grid_h = rows * cell_h + (rows - 1) * cordinate_vars.cell_padding_size
+    title_h = 0
+    font_title = None
+    if title:
+        title_font_size = cordinate_vars.font_size + 6
+        font_title = _load_font(font_path=cordinate_vars.title_font_path, size=title_font_size)
+        title_h = title_font_size + cordinate_vars.title_font_padding
+
+    canvas_w = grid_w + 2 * cordinate_vars.board_margin
+    canvas_h = grid_h + 2 * cordinate_vars.board_margin + title_h
+
+    # 캔버스 생성
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), cordinate_vars.bg_color)
+    draw = ImageDraw.Draw(canvas)
+
+    # 제목 렌더링
+    if title and font_title:
+        tb = draw.textbbox((0, 0), title, font=font_title)
+        tw, th = tb[2] - tb[0], tb[3] - tb[1]
+        tx = (canvas_w - tw) // 2
+        ty = cordinate_vars.board_margin
+        draw.text((tx, ty), title, font=font_title, fill=cordinate_vars.fg_color)
+        grid_origin_y = cordinate_vars.board_margin + title_h
+    else:
+        grid_origin_y = cordinate_vars.board_margin
+
+    # 이미지 다운로드
+    font_caption = _load_font(font_path=cordinate_vars.caption_font_path, size=cordinate_vars.font_size)
+
+    # 셀 안에 이미지 및 캡션 렌더링
+    for idx, (date_str, url) in enumerate(items):
+        row = idx // cordinate_vars.images_grid_cols
+        col = idx % cordinate_vars.images_grid_cols
+        x = cordinate_vars.board_margin + col * (cell_w + cordinate_vars.cell_padding_size)
+        y = grid_origin_y + row * (cell_h + cordinate_vars.cell_padding_size)
+
+        # 카드 배경 + 그림자
+        # 그림자 렌더링
+        shadow_offset = cordinate_vars.shadow_offset
+        shadow_rect = [x + shadow_offset[0], y + shadow_offset[1], x + cell_w, y+ cell_h]
+        draw.rounded_rectangle(shadow_rect, radius=cordinate_vars.cell_radius, fill=cordinate_vars.cell_shadow)
+
+        # 카드 배경 렌더링
+        cord_rect = [x, y, x + cell_w, y + cell_h]
+        draw.rounded_rectangle(cord_rect, radius=cordinate_vars.cell_radius, fill=cordinate_vars.cell_bg_color)
+
+        # 이미지 렌더링
+        im_bytes: bytes = get_image_bytes(url)
+        im = Image.open(im_bytes).convert("RGBA")
+        thumb = ImageOps.fit(im, (cordinate_vars.image_size, cordinate_vars.image_size), method=Image.Resampling.LANCZOS)
+        thumb = _rounded(thumb, rad=cordinate_vars.cell_radius)
+        canvas.paste(thumb, (x, y), thumb)
+
+        # 캡션 렌더링
+        caption_y = y + cordinate_vars.image_size + (cordinate_vars.caption_height // 2)
+        tb = draw.textbbox((0, 0), date_str, font=font_caption)
+        tw = tb[2] - tb[0]
+        draw.text((x + (cell_w - tw) // 2, caption_y - cordinate_vars.font_size // 2), date_str, font=font_caption, fill=cordinate_vars.fg_color)
+
+    # 이미지 저장
+    buffer = io.BytesIO()
+    canvas.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer

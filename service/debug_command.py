@@ -222,8 +222,13 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
-            name="븜 코디 <캐릭터 이름> (개발중)",
+            name="븜 코디 <캐릭터 이름>",
             value="메이플스토리 캐릭터의 코디(외형) 정보를 조회합니다.\n*캐릭터가 착용중인 코디 아이템을 보여줘양*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 컬렉션 <캐릭터 이름>",
+            value="메이플스토리 캐릭터의 컬렉션 정보를 조회합니다.\n*최대 8개의 컬렉션을 보여줘양*\n ",
             inline=False
         )
         embed.add_field(

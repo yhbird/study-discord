@@ -23,12 +23,6 @@ class ImageViewer(View):
         self.add_item(Button(label="❌", style=discord.ButtonStyle.primary, custom_id="delete"))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        # Admin 권한이 있으면 삭제 가능
-        if interaction.user.guild_permissions.administrator:
-            if action == "delete":
-                if self.message:
-                    await self.message.delete()
-                return False  # View 종료
                
         # 상호작용한 사용자가 뷰의 소유자와 일치하는지 확인
         if interaction.user != self.view_owner:
@@ -37,6 +31,14 @@ class ImageViewer(View):
         
         # 상호작용한 사용자와 뷰의 소유자가 일치하면 버튼 상호작용 실행
         action = interaction.data["custom_id"]
+
+        # Admin 권한이 있으면 삭제 가능
+        if interaction.user.guild_permissions.administrator:
+            if action == "delete":
+                if self.message:
+                    await self.message.delete()
+                return False  # View 종료
+            
         if action == "first":
             self.current_index = 0
         elif action == "prev":

@@ -165,7 +165,7 @@ class AsyncCharacterOCIDResolver:
     def _set_negative_cache_unlocked(self, key: str):
         self._negative_cache[key] = time.time()
 
-    async def ocid_resolve(self, character_name: str, *, force_refresh: bool = False) -> str:
+    async def resolve(self, character_name: str, *, force_refresh: bool = False) -> str:
         """
         비동기 get_ocid 동일한 호출 방지, TTL 캐싱
         """
