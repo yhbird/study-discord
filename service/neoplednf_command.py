@@ -332,15 +332,6 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
     character_fame: int | Literal[0] = character_info.get("fame")
 
     dundam_url = f"https://dundam.xyz/character?server={server_id}&key={character_id}"
-    dfgear_url_c = f"https://dfgear.xyz/character?sId={server_id}&cId={character_id}&cName={character_name}"
-    if adventure_name != "몰라양":
-        dfgear_url_a = f"https://dfgear.xyz/adventure?cName={adventure_name}"
-        dfgear_url_desc = (
-            f"[🔗 DFGEAR 사이트 이동 (캐릭터)]({dfgear_url_c})\n"
-            f"[🔗 DFGEAR 사이트 이동 (모험단)]({dfgear_url_a})\n"
-        )
-    else:
-        dfgear_url_desc = f"[🔗 DFGEAR 사이트 이동]({dfgear_url_c})\n"
 
     msg_content: str = (
         f"**세트:** {best_set_text}\n\n"
@@ -350,7 +341,6 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
     embed_title: str = f"{server_name}서버 '{character_name}' 모험가님의 장비 정보에양!"
     embed_description: str = (
         f"[🔗 던담 사이트 이동]({dundam_url})\n"
-        f"{dfgear_url_desc}"
         f"**모험단:** {adventure_name}\n"
         f"**레벨:** {character_level}\n"
         f"**직업:** {character_job_name}\n"
