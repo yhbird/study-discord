@@ -1355,6 +1355,8 @@ def get_current_cash_equipment_info(
     Args:
         cash_equipment_data (Dict[str, str | int | List[dict] | Literal["기타"] | None]): 캐릭터 장착중인 캐시 아이템 정보
 
+        장착 아이템 -> 외형 아이템(프리셋) 순서로 데이터 덮어쓰기 처리
+
     Returns:
         Dict[str, Dict[str, str]]: 부위별 장착 캐시 아이템 정보
     """
@@ -1365,8 +1367,8 @@ def get_current_cash_equipment_info(
         slot_name: str = base.get("cash_item_equipment_slot", "알수없음") # 장착 부위
         item_name: str = base.get("cash_item_name", "알수없음") # 캐시 아이템 이름
         item_icon: str = base.get("cash_item_icon", "") # 캐시 아이템 아이콘 URL
-        cash_label: str = base.get("cash_label") or "없음"
-        cash_coloring_prism: str = base.get("cash_coloring_prism") or "없음"
+        item_label: str = base.get("cash_item_label") or "없음"
+        item_coloring_prism: str = base.get("cash_item_coloring_prism") or "없음"
         item_gender: str = base.get("item_gender") or "공용"
         freestyle_flag: str = base.get("freestyle_flag") or "0" # 프리스타일 쿠폰 사용 여부
 
@@ -1374,8 +1376,8 @@ def get_current_cash_equipment_info(
             "part_name": part_name,
             "item_name": item_name,
             "item_icon": item_icon,
-            "cash_label": cash_label,
-            "cash_coloring_prism": cash_coloring_prism,
+            "item_label": item_label,
+            "item_coloring_prism": item_coloring_prism,
             "item_gender": item_gender,
             "freestyle_flag": freestyle_flag
         }
@@ -1386,8 +1388,8 @@ def get_current_cash_equipment_info(
         slot_name: str = look.get("cash_item_equipment_slot", "알수없음") # 장착 부위
         item_name: str = look.get("cash_item_name", "알수없음") # 캐시 아이템 이름
         item_icon: str = look.get("cash_item_icon", "") # 캐시 아이템 아이콘 URL
-        cash_label: str = look.get("cash_label") or "없음"
-        cash_coloring_prism: str = look.get("cash_coloring_prism") or "없음"
+        item_label: str = look.get("cash_item_label") or "없음"
+        item_coloring_prism: str = look.get("cash_item_coloring_prism") or "없음"
         item_gender: str = look.get("item_gender") or "공용"
         freestyle_flag: str = look.get("freestyle_flag") or "0" # 프리스타일 쿠폰 사용 여부
 
@@ -1396,8 +1398,8 @@ def get_current_cash_equipment_info(
             "part_name": part_name,
             "item_name": item_name,
             "item_icon": item_icon,
-            "cash_label": cash_label,
-            "cash_coloring_prism": cash_coloring_prism,
+            "item_label": item_label,
+            "item_coloring_prism": item_coloring_prism,
             "item_gender": item_gender,
             "freestyle_flag": freestyle_flag
         }

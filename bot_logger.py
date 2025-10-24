@@ -252,6 +252,6 @@ def with_timeout(timeout_seconds: int = config.COMMAND_TIMEOUT):
             try:
                 return await asyncio.wait_for(func(ctx, *args, **kwargs), timeout=timeout_seconds)
             except asyncio.TimeoutError:
-                await ctx.send(f"⏰ 명령어 최대 시간 초과로 취소되었어양")
+                await ctx.send(f"⏰ 명령어 최대 시간({timeout_seconds}초) 초과로 취소되었어양")
         return wrapper
     return decorator

@@ -16,7 +16,7 @@ from utils.image import get_image_bytes
 from utils.text import preprocess_int_with_korean
 from utils.time import kst_format_now
 from utils.plot import fp_maplestory_light, fp_maplestory_bold
-from config import COMMAND_TIMEOUT, NEXON_CHARACTER_IMAGE_URL
+from config import COMMAND_TIMEOUT
 
 from exceptions.client_exceptions import *
 from exceptions.command_exceptions import *
@@ -1159,7 +1159,7 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
         current_skin_brightness = current_skin.get("brightness")
         current_skin_name_str: str = (
             f"{current_skin_name}\n({current_skin_color_style})"
-            f" [색조: {current_skin_hue}, 채도: {current_skin_saturation}, 명도: {current_skin_brightness}]"
+            f" 색조: {current_skin_hue} | 채도: {current_skin_saturation} | 명도: {current_skin_brightness}"
         )
     
     # 뷰티 정보 Embed 문자열 생성
@@ -1173,13 +1173,24 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
     for item_slot, item_info in current_cordinate_info.items():
         part_name: str = item_info.get("part_name")
         item_name: str = item_info.get("item_name")
-        item_label: str = item_info.get("cash_label")
+        item_label: str = item_info.get("item_label")
         item_gender: str = item_info.get("item_gender")
+        item_coloring: Dict[str, str] = item_info.get("item_coloring_prism")
         freestyle_flag: str = item_info.get("freestyle_flag")
+        if item_coloring != "없음":
+            color_range: str = item_coloring.get("color_range")
+            item_hue: str = item_coloring.get("hue")
+            item_saturation: str = item_coloring.get("saturation")
+            item_brightness: str = item_coloring.get("value")
+            item_coloring_str: str = (
+                f"\n[{color_range}] 색조:{item_hue} | 채도:{item_saturation} | 명도:{item_brightness}\n"
+            )
+        else:
+            item_coloring_str: str = ""
         if item_label == "없음":
             item_label_str: str = ""
         else:
-            item_label_str: str = f"[{item_label}]"
+            item_label_str: str = f"[{item_label}] "
         if item_gender == "공용":
             item_gender_str: str = ""
         else:
@@ -1188,7 +1199,10 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
             freestyle_str: str = ""
         else:
             freestyle_str: str = " (프리스타일 쿠폰 적용중)"
-        item_name_str: str = f"- {item_slot}({part_name}): {item_gender_str}{item_name}{item_label_str}{freestyle_str}"
+        item_name_str: str = (
+            f"- {item_slot}({part_name}): {item_label_str}{item_gender_str}"
+            f"{item_name}{freestyle_str}{item_coloring_str}"
+        )
         current_cordinate_descriptions.append(item_name_str)
 
     embed_description_cordinate: str = "\n".join(current_cordinate_descriptions)
