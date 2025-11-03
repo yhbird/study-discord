@@ -44,13 +44,13 @@ class maplestory_urls:
 
 class cordinate_vars:
     # 이미지 크기 및 설정
-    image_size = 180
-    caption_height = 28
-    images_grid_cols = 4
-    images_grid_rows = 2
-    cell_padding_size = 16
-    board_margin = 24
-    cell_radius = 10
+    image_size : Literal[180] = 180
+    caption_height : Literal[28] = 28
+    images_grid_cols : Literal[4] = 4
+    images_grid_rows : Literal[2] = 2
+    cell_padding_size : Literal[16] = 16
+    board_margin : Literal[24] = 24
+    cell_radius : Literal[10] = 10
     bg_color = (255, 255, 255, 255)
     fg_color = (33, 37, 41, 255)
     cell_bg_color = (255, 255, 255, 255)
@@ -59,8 +59,8 @@ class cordinate_vars:
     title_font_path = "./assets/font/Maplestory_Bold.ttf"
     caption_font_path = "./assets/font/Maplestory_Light.ttf"
     default_font_path = "./assets/font/NanumGothic.ttf"
-    font_size = 18
-    title_font_padding = 12
+    font_size : Literal[18] = 18
+    title_font_padding : Literal[12] = 12
     place_holder_image_path = "./assets/image/maplestory_character_image_sample.png"
 
 
