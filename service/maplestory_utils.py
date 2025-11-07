@@ -61,7 +61,7 @@ class cordinate_vars:
     default_font_path = "./assets/font/NanumGothic.ttf"
     font_size : Literal[18] = 18
     title_font_padding : Literal[12] = 12
-    place_holder_image_path = "./assets/image/maplestory_character_image_sample.png"
+    place_holder_image_path = "./assets/image/maple_chara_placeholder.png"
 
 
 class APIRateLimiter:

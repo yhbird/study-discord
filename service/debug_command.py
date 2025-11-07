@@ -286,8 +286,12 @@ async def deb_help(ctx: commands.Context, category: str = None):
         )
         embed.add_field(
             name="븜 미국주식 <티커>",
-            value="**[yahoo finance]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
+            value="**[yahoo finance]**\n 미국 주식의 현재 가격을 조회합니다.\n*참고) 티커: BRK.B -> BRK-B* ",
             inline=False
+        )
+        embed.add_field(
+            name="븜 미국차트 <티커> <기간>",
+            value="**[yahoo finance]**\n 미국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*참고) 티커: BRK.B -> BRK-B* ",
         )
     elif category == "관리자":
         is_admin: bool = False
@@ -501,7 +505,7 @@ async def deb_reset_stats(ctx: commands.Context) -> None:
     bl.SLOWEST_COMMAND_NAME = None
     bl.SLOWEST_COMMAND_ELAPSED = 0.01
     bl.FASTEST_COMMAND_NAME = None
-    bl.FASTEST_COMMAND_ELAPSED = 30.0
+    bl.FASTEST_COMMAND_ELAPSED = 60.0
 
     logger.info("Command statistics have been reset.")
     await ctx.send("명령어 통계가 초기화되었어양!")
