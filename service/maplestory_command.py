@@ -1393,7 +1393,7 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
         buffer.close()
 
 
-@with_timeout(COMMAND_TIMEOUT)
+@with_timeout(COMMAND_TIMEOUT*2)
 @log_command(alt_func_name="븜 컬렉션")
 async def maple_cordinate_history(ctx: commands.Context, character_name: str) -> None:
     """메이플스토리 캐릭터 코디 컬렉션 조회

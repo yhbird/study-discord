@@ -17,7 +17,7 @@ from exceptions.base import BotWarning
 SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
 SLOWEST_COMMAND_ELAPSED : float = 0.0 # 가장 느린 명령어 초기값
 SLOWEST_COMMAND_NAME : str = ""
-FASTEST_COMMAND_ELAPSED : float = config.COMMAND_TIMEOUT # 가장 빠른 명령어 초기값
+FASTEST_COMMAND_ELAPSED : float = config.COMMAND_TIMEOUT*2 # 가장 빠른 명령어 초기값
 FASTEST_COMMAND_NAME : str = ""
 COMMAND_STATS: dict = {} # 명령어별 실행 횟수 및 총 소요 시간 기록
 USER_STATS: dict = {} # 사용자별 명령어 사용 횟수 기록
