@@ -8,6 +8,7 @@ from bot_helper import build_command_help, resolve_command, build_command_hint #
 from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리, 봇 상태 갱신
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
+from typing import Literal
 
 # Matplotlib 한글 폰트 설정
 from utils.plot import set_up_matplotlib_korean
@@ -153,6 +154,10 @@ async def run_api_weather(ctx: commands.Context, location: str):
 @bot.command(name="미국주식", usage="티커(대문자)", help="미국 주식 시세를 티커를 통해 조회해양. 예: `븜 미국주식 AAPL`")
 async def run_stk_us_stock_price(ctx: commands.Context, ticker: str):
     await yfi_command.stk_us_stock_price(ctx, ticker)
+
+@bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
+async def run_stk_us_stock_chart(ctx: commands.Context, ticker: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
+    await yfi_command.stk_us_stock_chart(ctx, ticker, period)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])

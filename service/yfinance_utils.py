@@ -1,7 +1,13 @@
+import asyncio
 import requests
+import pandas as pd
+
 from bs4 import BeautifulSoup
+from yfinance import Ticker
 
 from exceptions.client_exceptions import *
+from typing import Dict
+
 
 def exchange_krw_rate(from_currency: str) -> float:
     """
@@ -36,3 +42,109 @@ def exchange_krw_rate(from_currency: str) -> float:
     else:
         # 환율 정보를 가져오는 데 실패한 경우
         raise YFI_STOCK_FETCH_RATE(f"HTTP {response.status_code}: {response.reason}")
+
+
+def get_stock_info(ticker: str) -> Dict[str, str | float | int | None]:
+    """주식의 현재시점 정보를 가져오는 함수
+
+    Args:
+        ticker (str): 주식 티커 심볼
+
+    Returns:
+        Dict[str, str | float | int | None]: 주식 정보 딕셔너리
+    """
+    stock = Ticker(ticker)
+    stock_info = stock.info
+    if not stock_info or "regularMarketPrice" not in stock_info:
+        raise YFI_NO_TICKER(f"티커 {ticker}에 대한 정보를 찾을 수 없어양!")
+    
+    short_name: str | None = stock_info.get("shortName", None)
+    symbol: str = stock_info.get("symbol", ticker)
+    stock_timezone: str = stock_info.get("exchangeTimezoneName", "America/New_York")
+    stock_timezone_short: str = stock_info.get("exchangeTimezoneShortName", "EST")
+    stock_exchange: str | None = stock_info.get("fullExchangeName", None)
+    stock_sector: str | None = stock_info.get("sector", None)
+    stock_currency: str | None = stock_info.get("currency", "USD")
+    stock_previous_close: float | None = stock_info.get("regularMarketPreviousClose", None)
+    stock_today_close: float | None = stock_info.get("regularMarketPrice", None)
+    stock_high_52w: float | None = stock_info.get("fiftyTwoWeekHigh", None)
+    stock_high_52w_pct: float | None = stock_info.get("fiftyTwoWeekHighChangePercent", None)
+    stock_low_52w: float | None = stock_info.get("fiftyTwoWeekLow", None)
+    stock_low_52w_pct: float | None = stock_info.get("fiftyTwoWeekLowChangePercent", None)
+    stock_volume_regular: int | None = stock_info.get("regularMarketVolume", None)
+    stock_volume_average_10d: int | None = stock_info.get("averageVolume10days", None)
+    stock_market_cap: int | None = stock_info.get("marketCap", None)
+    stock_psr: float | None = stock_info.get("priceToSalesTrailing12Months", None)
+    stock_dividend_yield: float | None = stock_info.get("dividendYield", None)
+    stock_recommend_mean: float | None = stock_info.get("recommendationMean", None)
+    stock_recommend_key: str | None = stock_info.get("recommendationKey", None)
+
+    return_data: Dict[str, str | float | int | None] = {
+        "short_name": short_name,
+        "symbol": symbol,
+        "exchange": stock_exchange,
+        "timezone": stock_timezone,
+        "timezone_short": stock_timezone_short,
+        "sector": stock_sector,
+        "currency": stock_currency,
+        "previous_close": stock_previous_close,
+        "today_close": stock_today_close,
+        "high_52w": stock_high_52w,
+        "high_52w_pct": stock_high_52w_pct,
+        "low_52w": stock_low_52w,
+        "low_52w_pct": stock_low_52w_pct,
+        "volume_regular": stock_volume_regular,
+        "volume_average_10d": stock_volume_average_10d,
+        "market_cap": stock_market_cap,
+        "psr": stock_psr,
+        "dividend_yield": stock_dividend_yield,
+        "recommend_mean": stock_recommend_mean,
+        "recommend_key": str(stock_recommend_key).replace("_", " ").upper() if stock_recommend_key is not None else None,
+    }
+
+    return return_data
+
+
+async def get_stock_history(ticker: str, period: str) -> pd.DataFrame:
+    """주식의 히스토리 데이터를 가져오는 함수
+
+    Args:
+        ticker (str): 주식 티커 심볼
+        period (str): 기간 (예: '1mo', '3mo', '1y', '5y', 'max')
+
+    Returns:
+        pd.DataFrame: 주식 히스토리 데이터
+    """
+    # 비동기적으로 yfinance의 Ticker.history 메서드를 호출
+    def _load() -> pd.DataFrame:
+        yf_ticker = Ticker(ticker)
+        hist = yf_ticker.history(period=period, interval="1d", auto_adjust=False)
+        return hist
+
+    hist = await asyncio.to_thread(_load)
+
+    if hist.empty:
+        raise YFI_NO_TICKER(f"티커 {ticker}에 대한 차트 데이터를 찾을 수 없어양!")
+
+    if "Adj Close" in hist.columns:
+        price = hist["Adj Close"].copy()
+    else:
+        price = hist["Close"].copy()
+
+    return_df = pd.DataFrame({
+        "Date": hist["Date"] if "Date" in hist.columns else hist.index,
+        "Open": hist["Open"],
+        "High": hist["High"],
+        "Low": hist["Low"],
+        "Close": hist["Close"],
+        "Volume": hist["Volume"],
+        "price": price
+    })
+    # 이동평균선 MA5, MA20, 등락률 계산
+    return_df["MA5"] = return_df["price"].rolling(window=5).mean()
+    return_df["MA20"] = return_df["price"].rolling(window=20).mean()
+    return_df["ChangePct"] = return_df["price"].pct_change() * 100
+    if not isinstance(return_df["Date"].iloc[0], pd.Timestamp):
+        return_df["Date"] = pd.to_datetime(return_df["Date"])
+    return_df.set_index("Date", inplace=True)
+    return return_df.dropna(how="all")

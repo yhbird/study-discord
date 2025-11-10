@@ -11,6 +11,7 @@ from discord.ext import tasks
 from bot_logger import logger
 from config import MEMORY_CLEAR_INTERVAL
 from config import PRESENCE_UPDATE_INTERVAL
+from config import SECRET_COMMANDS
 from typing import List
 
 
@@ -107,4 +108,7 @@ def build_command_hint(bot: commands.Bot, attempt: str) -> str:
         all_names.append(c.name)
         all_names.extend(c.aliases)
     commands = difflib.get_close_matches(attempt, all_names, n=3, cutoff=0.6)
-    return f"혹시 '{', '.join(commands)}' 명령어를 말하시는 거에양?" if commands else ""
+    if any(cmd in commands for cmd in SECRET_COMMANDS):
+        return ""
+    else:
+        return f"혹시 '{', '.join(commands)}' 명령어를 말하시는 거에양?" if commands else ""

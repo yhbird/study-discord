@@ -51,6 +51,7 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
 
         if output:
             await ctx.message.channel.send(output)
+            return
 
 
 # 샴 이미지 기능 복원
@@ -153,4 +154,5 @@ async def msg_handle_blinkbang(ctx: commands.Context):
             return
 
         await ctx.message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
+        return
 
