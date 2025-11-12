@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: discord-bot-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: discord_bot
+      TZ: Asia/Seoul
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # WSL /srv/psql/15에 데이터 저장
+    volumes:
+      - /srv/psql/15:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d discord_bot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "5432:5432"
+    networks:
+      - botnet
+    
+  discord-bot:
+    build: .
+    container_name: discord-bot-app
+    environment:
+      TZ: Asia/Seoul
+      DATABASE_URL: "postgresql+psycopg2://app:app_password@db:5432/discord_bot"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - botnet
+
+volumes:
+  pgdata:
+
+networks:
+  botnet:
+    driver: bridge

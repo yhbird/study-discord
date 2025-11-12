@@ -4,13 +4,20 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN apt-get update && apt-get install -y tzdata
-ENV TZ=Asia/Seoul
-ENV MPLCONFIGDIR=/tmp/matplotlib
-ENV PYTHON_RUN_ENV=prd
-RUN mkdir -p /tmp/matplotlib
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+ENV TZ=Asia/Seoul \
+    MPLCONFIGDIR=/tmp/matplotlib \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHON_RUN_ENV=prd
+
+RUN apt-get update \
+    && apt-get install -y tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /tmp/matplotlib 
 
 COPY . .
 
