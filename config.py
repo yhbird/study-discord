@@ -1,11 +1,12 @@
 import os
 import sys
-from typing import List
+from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
 
 from datetime import datetime
 from pytz import timezone
+from sqlalchemy import text
 
 from exceptions.base import BotConfigFailed, BotInitializationError
 
@@ -113,7 +114,44 @@ else:
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))
 BOT_START_TIME_STR: str = BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20251017-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"v20251117-{BOT_TOKEN_RUN}"
+
+
+# Kafka 설정
+KAFKA_BOOTSTRAP_SERVERS: Literal["discord-bot-kafka:29092"] = "discord-bot-kafka:29092"
+KAFKA_TOPIC_NAME: Literal["discord.command.logs"] = "discord.command.logs"
+
+
+# DB 설정
+DB_USE: bool = True
+if DB_USE:
+    try:
+        assert load_dotenv("./env/db.env"), BotConfigFailed("db.env file not found")
+        db_user: Optional[str] = os.getenv('db_user')
+        db_pass: Optional[str] = os.getenv('db_password')
+        db_host: Optional[str] = os.getenv('db_host')
+        db_port: Optional[str] = os.getenv('db_port')
+        db_name: Optional[str] = os.getenv('db_name')
+        POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        #connection test
+        from sqlalchemy import create_engine
+        engine = create_engine(POSTGRES_DSN)
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        print("DB connection test successful.")
+        KAFKA_ACTIVE: bool = True
+    except BotConfigFailed as e:
+        print(f"Failed Bot loading during DB config loading: {e}")
+        sys.exit(True)
+    except BotInitializationError as e:
+        print(f"DB config loading failed: {e}")
+        sys.exit(True)
+    except Exception as e:
+        print(f"DB connection test failed: {e}")
+        sys.exit(True)
+else:
+    POSTGRES_DSN = ""
+    KAFKA_ACTIVE: bool = False
 
 
 # 디버그 모드 설정

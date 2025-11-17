@@ -12,3 +12,5 @@ temp/
 __pycache__/
 README.md
 !pyproject.toml/requirements.txt
+db/
+docker-compose.yml

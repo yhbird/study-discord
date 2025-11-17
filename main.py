@@ -1,13 +1,21 @@
-import time
 import discord
-import difflib
 from discord.ext import commands
 
-from bot_logger import logger
+# bot logging 추가
+from bot_logger import logger, init_bot_stats
+
+# bot 유틸리티 함수
 from bot_helper import build_command_help, resolve_command, build_command_hint #도움말 예외처리
 from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리, 봇 상태 갱신
+
+# Kafka 초기화
+from kafka.producer import init_kafka_producer, close_kafka_producer
+from kafka.consumer import consume_kafka_logs
+
+# 봇 설정값 불러오기
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
+from config import KAFKA_ACTIVE, POSTGRES_DSN
 from typing import Literal
 
 # Matplotlib 한글 폰트 설정
@@ -82,8 +90,8 @@ async def run_msg_handle_blinkbang(ctx: commands.Context):
     await basic_command.msg_handle_blinkbang(ctx)
 
 @bot.command(name="따라해", usage="메세지", help="사용자가 보낸 메세지를 그대로 따라해양. 예: `븜 따라해 안녕!`")
-async def run_msg_handle_repeat(ctx: commands.Context, *, text: str):
-    await basic_command.msg_handle_repeat(ctx, text)
+async def run_msg_handle_repeat(ctx: commands.Context):
+    await basic_command.msg_handle_repeat(ctx)
 
 @bot.command(name="이미지", usage="검색어", help="이미지를 검색해양. 예: `븜 이미지 븜미`")
 async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
@@ -176,15 +184,35 @@ async def run_hidden_command_3(ctx: commands.Context):
 # 봇 실행 + 메모리 정리 반복 작업 시작
 @bot.event
 async def on_ready():
-    logger.info(f'Logged in as... {bot.user}!!')
+    logger.info(f"Initializing bot... {bot.user}")
+    init_bot_stats()
     auto_clear_memory.start()
     update_bot_presence.start(bot)
+
+    if KAFKA_ACTIVE:
+        await init_kafka_producer()
+        logger.info("Kafka producer initialized.")
+
+        if not getattr(bot, "kafka_consumer_started", False):
+            bot.loop.create_task(consume_kafka_logs())
+            bot.kafka_consumer_started = True
+            logger.info("Kafka consumer initialized.")
+
     await bot.change_presence(
         status=discord.Status.online,
         activity=discord.Game(name="븜 명령어 | 메이플스토리")
     )
+    logger.info(f'Logged in as... {bot.user}!!')
 
     
+@bot.event
+async def on_close():
+    logger.info("Bot is shutting down...")
+    if KAFKA_ACTIVE:
+        await close_kafka_producer()
+    logger.info("Bot has been shut down.")
+
+
 @bot.event
 async def on_message(message: discord.Message):
     # 봇이 보낸 메시지에는 반응하지 않음

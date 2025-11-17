@@ -14,7 +14,7 @@ from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
 from service.basic_utils import check_ban
-from config import COMMAND_TIMEOUT
+from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX
 
 from exceptions.command_exceptions import InvalidCommandFormat
 from ddgs.exceptions import DDGSException
@@ -24,7 +24,7 @@ from bot_logger import log_command, with_timeout
 # 샴 따라해 기능 복원
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 따라해")
-async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
+async def msg_handle_repeat(ctx: commands.Context):
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
     Args:
@@ -33,7 +33,7 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
     """
-    command_prefix: str = "븜 따라해 "
+    command_prefix: str = f"{BOT_COMMAND_PREFIX}따라해 "
 
     if ctx.message.author.bot:
         return
@@ -52,6 +52,9 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
         if output:
             await ctx.message.channel.send(output)
             return
+    
+    else:
+        return
 
 
 # 샴 이미지 기능 복원
