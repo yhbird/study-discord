@@ -9,6 +9,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timedelta
 
+from typing import Dict, Optional
+
 from service.debug_utils import *
 
 from bot_logger import logger, log_command, with_timeout
@@ -379,21 +381,27 @@ async def deb_command_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
+    # 명령어 통계 데이터 호출
+    command_stats: Dict[str, str | int | float] = bl.bot_stats.command_stats
+    if isinstance(command_stats, dict):
+        slowest_command: str = bl.bot_stats.slowest_command_name or "몰라양"
+        fastest_command: str = bl.bot_stats.fastest_command_name or "몰라양"
+        slowest_elapsed: float = bl.bot_stats.slowest_command_elapsed
+        fastest_elapsed: float = bl.bot_stats.fastest_command_elapsed
+    else:
+        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
+        return False
+
     # 명령어 통계 출력
     what_is_slowest = (
-        f"가장 오래 걸리는 명령어: {bl.SLOWEST_COMMAND_NAME} ({bl.SLOWEST_COMMAND_ELAPSED:.3f}초)\n"
+        f"가장 오래 걸리는 명령어: {slowest_command} ({slowest_elapsed:.3f}초)\n"
     )
     what_is_fastest = (
-        f"가장 빨리 끝나는 명령어: {bl.FASTEST_COMMAND_NAME} ({bl.FASTEST_COMMAND_ELAPSED:.3f}초)\n"
+        f"가장 빨리 끝나는 명령어: {fastest_command} ({fastest_elapsed:.3f}초)\n"
     )
 
     # 명령어 순위 통계 (상위 10개)
-    command_stats_raw: dict = bl.COMMAND_STATS
-    top10_commands: list = sorted(command_stats_raw.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
-    if not command_stats_raw:
-        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
-        return
-
+    top10_commands: list = sorted(command_stats.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
     rank_emoji: list = ["🥇", "🥈", "🥉"]
     command_stats = "\n".join(
         f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등')} "

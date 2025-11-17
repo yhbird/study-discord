@@ -7,8 +7,7 @@ COPY requirements.txt .
 ENV TZ=Asia/Seoul \
     MPLCONFIGDIR=/tmp/matplotlib \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHON_RUN_ENV=prd
+    PYTHONUNBUFFERED=1
 
 RUN apt-get update \
     && apt-get install -y tzdata \
