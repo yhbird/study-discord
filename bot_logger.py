@@ -21,14 +21,14 @@ from kafka.helper import build_and_send
 # stats class 호출 (log_command 데코레이터 내에서 사용)
 @dataclass
 class DiscordBotStats:
-    command_timeout: float = config.COMMAND_TIMEOUT*2
-    command_stats  : Dict[str, dict] = field(default_factory=dict)
-    user_stats     : Dict[int, dict] = field(default_factory=dict)
+    command_timeout : float = config.COMMAND_TIMEOUT*2
+    command_stats   : Dict[str, dict] = field(default_factory=dict)
+    user_stats      : Dict[int, dict] = field(default_factory=dict)
 
-    slowest_command_elapsed: float = 0.0 # 가장 느린 명령어 초기값
-    slowest_command_name   : Optional[str] = None
-    fastest_command_elapsed: float = float("inf")
-    fastest_command_name   : Optional[str] = None
+    slowest_command_elapsed : float = 0.0 # 가장 느린 명령어 초기값
+    slowest_command_name    : Optional[str] = None
+    fastest_command_elapsed : float = float("inf")
+    fastest_command_name    : Optional[str] = None
 
     def reset(self) -> None:
         """discord bot 사용통계 초기화 (봇 가동마다 실행)"""

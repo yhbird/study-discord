@@ -124,7 +124,7 @@ KAFKA_TOPIC_NAME: Literal["discord.command.logs"] = "discord.command.logs"
 
 
 # DB 설정
-DB_USE: bool = True
+DB_USE: bool = False # DB 사용 여부
 if DB_USE:
     try:
         assert load_dotenv("./env/db.env"), BotConfigFailed("db.env file not found")
@@ -141,12 +141,15 @@ if DB_USE:
             connection.execute(text("SELECT 1"))
         print("DB connection test successful.")
         KAFKA_ACTIVE: bool = True
+
     except BotConfigFailed as e:
         print(f"Failed Bot loading during DB config loading: {e}")
         sys.exit(True)
+
     except BotInitializationError as e:
         print(f"DB config loading failed: {e}")
         sys.exit(True)
+        
     except Exception as e:
         print(f"DB connection test failed: {e}")
         sys.exit(True)

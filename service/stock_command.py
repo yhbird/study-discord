@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from matplotlib import dates as mdates
 import mplfinance as mpf
 
-from service.yfinance_utils import exchange_krw_rate, get_stock_info, get_stock_history
+from service.stock_utils import exchange_krw_rate, get_stock_info, get_stock_history
 from datetime import datetime
 from pytz import timezone
 
