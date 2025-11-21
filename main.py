@@ -15,7 +15,7 @@ from kafka.consumer import consume_kafka_logs
 # 봇 설정값 불러오기
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
-from config import KAFKA_ACTIVE, POSTGRES_DSN
+from config import KAFKA_ACTIVE, DB_USE
 from typing import Literal
 
 # Matplotlib 한글 폰트 설정
@@ -90,8 +90,8 @@ async def run_msg_handle_blinkbang(ctx: commands.Context):
     await basic_command.msg_handle_blinkbang(ctx)
 
 @bot.command(name="따라해", usage="메세지", help="사용자가 보낸 메세지를 그대로 따라해양. 예: `븜 따라해 안녕!`")
-async def run_msg_handle_repeat(ctx: commands.Context):
-    await basic_command.msg_handle_repeat(ctx)
+async def run_msg_handle_repeat(ctx: commands.Context, *, repeat_text: str):
+    await basic_command.msg_handle_repeat(ctx, repeat_text)
 
 @bot.command(name="이미지", usage="검색어", help="이미지를 검색해양. 예: `븜 이미지 븜미`")
 async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
@@ -185,23 +185,23 @@ async def run_hidden_command_3(ctx: commands.Context):
 @bot.event
 async def on_ready():
     logger.info(f"Initializing bot... {bot.user}")
-    init_bot_stats()
-    auto_clear_memory.start()
-    update_bot_presence.start(bot)
 
-    if KAFKA_ACTIVE:
+    if KAFKA_ACTIVE and DB_USE:
         await init_kafka_producer()
-        logger.info("Kafka producer initialized.")
 
         if not getattr(bot, "kafka_consumer_started", False):
             bot.loop.create_task(consume_kafka_logs())
             bot.kafka_consumer_started = True
-            logger.info("Kafka consumer initialized.")
+            logger.info("Start command log consumer with Apache-Kafka")
 
     await bot.change_presence(
         status=discord.Status.online,
         activity=discord.Game(name="븜 명령어 | 메이플스토리")
     )
+    
+    init_bot_stats()
+    auto_clear_memory.start()
+    update_bot_presence.start(bot)
     logger.info(f'Logged in as... {bot.user}!!')
 
     

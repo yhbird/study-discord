@@ -15,7 +15,7 @@ try:
     # Load environment variables from .env file
     assert load_dotenv('./env/token.env'), BotConfigFailed("token.env file not found")
     assert os.getenv('bot_token_dev'), BotInitializationError("bot_token not found in env file")
-    BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'dev')
+    BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'prd')
     BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
 # Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
@@ -78,6 +78,7 @@ if load_dotenv('./env/secret.env'):
         "deb_user_stats" : os.getenv('admin_cmd_5'),
         "deb_reset_stats" : os.getenv('admin_cmd_6'),
     }
+    VERSION_NAME: str = os.getenv('discord_bot_version', 'UnKnownVersion')
 else:
     raise BotInitializationError("Failed loading secret.env file!!")
 
@@ -114,7 +115,7 @@ else:
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))
 BOT_START_TIME_STR: str = BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20251117-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"{VERSION_NAME}-{BOT_TOKEN_RUN}"
 
 
 # Kafka 설정
