@@ -24,7 +24,7 @@ from bot_logger import log_command, with_timeout
 # 샴 따라해 기능 복원
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 따라해")
-async def msg_handle_repeat(ctx: commands.Context):
+async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
     Args:
@@ -33,22 +33,25 @@ async def msg_handle_repeat(ctx: commands.Context):
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
     """
-    command_prefix: str = f"{BOT_COMMAND_PREFIX}따라해 "
+    content_raw: str = ctx.message.content
 
-    if ctx.message.author.bot:
-        return
-
-    if ctx.message.content.startswith(command_prefix):
-        output = ctx.message.content[len(command_prefix):]
+    if content_raw.startswith(f"{BOT_COMMAND_PREFIX}따라해"):
+        output = repeat_text.strip()
         try:
             await ctx.message.delete()
+
         except discord.Forbidden:
             await ctx.message.channel.send("메세지 삭제 권한이 없어양")
             return
+        
         except discord.HTTPException as e:
             await ctx.message.channel.send("메세지 삭제 중 오류가 발생했어양")
             return
 
+        except Exception as e:
+            await ctx.message.channel.send("알 수 없는 오류가 발생했어양")
+            return
+        
         if output:
             await ctx.message.channel.send(output)
             return

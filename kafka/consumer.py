@@ -5,12 +5,14 @@ from aiokafka import AIOKafkaConsumer
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-from typing import Literal, Dict
+from typing import Literal
 
 # Kafka 설정
 from config import KAFKA_ACTIVE
 from config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC_NAME, POSTGRES_DSN
 KAFKA_GROUP_ID: Literal["discord-command-log-writer"] = "discord-command-log-writer"
+target_schema = "app_service"
+target_table = "discord_command_logs"
 
 # DB 엔진 생성
 def get_engine() -> Engine:
@@ -27,8 +29,8 @@ async def handle_message(engine: Engine, payload: dict) -> None:
         payload (dict): Kafka 메세지의 payload
     """
     sql = text(
-        """
-        INSERT INTO app_service.discord_command_logs (
+        f"""
+        INSERT INTO {target_schema}.{target_table} (
             guild_id,
             guild_name,
             channel_id,
@@ -91,6 +93,7 @@ async def handle_message(engine: Engine, payload: dict) -> None:
     with engine.begin() as connection:
         connection.execute(sql, params)
 
+
 async def consume_kafka_logs() -> None:
     """Kafka에서 명령어 로그를 소비하여 DB에 저장합니다."""
     if not KAFKA_ACTIVE:
@@ -123,11 +126,3 @@ async def consume_kafka_logs() -> None:
                 print(f"Payload: {payload}")
     finally:
         await consumer.stop()
-
-if __name__ == "__main__":
-    print(KAFKA_ACTIVE, POSTGRES_DSN)
-    if KAFKA_ACTIVE:
-        print("Start Kafka consumer for command logs...")
-        asyncio.run(consume_kafka_logs())
-    else:
-        print("Kafka is not active. Exiting.")

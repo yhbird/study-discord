@@ -12,7 +12,7 @@ from bot_logger import logger
 from config import MEMORY_CLEAR_INTERVAL
 from config import PRESENCE_UPDATE_INTERVAL
 from config import SECRET_COMMANDS
-from typing import List
+from typing import List, Literal
 
 
 games: List[str] = [
@@ -93,7 +93,7 @@ def resolve_command(bot: commands.Bot, attempt: str):
     return cmd, invoke
 
 
-def build_command_hint(bot: commands.Bot, attempt: str) -> str:
+def build_command_hint(bot: commands.Bot, attempt: str) -> str | Literal[""]:
     """없는 명령어 입력시 유사한 명령어를 찾아 힌트 문자열 생성
 
     Args:
