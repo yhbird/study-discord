@@ -278,8 +278,9 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
-            name="븜 날씨 <지역명 혹은 주소> (v2 Beta)",
-            value="**[카카오 / 기상청 API]**\n 현재 날씨와 예보정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+            name="븜 날씨 <지역명 혹은 주소> (v3 개발중)",
+            value="**[카카오 / 기상청 API]**\n 현재 날씨와 예보정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n",
+            inline=False
         )
         embed.add_field(
             name="븜 블링크빵",
@@ -288,12 +289,23 @@ async def deb_help(ctx: commands.Context, category: str = None):
         )
         embed.add_field(
             name="븜 미국주식 <티커>",
-            value="**[yahoo finance]**\n 미국 주식의 현재 가격을 조회합니다.\n*참고) 티커: BRK.B -> BRK-B* ",
+            value="미국 주식의 현재 가격을 조회합니다.\n*참고) 티커: BRK.B -> BRK-B* ",
             inline=False
         )
         embed.add_field(
             name="븜 미국차트 <티커> <기간>",
-            value="**[yahoo finance]**\n 미국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*참고) 티커: BRK.B -> BRK-B* ",
+            value="미국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*참고) 티커: BRK.B -> BRK-B* ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 한국주식 <종목명 또는 종목코드>",
+            value="한국 주식의 현재 가격을 조회합니다.\n*종목명이나 종목코드를 입력해양* ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 한국차트 <종목명 또는 종목코드> <기간>",
+            value="한국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*종목명이나 종목코드를 입력해양* ",
+            inline=False
         )
     elif category == "관리자":
         is_admin: bool = False
@@ -358,6 +370,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
         "------\n"
         "Data based on NEXON Open API\n"
         "Powered by Neople Open API\n"
+        "주식 데이터 Yahoo Finance 제공\n"
     )
     embed.set_footer(text=embed_footer)
 
