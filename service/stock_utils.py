@@ -5,6 +5,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 from yfinance import Ticker
 
+from config import STK_DATA_API_KEY, STK_API_HOME
 from exceptions.client_exceptions import *
 from typing import Dict
 
@@ -148,3 +149,85 @@ async def get_stock_history(ticker: str, period: str) -> pd.DataFrame:
         return_df["Date"] = pd.to_datetime(return_df["Date"])
     return_df.set_index("Date", inplace=True)
     return return_df.dropna(how="all")
+
+
+def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, str]:
+    """한국 주식 코드를 검색하는 함수
+
+    Args:
+        search_target (str): 검색할 종목 이름
+
+    Returns:
+        Dict[str, str]: 검색된 종목 정보 (종목명, 종목코드, 법인명, 거래소 코드)
+
+    Note:
+        KS = KOSPI, KQ = KOSDAQ
+    """
+
+    # 종목명, 종목코드로 검색
+    if serach_method == "name":
+        request_url = f"{STK_API_HOME}/getItemInfo"
+        request_params = {
+            "ServiceKey" : STK_DATA_API_KEY,
+            "likeCorpNm" : search_target,
+            "numOfRows" : 10,
+        }
+
+    elif serach_method == "code":
+        request_url = f"{STK_API_HOME}/getItemInfo"
+        request_params = {
+            "ServiceKey" : STK_DATA_API_KEY,
+            "likeSrtnCd" : search_target,
+            "numOfRows" : 10,
+        }
+
+    else:
+        raise STK_KRX_SEARCH_ERROR("serach_method는 'name' 또는 'code'여야 합니다.")
+    
+    response = requests.get(request_url, params=request_params)
+
+    if response.status_code == 200:
+        # XML Parsing
+        xml_data = BeautifulSoup(response.text, 'xml')
+
+        # 종목명, 종목코드, 법인명, 거래소 조회
+        item_name: str = xml_data.find("itmsNm").text
+        item_code: str = str(xml_data.find("srtnCd").text).replace("A", "")
+        corp_name: str = xml_data.find("corpNm").text
+        mrkt_code: str = xml_data.find("mrktCtg").text
+
+        if mrkt_code == "KOSPI":
+            market_code = "KS"
+        else:
+            market_code = "KQ"
+
+        return_data: Dict[str, str] = {
+            "item_name": item_name,
+            "corp_name": corp_name,
+            "item_code": f"{item_code}.{market_code}",
+            "market_name": mrkt_code,
+            "market_code": market_code
+        }
+        return return_data
+    else:
+        raise STK_KRX_SEARCH_ERROR(f"HTTP {response.status_code}: {response.reason}")
+
+
+def get_krx_stock_info(stock_info: Dict[str, str]) -> Dict[str, str | float | int | None]:
+    """한국 주식의 현재시점 정보를 가져오는 함수
+
+    Args:
+        stock_info (Dict[str, str]): 한국 주식 종목 정보 딕셔너리
+
+    Returns:
+        Dict[str, str | float | int | None]: 주식 정보 딕셔너리
+    
+    Note:
+        기존 get_stock_info 함수를 실행하고 종목명을 한국 주식 종목명으로 대체합니다.
+    """
+    ticker: str = stock_info["item_code"]
+    stock_info_result = get_stock_info(ticker)
+    stock_info_result["short_name"] = stock_info["corp_name"]
+    stock_info_result["symbol"] = stock_info["item_code"]
+    stock_info_result["exchange"] = f"{stock_info['market_name']} ({stock_info['market_code']})"
+    return stock_info_result

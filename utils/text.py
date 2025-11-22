@@ -37,7 +37,7 @@ def preprocess_int_with_korean(input_val: str | int) -> str:
             str_10k = ""
         if str_floor == "0000":
             str_floor = ""
-        return f"{str_100m} {str_10k} {str_floor}".strip()
+        return f"{str_100b} {str_100m} {str_10k} {str_floor}".strip()
     elif int(input_val) >= 10_000:
         str_10k: str = f"{input_val[:-4]}만"
         str_floor: str = f"{input_val[-4:]}" # 그 이하
