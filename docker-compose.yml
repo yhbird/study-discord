@@ -21,7 +21,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
-      # 아무 문자열이나 써도 되지만, Kraft 클러스터를 식별하는 ID라서 재사용 가능
+      # Kraft 클러스터를 식별 ID
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
     ports:
       - "9092:9092"
@@ -63,6 +63,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      kafka:
+        condition: service_started
     networks:
       - botnet
 

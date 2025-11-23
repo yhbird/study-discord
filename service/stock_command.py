@@ -253,7 +253,15 @@ async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
     try:
         krx_stock_info: Dict[str, str] = search_krx_stock_info(search_target, krx_search_method)
     except STK_KRX_SEARCH_ERROR as e:
-        await ctx.send(f"한국 주식({search_target}) 종목정보를 불러오는데 실패했어양!")
+        await ctx.send(f"한국 주식({search_target}) 종목정보 확인에 실패했어양!")
+        return
+    
+    except STK_KRX_SEARCH_NO_RESULT as e:
+        await ctx.send(f"한국 주식({search_target}) 종목정보를 찾을 수 없어양!")
+        return
+    
+    except Exception as e:
+        await ctx.send(f"알 수 없는 오류로 인해 한국 주식({search_target}) 종목정보를 확인하는데 실패했어양!")
         return
     
     # 종목 코드로 주식 정보 조회
@@ -262,6 +270,10 @@ async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
     
     except YFI_NO_TICKER:
         await ctx.send(f"Yahoo finance에 해당하는 한국주식 정보가 없어양!")
+        return
+    
+    except Exception as e:
+        await ctx.send(f"알 수 없는 오류로 인해 한국 주식({search_target}) 정보를 생성하는데 실패했어양!")
         return
     
     # 응답 메시지 생성
@@ -273,15 +285,15 @@ async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
     average_10d_volume: int = stock_info.get("volume_average_10d") or 0
     dividend_yield: float = stock_info.get("dividend_yield") or 0.0
     psr: float = stock_info.get("psr") or 0.0
-    stock_currency: str | Literal["USD"] = stock_info.get("currency") if stock_info.get("currency") else "USD"
+    stock_currency: str | Literal["USD"] = stock_info.get("currency") or "USD"
     previous_close: float = stock_info.get("previous_close") or 0.0
     today_close: float = stock_info.get("today_close") or 0.0
     high_52w: float = stock_info.get("high_52w") or 0.0
     high_52w_change_pct: float = stock_info.get("high_52w_pct") or 0.0
     low_52w: float = stock_info.get("low_52w") or 0.0
     low_52w_change_pct: float = stock_info.get("low_52w_pct") or 0.0
-    stock_timezone: str | Literal["America/New_York"] = stock_info.get("timezone") if stock_info.get("timezone") else "America/New_York"
-    stock_timezone_short: str | Literal["EST"] = stock_info.get("timezone_short") if stock_info.get("timezone_short") else "EST"
+    stock_timezone: str | Literal["America/New_York"] = stock_info.get("timezone") or "America/New_York"
+    stock_timezone_short: str | Literal["EST"] = stock_info.get("timezone_short") or "EST"
     market_cap: str | Literal["몰라양"] = stock_info.get("market_cap") or "몰라양"
     analyst_rate_opinion: str | Literal["몰라양"] = stock_info.get("recommend_key") or "몰라양"
     analyst_rate_score: float = stock_info.get("recommend_mean")
@@ -290,10 +302,9 @@ async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
     # 가장 최근 거래일의 종가를 가져옵니다.
     content_text: str = f"[한국주식] 현재 주식 시세를 알려 드려양!!"
     stock_time = datetime.now(tz=timezone(stock_timezone)).strftime("%Y-%m-%d %H:%M:%S")
-    kst_time = datetime.now(tz=timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
     change_pct: float = ((today_close - previous_close) / previous_close) * 100
     market_cap_text: str = f"시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}" if market_cap != '몰라양' else "시가총액 정보 없음"
-    analyst_rate_opinion_text: str = f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})" if analyst_rate_opinion != '몰라양' else "의견이 없어양"
+    analyst_rate_opinion_text: str = f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})" if analyst_rate_opinion != '몰라양' and analyst_rate_score is not None else "의견이 없어양"
 
     # KRW의 소수점을 없애기
     previous_close = int(previous_close)
@@ -377,6 +388,7 @@ async def stk_kr_chart(
     krx_search_ticker: str = krx_stock_info["item_code"]
     try:
         stock = Ticker(ticker=krx_search_ticker)
+        stock_concurrency: str | Literal["USD"] = stock.info.get("currency") or "USD"
         stock_name: str = krx_stock_info["corp_name"]
         stock_info: pd.DataFrame = await get_stock_history(krx_search_ticker, target_period)
         search_ticker: str = krx_stock_info["item_code"]
@@ -428,7 +440,7 @@ async def stk_kr_chart(
         # 차트 제목 및 레이블 설정
         ax.set_title(f"{stock_name} ({search_ticker}) - {period} 차트", fontproperties=fp_maplestory_bold, fontsize=16)
         ax.set_xlabel("날짜", fontproperties=fp_maplestory_light, fontsize=12)
-        ax.set_ylabel("가격 (USD)", fontproperties=fp_maplestory_light, fontsize=12)
+        ax.set_ylabel(f"가격 ({stock_concurrency})", fontproperties=fp_maplestory_light, fontsize=12)
 
         # 이미지 버퍼에 저장
         buffer = io.BytesIO()

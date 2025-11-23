@@ -200,7 +200,7 @@ async def on_ready():
         if not getattr(bot, "kafka_consumer_started", False):
             bot.loop.create_task(consume_kafka_logs())
             bot.kafka_consumer_started = True
-            logger.info("Start command log consumer with Apache-Kafka")
+            logger.info("Apache-Kafka Active: Kafka consumer task started.")
 
     await bot.change_presence(
         status=discord.Status.online,
