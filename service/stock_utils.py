@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 
 from bs4 import BeautifulSoup
+from xml.etree import ElementTree
 from yfinance import Ticker
 
 from config import STK_DATA_API_KEY, STK_API_HOME
@@ -189,12 +190,24 @@ def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, s
     if response.status_code == 200:
         # XML Parsing
         xml_data = BeautifulSoup(response.text, 'xml')
+        items = xml_data.find_all("item")
+        found = None
+
+        for item in items:
+            item_name: str = str(item.find("itmsNm").text).strip()
+            item_code: str = str(item.find("srtnCd").text).replace("A", "")
+            corp_name: str = str(item.find("corpNm").text).strip()
+            mrkt_code: str = str(item.find("mrktCtg").text).strip()
+
+            if "홀딩스" in item_name and "홀딩스" not in search_target:
+                continue
+
+            found = item
+            break
 
         # 종목명, 종목코드, 법인명, 거래소 조회
-        item_name: str = xml_data.find("itmsNm").text
-        item_code: str = str(xml_data.find("srtnCd").text).replace("A", "")
-        corp_name: str = xml_data.find("corpNm").text
-        mrkt_code: str = xml_data.find("mrktCtg").text
+        if found is None:
+            raise STK_KRX_SEARCH_NO_RESULT(f"검색어 '{search_target}'에 대한 결과가 없습니다.")
 
         if mrkt_code == "KOSPI":
             market_code = "KS"

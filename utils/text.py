@@ -1,3 +1,6 @@
+from typing import Literal
+
+
 def safe_float(input_val, digits: int = 2) -> str:
     try:
         return f"{float(input_val):.{digits}f}"
@@ -25,25 +28,26 @@ def preprocess_int_with_korean(input_val: str | int) -> str:
         input_val: str = input_val.replace(',', '').replace(' ', '')
     if isinstance(input_val, int):
         input_val: str = str(input_val)
+    
+    # 조, 억, 만, 그 이하 단위 분리
+    str_100b: str = f"{input_val[:-12]}조" # 조
+    str_100m: str | Literal[""] = f"{input_val[-12:-8]}억" if input_val[-12:-8] != "0000" else "" # 억
+    str_10k: str | Literal[""] = f"{input_val[-8:-4]}만" if input_val[-8:-4] != "0000" else "" # 만
+    str_floor: str | Literal[""] = f"{input_val[-4:]}" if input_val[-4:] != "0000" else "" # 그 이하
 
-    if int(input_val) >= 100_000_000:
-        str_100b: str = f"{input_val[:-12]}조" # 조
-        str_100m: str = f"{input_val[-12:-8]}억" # 억
-        str_10k: str = f"{input_val[-8:-4]}만" # 만
-        str_floor: str = f"{input_val[-4:]}" # 그 이하
-        if str_100m == "0000억":
-            str_100m = ""
-        if str_10k == "0000만":
-            str_10k = ""
-        if str_floor == "0000":
-            str_floor = ""
+    # 조 단위 처리
+    if int(input_val) >= 1_000_000_000_000:
         return f"{str_100b} {str_100m} {str_10k} {str_floor}".strip()
+    
+    # 억 단위 처리
+    elif int(input_val) >= 100_000_000:
+        return f"{str_100m} {str_10k} {str_floor}".strip()
+    
+    # 만 단위 처리
     elif int(input_val) >= 10_000:
-        str_10k: str = f"{input_val[:-4]}만"
-        str_floor: str = f"{input_val[-4:]}" # 그 이하
-        if str_floor == "0000":
-            str_floor = ""
         return f"{str_10k} {str_floor}".strip()
+    
+    # 그 이하 단위 처리
     else:
         return input_val
 

@@ -4,10 +4,12 @@ from discord.ext import commands
 from service.neoplednf_utils import *
 from exceptions.command_exceptions import CommandFailure
 
-from bot_logger import log_command
+from bot_logger import log_command, with_timeout
 from utils.time import kst_format_now
+from config import COMMAND_TIMEOUT
 
 
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 던파정보")
 async def api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 정보 조회
@@ -132,6 +134,8 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
     buffer.close()
     return
 
+
+@with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 던파장비")
 async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 장비 정보 조회
