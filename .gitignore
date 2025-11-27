@@ -213,4 +213,5 @@ dev/
 
 # Data
 data/
+postgres-data/
 user_stock_favorites.json

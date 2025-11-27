@@ -9,6 +9,7 @@ node_modules/
 *.json
 *.sh
 temp/
+postgres-data/
 __pycache__/
 README.md
 !pyproject.toml/requirements.txt

@@ -38,9 +38,10 @@ services:
       TZ: Asia/Seoul
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
       PGDATA: /var/lib/postgresql/data/pgdata
-    # WSL /srv/psql/15에 데이터 저장
+    # WSL(Windows): /srv/psql/15에 데이터 저장
+    # Mac/Linux: ./postgres-data에 데이터 저장
     volumes:
-      - /srv/psql/15:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d discord_bot"]
