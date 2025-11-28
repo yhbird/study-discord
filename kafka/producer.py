@@ -1,34 +1,39 @@
+import asyncio
 import json
 import time
-import uuid
-import asyncio
 import traceback
+from typing import Any, Dict, Optional
 
 from aiokafka import AIOKafkaProducer
 
+from config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC_NAME
 
-class BotEventProducer:
-    def __init__(self, bootstrap_servers: str, client_id: str):
-        self.bootstrap_servers = bootstrap_servers
-        self.client_id = client_id
-        self.producer : AIOKafkaProducer | None = None
+producer: Optional[AIOKafkaProducer] = None
 
-    async def start(self):
-        self.producer = AIOKafkaProducer(
-            bootstrap_servers=self.bootstrap_servers,
-            client_id=self.client_id,
-            acks="all",
-            enable_idempotence=True,
-            compression_type="zstd",
+
+async def init_kafka_producer() -> None:
+    global producer
+    if producer is None:
+        producer = AIOKafkaProducer(
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+            value_serializer=lambda v: json.dumps(v, ensure_ascii=False).encode("utf-8")
         )
-        await self.producer.start()
+        await producer.start()
 
-    async def stop(self):
-        if self.producer:
-            await self.producer.stop()
 
-    async def send(self, topic: str, key: str, value: dict):
-        payload = json.dumps(value).encode("utf-8")
-        await self.producer.send_and_wait(topic, key=key.encode(), value=payload)
+async def close_kafka_producer() -> None:
+    global producer
+    if producer is not None:
+        await producer.stop()
+        producer = None
 
-producer = BotEventProducer(bootstrap_servers="localhost:9092", client_id="discord-bot")
+
+async def send_log_to_kafka(payload: Dict[str, Any]) -> None:
+    global producer
+    if producer is None:
+        return
+    
+    try:
+        await producer.send_and_wait(KAFKA_TOPIC_NAME, payload)
+    except Exception:
+        traceback.print_exc()

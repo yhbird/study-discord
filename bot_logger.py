@@ -4,6 +4,8 @@ import time
 import traceback
 
 from discord.ext import commands
+from typing import Optional, Dict
+from dataclasses import dataclass, field
 
 from logging import Logger
 from functools import wraps
@@ -13,16 +15,91 @@ import config as config
 from utils.time import KstFormatter
 from exceptions.base import BotWarning
 
-# global variables
+from kafka.helper import build_and_send
+
+
+# stats class 호출 (log_command 데코레이터 내에서 사용)
+@dataclass
+class DiscordBotStats:
+    command_timeout : float = config.COMMAND_TIMEOUT*2
+    command_stats   : Dict[str, dict] = field(default_factory=dict)
+    user_stats      : Dict[int, dict] = field(default_factory=dict)
+
+    slowest_command_elapsed : float = 0.0 # 가장 느린 명령어 초기값
+    slowest_command_name    : Optional[str] = None
+    fastest_command_elapsed : float = float("inf")
+    fastest_command_name    : Optional[str] = None
+
+    def reset(self) -> None:
+        """discord bot 사용통계 초기화 (봇 가동마다 실행)"""
+        self.command_stats.clear()
+        self.user_stats.clear()
+        self.slowest_command_elapsed = 0.0
+        self.slowest_command_name = None
+        self.fastest_command_elapsed = float("inf")
+        self.fastest_command_name = None
+
+    def update_command_stats(self, func_name: str, elapsed_time: float, func_name_alt: Optional[str] = None) -> None:
+        """command_stats에서 slowest/fastest 명령어 갱신"""
+        if func_name not in self.command_stats:
+            # 최초 호출하는 명령어
+            self.command_stats[func_name] = {
+                "alt_name" : func_name_alt if func_name_alt else func_name,
+                "count"    : 1,
+                "fast"     : elapsed_time,
+                "slow"     : elapsed_time
+            }
+        else:
+            # 이미 호출된 적 있는 명령어
+            self.command_stats[func_name]["count"] += 1
+            if elapsed_time > self.command_stats[func_name]["slow"]:
+                self.command_stats[func_name]["slow"] = elapsed_time
+            if elapsed_time < self.command_stats[func_name]["fast"]:
+                self.command_stats[func_name]["fast"] = elapsed_time
+
+        # slowest/fastest 명령어 갱신
+        if elapsed_time > self.slowest_command_elapsed:
+            self.slowest_command_elapsed = elapsed_time
+            self.slowest_command_name = func_name_alt if func_name_alt else func_name
+
+        if elapsed_time < self.fastest_command_elapsed:
+            self.fastest_command_elapsed = elapsed_time
+            self.fastest_command_name = func_name_alt if func_name_alt else func_name
+
+    def update_user_stats(self, user_id: int, func_name: str, func_name_alt: Optional[str] = None) -> None:
+        """user_stats에서 사용자별 명령어 사용 통계 갱신"""
+        if user_id is None:
+            return False
+        
+        if user_id not in self.user_stats:
+            # 명령어를 처음 사용하는 사용자
+            run_func = func_name_alt if func_name_alt else func_name
+            self.user_stats[user_id] = {
+                "total_count"   : 1,
+                "last_command"  : run_func,
+                "command_stats" : {run_func: 1}
+            }
+
+        else:
+            # 기존 명령어 사용자
+            user_stat = self.user_stats[user_id]
+            run_func = func_name_alt if func_name_alt else func_name
+            user_stat["total_count"] += 1
+            user_stat["last_command"] = run_func
+            # 사용자별 명령어 사용 횟수 갱신
+            individual_command_stats: Dict[str, int] = user_stat.get("command_stats", {})
+            individual_command_stats[run_func] = individual_command_stats.get(run_func, 0) + 1
+
+    def record_command_usage(self, user_id: int, func_name: str, elapsed_time: float, func_name_alt: Optional[str] = None) -> None:
+        """명령어 사용 통계 기록 (command_stats, user_stats 갱신)"""
+        self.update_command_stats(func_name, elapsed_time, func_name_alt)
+        self.update_user_stats(user_id, func_name, func_name_alt)
+
+# 민감 키 목록 (마스킹 처리용)
 SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
-SLOWEST_COMMAND_ELAPSED : float = 0.0 # 가장 느린 명령어 초기값
-SLOWEST_COMMAND_NAME : str = ""
-FASTEST_COMMAND_ELAPSED : float = config.COMMAND_TIMEOUT # 가장 빠른 명령어 초기값
-FASTEST_COMMAND_NAME : str = ""
-COMMAND_STATS: dict = {} # 명령어별 실행 횟수 및 총 소요 시간 기록
-USER_STATS: dict = {} # 사용자별 명령어 사용 횟수 기록
 
 # Logger configuration
+bot_stats: Optional[DiscordBotStats] = None
 logger: Logger = logging.getLogger('discord_bot_logger')
 logger.setLevel(logging.INFO)
 formatter = KstFormatter('[%(asctime)s] %(levelname)s : %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -31,7 +108,16 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-def get_discord_user_id(ctx: commands.Context) -> int | None:
+
+def init_bot_stats() -> DiscordBotStats:
+    """봇 가동시 통계 클래스 호출 및 초기화"""
+    global bot_stats
+    bot_stats = DiscordBotStats()
+    bot_stats.reset()
+    return bot_stats
+
+
+def get_discord_user_id(ctx: commands.Context) -> Optional[int]:
     if _is_discord_context(ctx):
         author_id = getattr(getattr(ctx, "author", None), "id", None) or getattr(getattr(ctx, "user", None), "id", None)
         return author_id
@@ -131,9 +217,6 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
     def decorator(inner_func):
         @wraps(inner_func)
         async def wrapper(*args, **kwargs):
-            global SLOWEST_COMMAND_ELAPSED, SLOWEST_COMMAND_NAME
-            global FASTEST_COMMAND_ELAPSED, FASTEST_COMMAND_NAME
-            global COMMAND_STATS, USER_STATS
             func_name = inner_func.__name__
             start_time = time.time()
             try:
@@ -152,49 +235,30 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 else:
                     info_log = f"{func_name} success (Elapsed time: {elapsed_time:.3f} seconds)"
 
-                if stats:
-                    # 명령어 통계 업데이트
-                    if func_name not in COMMAND_STATS:
-                        COMMAND_STATS[func_name] = {'alt_name': alt_func_name, 'count': 1, 'fast': config.COMMAND_TIMEOUT, 'slow': 0.0}
-                    else:
-                        COMMAND_STATS[func_name]['count'] += 1
-                        if elapsed_time > COMMAND_STATS[func_name]['slow']:
-                            COMMAND_STATS[func_name]['slow'] = elapsed_time
-                        if elapsed_time < COMMAND_STATS[func_name]['fast']:
-                            COMMAND_STATS[func_name]['fast'] = elapsed_time
-
-                        if elapsed_time > SLOWEST_COMMAND_ELAPSED:
-                            SLOWEST_COMMAND_ELAPSED = elapsed_time
-                            SLOWEST_COMMAND_NAME = alt_func_name or func_name
-
-                        if elapsed_time < FASTEST_COMMAND_ELAPSED:
-                            FASTEST_COMMAND_ELAPSED = elapsed_time
-                            FASTEST_COMMAND_NAME = alt_func_name or func_name
-
-                    # 사용자 통계 업데이트
+                if stats and bot_stats is not None:
+                    # 명령어 / 사용자 통계 기록
                     ctx = kwargs.get("ctx") or (args[0] if args else None)
                     if ctx and isinstance(ctx, commands.Context):
                         user_id = get_discord_user_id(ctx)
-
-                        if user_id:
-                            if user_id not in USER_STATS:
-                                USER_STATS[user_id] = {'total_count': 1}
-                            else:
-                                USER_STATS[user_id]['total_count'] += 1
-                                USER_STATS[user_id]['last_command'] = alt_func_name
-
-                            user_individual_stats: dict = USER_STATS[user_id]
-                            if user_individual_stats.get('command_counts') is None:
-                                user_individual_stats['command_counts'] = {
-                                    alt_func_name: 1
-                                }
-                            else:
-                                if user_individual_stats['command_counts'].get(alt_func_name) is None:
-                                    user_individual_stats['command_counts'][alt_func_name] = 1
-                                else:
-                                    user_individual_stats['command_counts'][alt_func_name] += 1
-
+                        bot_stats.record_command_usage(user_id, func_name, elapsed_time, alt_func_name)
+                
+                # 정보 로깅
                 logger.info(info_log)
+
+                # Kafka로 로그 전송 (성공)
+                if config.KAFKA_ACTIVE:
+                    asyncio.create_task(
+                        build_and_send(
+                            ctx=ctx,
+                            func_name=func_name,
+                            func_name_alt=alt_func_name,
+                            elapsed_time=elapsed_time,
+                            status="success",
+                            args_info={"args": arg_info}
+                        )
+                    )
+
+                # 정상 종료
                 return
             
             # 예외 처리 - 경고 메시지 로깅
@@ -211,6 +275,23 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 else:
                     warn_log = f"{func_name} warning ({str(w)}) (Elapsed time: {elapsed_time:.3f} seconds)"
                 logger.warning(f"{warn_log}")
+
+                # Kafka로 로그 전송 (경고)
+                if config.KAFKA_ACTIVE:
+                    asyncio.create_task(
+                        build_and_send(
+                            ctx=ctx,
+                            func_name=func_name,
+                            func_name_alt=alt_func_name,
+                            elapsed_time=elapsed_time,
+                            status="warning",
+                            args_info={"args": arg_info},
+                            warning=w,
+                            traceback_msg=traceback.format_exc() if config.DEBUG_MODE else None,
+                        )
+                    )
+
+                # 정상 종료
                 return
             
             # 예외 처리 - 예외 메시지 로깅
@@ -228,6 +309,23 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 else:
                     errr_log = f"{func_name} error ({str(e)}) (Elapsed time: {elapsed_time:.3f} seconds)"
                 logger.error(f"{errr_log}")
+
+                # Kafka로 로그 전송 (오류)
+                if config.KAFKA_ACTIVE:
+                    asyncio.create_task(
+                        build_and_send(
+                            ctx=ctx,
+                            func_name=func_name,
+                            func_name_alt=alt_func_name,
+                            elapsed_time=elapsed_time,
+                            status="error",
+                            args_info={"args": arg_info},
+                            error=e,
+                            traceback_msg=traceback.format_exc() if config.DEBUG_MODE else None,
+                        )
+                    )
+
+                # 예외 재발생
                 raise
         return wrapper
 
@@ -252,6 +350,6 @@ def with_timeout(timeout_seconds: int = config.COMMAND_TIMEOUT):
             try:
                 return await asyncio.wait_for(func(ctx, *args, **kwargs), timeout=timeout_seconds)
             except asyncio.TimeoutError:
-                await ctx.send(f"⏰ 명령어 최대 시간 초과로 취소되었어양")
+                await ctx.send(f"⏰ 명령어 최대 시간({timeout_seconds}초) 초과로 취소되었어양")
         return wrapper
     return decorator

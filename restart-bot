@@ -1,0 +1,5 @@
+#/bin/bash
+
+docker-compose stop discord-bot
+docker-compose rm -f discord-bot
+docker-compose up -d --build discord-bot

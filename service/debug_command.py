@@ -9,6 +9,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timedelta
 
+from typing import Dict, Optional
+
 from service.debug_utils import *
 
 from bot_logger import logger, log_command, with_timeout
@@ -276,8 +278,9 @@ async def deb_help(ctx: commands.Context, category: str = None):
             inline=False
         )
         embed.add_field(
-            name="븜 날씨 <지역명 혹은 주소> (v2 Beta)",
-            value="**[카카오 / 기상청 API]**\n 현재 날씨와 예보정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n"
+            name="븜 날씨 <지역명 혹은 주소> (v3 개발중)",
+            value="**[카카오 / 기상청 API]**\n 현재 날씨와 예보정보를 조회합니다. \n*주소를 입력하면 더 정확하게 나와양\n대신 누군가 찾아올수도...*\n",
+            inline=False
         )
         embed.add_field(
             name="븜 블링크빵",
@@ -286,7 +289,22 @@ async def deb_help(ctx: commands.Context, category: str = None):
         )
         embed.add_field(
             name="븜 미국주식 <티커>",
-            value="**[yahoo finance]**\n 미국 주식의 현재 가격을 조회합니다.\n*아직 실험중인 기능이에양*\n*참고) 티커: BRK.B -> BRK-B* ",
+            value="미국 주식의 현재 가격을 조회합니다.\n*참고) 티커: BRK.B -> BRK-B* ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 미국차트 <티커> <기간>",
+            value="미국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*참고) 티커: BRK.B -> BRK-B* ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 한국주식 <종목명 또는 종목코드>",
+            value="한국 주식의 현재 가격을 조회합니다.\n*종목명이나 종목코드를 입력해양* ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 한국차트 <종목명 또는 종목코드> <기간>",
+            value="한국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*종목명이나 종목코드를 입력해양* ",
             inline=False
         )
     elif category == "관리자":
@@ -352,6 +370,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
         "------\n"
         "Data based on NEXON Open API\n"
         "Powered by Neople Open API\n"
+        "주식 데이터 Yahoo Finance 제공\n"
     )
     embed.set_footer(text=embed_footer)
 
@@ -375,21 +394,27 @@ async def deb_command_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
+    # 명령어 통계 데이터 호출
+    command_stats: Dict[str, str | int | float] = bl.bot_stats.command_stats
+    if isinstance(command_stats, dict):
+        slowest_command: str = bl.bot_stats.slowest_command_name or "몰라양"
+        fastest_command: str = bl.bot_stats.fastest_command_name or "몰라양"
+        slowest_elapsed: float = bl.bot_stats.slowest_command_elapsed
+        fastest_elapsed: float = bl.bot_stats.fastest_command_elapsed
+    else:
+        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
+        return False
+
     # 명령어 통계 출력
     what_is_slowest = (
-        f"가장 오래 걸리는 명령어: {bl.SLOWEST_COMMAND_NAME} ({bl.SLOWEST_COMMAND_ELAPSED:.3f}초)\n"
+        f"가장 오래 걸리는 명령어: {slowest_command} ({slowest_elapsed:.3f}초)\n"
     )
     what_is_fastest = (
-        f"가장 빨리 끝나는 명령어: {bl.FASTEST_COMMAND_NAME} ({bl.FASTEST_COMMAND_ELAPSED:.3f}초)\n"
+        f"가장 빨리 끝나는 명령어: {fastest_command} ({fastest_elapsed:.3f}초)\n"
     )
 
     # 명령어 순위 통계 (상위 10개)
-    command_stats_raw: dict = bl.COMMAND_STATS
-    top10_commands: list = sorted(command_stats_raw.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
-    if not command_stats_raw:
-        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
-        return
-
+    top10_commands: list = sorted(command_stats.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
     rank_emoji: list = ["🥇", "🥈", "🥉"]
     command_stats = "\n".join(
         f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등')} "
@@ -501,7 +526,7 @@ async def deb_reset_stats(ctx: commands.Context) -> None:
     bl.SLOWEST_COMMAND_NAME = None
     bl.SLOWEST_COMMAND_ELAPSED = 0.01
     bl.FASTEST_COMMAND_NAME = None
-    bl.FASTEST_COMMAND_ELAPSED = 30.0
+    bl.FASTEST_COMMAND_ELAPSED = 60.0
 
     logger.info("Command statistics have been reset.")
     await ctx.send("명령어 통계가 초기화되었어양!")

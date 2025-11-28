@@ -377,3 +377,11 @@ class YFI_STOCK_FETCH_RATE(YFinanceAPIError):
 class YFI_NO_TICKER(YFinanceAPIError):
     """티커 정보를 찾을 수 없는 예외"""
     pass
+
+class STK_KRX_SEARCH_ERROR(STKException):
+    """한국 주식 코드 검색 오류 예외"""
+    pass
+
+class STK_KRX_SEARCH_NO_RESULT(STKException):
+    """한국 주식 코드 검색 결과 없음 예외"""
+    pass

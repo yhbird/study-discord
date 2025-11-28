@@ -1,13 +1,22 @@
-import time
 import discord
-import difflib
 from discord.ext import commands
 
-from bot_logger import logger
+# bot logging 추가
+from bot_logger import logger, init_bot_stats
+
+# bot 유틸리티 함수
 from bot_helper import build_command_help, resolve_command, build_command_hint #도움말 예외처리
 from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리, 봇 상태 갱신
+
+# Kafka 초기화
+from kafka.producer import init_kafka_producer, close_kafka_producer
+from kafka.consumer import consume_kafka_logs
+
+# 봇 설정값 불러오기
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
+from config import KAFKA_ACTIVE, DB_USE
+from typing import Literal
 
 # Matplotlib 한글 폰트 설정
 from utils.plot import set_up_matplotlib_korean
@@ -20,7 +29,7 @@ import service.basic_command as basic_command
 import service.maplestory_command as map_command
 import service.neoplednf_command as dnf_command
 import service.weather_command as wth_command
-import service.yfinance_command as yfi_command
+import service.stock_command as stk_command
 import data.hidden.hidden_command as hid_command
 
 # 디스코드 디버그용 명령어
@@ -81,8 +90,8 @@ async def run_msg_handle_blinkbang(ctx: commands.Context):
     await basic_command.msg_handle_blinkbang(ctx)
 
 @bot.command(name="따라해", usage="메세지", help="사용자가 보낸 메세지를 그대로 따라해양. 예: `븜 따라해 안녕!`")
-async def run_msg_handle_repeat(ctx: commands.Context, *, text: str):
-    await basic_command.msg_handle_repeat(ctx, text)
+async def run_msg_handle_repeat(ctx: commands.Context, *, repeat_text: str):
+    await basic_command.msg_handle_repeat(ctx, repeat_text)
 
 @bot.command(name="이미지", usage="검색어", help="이미지를 검색해양. 예: `븜 이미지 븜미`")
 async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
@@ -118,7 +127,7 @@ async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str
 async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
     await map_command.maple_xp_history_v2(ctx, character_name)
 
-@bot.command(name="경험치v1", usage="캐릭터명", help="메이플스토리 캐릭터의 1주간 경험치 히스토리를 조회해양. 예: `븜 경험치 마법사악`")
+@bot.command(name="경험치v1", usage="캐릭터명", help="메이플스토리 캐릭터의 1주간 경험치 히스토리를 조회해양. (구버전) 예: `븜 경험치 마법사악`")
 async def run_api_maple_xp_history_v1(ctx: commands.Context, character_name: str):
     await map_command.maple_xp_history(ctx, character_name)
 
@@ -149,10 +158,22 @@ async def run_api_dnf_equipment(ctx: commands.Context, server_name: str, charact
 async def run_api_weather(ctx: commands.Context, location: str):
     await wth_command.api_weather(ctx, location)
 
-# 주식 명령어 등록 from service.yfinance_command as yfi_command
+# 주식 명령어 등록 from service.stock_command as stk_command
 @bot.command(name="미국주식", usage="티커(대문자)", help="미국 주식 시세를 티커를 통해 조회해양. 예: `븜 미국주식 AAPL`")
-async def run_stk_us_stock_price(ctx: commands.Context, ticker: str):
-    await yfi_command.stk_us_stock_price(ctx, ticker)
+async def run_stk_us_price(ctx: commands.Context, ticker: str):
+    await stk_command.stk_us_price(ctx, ticker)
+
+@bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
+async def run_stk_us_chart(ctx: commands.Context, ticker: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
+    await stk_command.stk_us_chart(ctx, ticker, period)
+
+@bot.command(name="한국주식", usage="종목명 또는 종목코드", help="한국 주식 시세를 종목명이나 종목코드를 통해 조회해양. 예: `븜 한국주식 삼성전자` 또는 `븜 한국주식 005930`")
+async def run_stk_kr_price(ctx: commands.Context, stock: str):
+    await stk_command.stk_kr_price(ctx, stock)
+
+@bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
+async def run_stk_kr_chart(ctx: commands.Context, stock: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
+    await stk_command.stk_kr_chart(ctx, stock, period)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])
@@ -171,15 +192,35 @@ async def run_hidden_command_3(ctx: commands.Context):
 # 봇 실행 + 메모리 정리 반복 작업 시작
 @bot.event
 async def on_ready():
-    logger.info(f'Logged in as... {bot.user}!!')
-    auto_clear_memory.start()
-    update_bot_presence.start(bot)
+    logger.info(f"Initializing bot... {bot.user}")
+
+    if KAFKA_ACTIVE and DB_USE:
+        await init_kafka_producer()
+
+        if not getattr(bot, "kafka_consumer_started", False):
+            bot.loop.create_task(consume_kafka_logs())
+            bot.kafka_consumer_started = True
+            logger.info("Apache-Kafka Active: Kafka consumer task started.")
+
     await bot.change_presence(
         status=discord.Status.online,
         activity=discord.Game(name="븜 명령어 | 메이플스토리")
     )
+    
+    init_bot_stats()
+    auto_clear_memory.start()
+    update_bot_presence.start(bot)
+    logger.info(f'Logged in as... {bot.user}!!')
 
     
+@bot.event
+async def on_close():
+    logger.info("Bot is shutting down...")
+    if KAFKA_ACTIVE:
+        await close_kafka_producer()
+    logger.info("Bot has been shut down.")
+
+
 @bot.event
 async def on_message(message: discord.Message):
     # 봇이 보낸 메시지에는 반응하지 않음

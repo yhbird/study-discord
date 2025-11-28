@@ -14,7 +14,7 @@ from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
 from service.basic_utils import check_ban
-from config import COMMAND_TIMEOUT
+from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX
 
 from exceptions.command_exceptions import InvalidCommandFormat
 from ddgs.exceptions import DDGSException
@@ -33,24 +33,31 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
     """
-    command_prefix: str = "븜 따라해 "
+    content_raw: str = ctx.message.content
 
-    if ctx.message.author.bot:
-        return
-
-    if ctx.message.content.startswith(command_prefix):
-        output = ctx.message.content[len(command_prefix):]
+    if content_raw.startswith(f"{BOT_COMMAND_PREFIX}따라해"):
+        output = repeat_text.strip()
         try:
             await ctx.message.delete()
+
         except discord.Forbidden:
             await ctx.message.channel.send("메세지 삭제 권한이 없어양")
             return
+        
         except discord.HTTPException as e:
             await ctx.message.channel.send("메세지 삭제 중 오류가 발생했어양")
             return
 
+        except Exception as e:
+            await ctx.message.channel.send("알 수 없는 오류가 발생했어양")
+            return
+        
         if output:
             await ctx.message.channel.send(output)
+            return
+    
+    else:
+        return
 
 
 # 샴 이미지 기능 복원
@@ -153,4 +160,5 @@ async def msg_handle_blinkbang(ctx: commands.Context):
             return
 
         await ctx.message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
+        return
 

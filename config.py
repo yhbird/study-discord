@@ -1,11 +1,12 @@
 import os
 import sys
-from typing import List
+from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
 
 from datetime import datetime
 from pytz import timezone
+from sqlalchemy import text
 
 from exceptions.base import BotConfigFailed, BotInitializationError
 
@@ -14,15 +15,15 @@ try:
     # Load environment variables from .env file
     assert load_dotenv('./env/token.env'), BotConfigFailed("token.env file not found")
     assert os.getenv('bot_token_dev'), BotInitializationError("bot_token not found in env file")
-    BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'dev')
+    BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'prd')
     BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
 # Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed Bot loading during Discord Token loading: {e}")
-    sys.exit(True)
+    sys.exit(2)
 except BotInitializationError as e:
     print(f"Bot token loading failed: {e}")
-    sys.exit(True)
+    sys.exit(2)
 
 # Nexon Open API Key loading
 try:
@@ -40,10 +41,10 @@ try:
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed Bot loading during Nexon API Key loading: {e}")
-    sys.exit(True)
+    sys.exit(2)
 except BotInitializationError as e:
     print(f"Nexon API Key loading failed: {e}")
-    sys.exit(True)
+    sys.exit(2)
 
 # weather API Key loading
 try:
@@ -57,10 +58,25 @@ try:
 # weather API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed loading weather API key!!: {e}")
-    sys.exit(True)
+    sys.exit(2)
 except BotInitializationError as e:
     print(f"Weather API Key loading failed: {e}")
-    sys.exit(True)
+    sys.exit(2)
+
+# stock API Key loading
+try:
+    assert load_dotenv('./env/stock.env'), BotConfigFailed("stock.env file not found")
+    assert os.getenv('stk_data_api'), BotInitializationError("stk_data_api not found in env file")
+    assert os.getenv('stk_api_url'), BotInitializationError("stk_api_url not found in env file")
+    STK_DATA_API_KEY: str = os.getenv('stk_data_api', None)
+    STK_API_HOME: str = os.getenv('stk_api_url', None)
+# stock API 키를 제대로 불러오지 못하면 실행 불가
+except BotConfigFailed as e:
+    print(f"Failed loading stock API key!!: {e}")
+    sys.exit(2)
+except BotInitializationError as e:
+    print(f"Stock API Key loading failed: {e}")
+    sys.exit(2)
 
 # 히든변수 및 히든명령어 loading
 if load_dotenv('./env/secret.env'):
@@ -77,6 +93,7 @@ if load_dotenv('./env/secret.env'):
         "deb_user_stats" : os.getenv('admin_cmd_5'),
         "deb_reset_stats" : os.getenv('admin_cmd_6'),
     }
+    VERSION_NAME: str = os.getenv('discord_bot_version', 'UnKnownVersion')
 else:
     raise BotInitializationError("Failed loading secret.env file!!")
 
@@ -113,7 +130,53 @@ else:
 # Bot 시작 시간 기록
 BOT_START_DT: datetime = datetime.now(timezone('Asia/Seoul'))
 BOT_START_TIME_STR: str = BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-BOT_VERSION: str = f"v20251017-{BOT_TOKEN_RUN}"
+BOT_VERSION: str = f"{VERSION_NAME}@{BOT_TOKEN_RUN}"
+
+
+# Kafka 설정
+KAFKA_BOOTSTRAP_SERVERS: Literal["discord-bot-kafka:29092"] = "discord-bot-kafka:29092"
+KAFKA_TOPIC_NAME: Literal["discord.command.logs"] = "discord.command.logs"
+
+
+# DB 설정
+DB_USE: bool = True # DB 사용 여부
+if DB_USE:
+    try:
+        assert load_dotenv("./env/db.env"), BotConfigFailed("db.env file not found")
+        db_user: Optional[str] = os.getenv('db_user')
+        db_pass: Optional[str] = os.getenv('db_password')
+        db_host: Optional[str] = os.getenv('db_host')
+        db_port: Optional[str] = os.getenv('db_port')
+        db_name: Optional[str] = os.getenv('db_name')
+        POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        #connection test
+        from sqlalchemy import create_engine
+        engine = create_engine(POSTGRES_DSN)
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        print("DB connection test successful.")
+        KAFKA_ACTIVE: bool = True
+
+    except BotConfigFailed as e:
+        print(f"Failed Bot loading during DB config loading: {e}")
+        DB_USE = False
+        KAFKA_ACTIVE: bool = False
+        POSTGRES_DSN = ""
+
+    except BotInitializationError as e:
+        print(f"DB config loading failed: {e}")
+        DB_USE = False
+        KAFKA_ACTIVE: bool = False
+        POSTGRES_DSN = ""
+
+    except Exception as e:
+        print(f"DB connection test failed: {e}")
+        DB_USE = False
+        KAFKA_ACTIVE: bool = False
+        POSTGRES_DSN = ""
+else:
+    POSTGRES_DSN = ""
+    KAFKA_ACTIVE: bool = False
 
 
 # 디버그 모드 설정
