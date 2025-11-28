@@ -22,23 +22,47 @@ class ImageViewer(View):
         self.add_item(Button(label="⏭️", style=discord.ButtonStyle.secondary, custom_id="last"))
         self.add_item(Button(label="❌", style=discord.ButtonStyle.primary, custom_id="delete"))
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-               
-        # 상호작용한 사용자가 뷰의 소유자와 일치하는지 확인
-        if interaction.user != self.view_owner:
-            await interaction.response.send_message("이 기능은 검색한 사람만 사용할 수 있어양!", ephemeral=True)
-            return False
+
+    def is_owner(self, interaction: discord.Interaction) -> bool:
+        return interaction.user == self.view_owner
+    
+
+    def is_admin(self, interaction: discord.Interaction) -> bool:
+        perms = getattr(interaction.user, "guild_permissions", None)
+        return bool(perms and perms.administrator)
+    
+
+    def has_permission(self, interaction: discord.Interaction, action: str) -> bool:
+        if action == "delete":
+            return self.is_owner(interaction) or self.is_admin(interaction)
         
-        # 상호작용한 사용자와 뷰의 소유자가 일치하면 버튼 상호작용 실행
+        owner_only_actions = {"first", "prev", "next", "last"}
+        if action in owner_only_actions:
+            return self.is_owner(interaction)
+        
+        return False
+    
+
+    async def _send_no_permission_message(self, interaction: discord.Interaction, action: str) -> None:
+        if action == "delete":
+            send_msg = "이 기능은 검색한 사람이나 관리자만 사용할 수 있어양!"
+        else:
+            send_msg = "이 기능은 검색한 사람만 사용할 수 있어양!"
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(send_msg, ephemeral=True)
+            return
+        else:
+            await interaction.followup.send(send_msg, ephemeral=True)
+            return
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:               
         action = interaction.data["custom_id"]
 
-        # Admin 권한이 있으면 삭제 가능
-        if interaction.user.guild_permissions.administrator:
-            if action == "delete":
-                if self.message:
-                    await self.message.delete()
-                return False  # View 종료
-            
+        if not self.has_permission(interaction, action):
+            await self._send_no_permission_message(interaction, action)
+            return False
+        
         if action == "first":
             self.current_index = 0
         elif action == "prev":
@@ -51,6 +75,7 @@ class ImageViewer(View):
             if self.message:
                 await self.message.delete()
             return False  # View 종료
+
         await self.update_msg(interaction)
         return True
 
@@ -62,8 +87,10 @@ class ImageViewer(View):
         embed.set_footer(text="문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!")
         if interaction.response.is_done():
             await interaction.followup.edit_message(message_id=self.message.id, embed=embed, view=self)
+            return
         else:
             await interaction.response.edit_message(embed=embed, view=self)
+            return
 
     # 10분 후 타임아웃 처리
     async def on_timeout(self):

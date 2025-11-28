@@ -100,7 +100,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
 
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
-    if character_image != '알 수 없음':
+    if character_image != "":
         character_image_url: str = get_character_image_url(character_image)
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
@@ -165,7 +165,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
         f"Data Based on Nexon Open API"
     )
     embed = discord.Embed(title=embed_title, description=embed_description)
-    if character_image_url != '알 수 없음':
+    if character_image_url:
         embed.set_image(url=character_image_url)
     embed.set_footer(text=embed_footer)
     if character_gender in ["남성", "남"]:

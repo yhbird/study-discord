@@ -118,9 +118,11 @@ def get_character_image_url(character_image: str) -> str:
         character_image (str): 캐릭터 이미지 파일명
 
     Returns:
-        str: 캐릭터 이미지 URL
+        str | None: 캐릭터 이미지 URL 또는 None
     """
-    look_value = character_image.split("/character/look/")[-1]
+    if character_image == "" or character_image is None:
+        return None
+    look_value = character_image.split("/character/look/")[-1].split("?")[0]
     return f"{maplestory_urls.character_image_url}{look_value}.png"
 
 
