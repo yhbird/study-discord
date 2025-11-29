@@ -260,6 +260,11 @@ async def deb_help(ctx: commands.Context, category: str = None):
             value="던전앤파이터 캐릭터의 주간 던파를 요약합니다.\n*레이드 클리어 기록, 태초획득 기록까지 븜미가 친절히 알려줘양*\n ",
             inline=False
         )
+        embed.add_field(
+            name="븜 던파장비 <서버이름> <캐릭터이름>",
+            value="던전앤파이터 캐릭터의 장비 정보를 조회합니다.\n*장비 아이템명, 등급, 강화수치, 세트포인트 등을 보여줘양*\n ",
+            inline=False
+        )
     elif category == "기타":
         # 기타 카테고리 도움말
         embed = discord.Embed(
