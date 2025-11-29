@@ -61,7 +61,7 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
             await deb_command.deb_switch(ctx)
         if arg == admin_commands.get("deb_command_stats"):
             if DB_USE:
-                await deb_command.deb_command_stats(ctx)
+                await deb_command.deb_command_stats_v2(ctx)
             else:
                 await ctx.message.delete()
                 await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")

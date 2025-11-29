@@ -70,7 +70,7 @@ def get_command_stats(guild_id: int) -> Dict[str, Any]:
                 , avg(elapsed_time_ms) as average_elapsed
                 , min(elapsed_time_ms) as fastest_elapsed
                 , max(elapsed_time_ms) as slowest_elapsed
-             from app_service.discord_command_logs
+             from {source_schema}.{source_table}
             where guild_id = :p_guild_id
               and command_name_alt is not null
          group by command_name_alt
