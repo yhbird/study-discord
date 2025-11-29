@@ -60,9 +60,19 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
         if arg == admin_commands.get("deb_switch"):
             await deb_command.deb_switch(ctx)
         if arg == admin_commands.get("deb_command_stats"):
-            await deb_command.deb_command_stats(ctx)
+            if DB_USE:
+                await deb_command.deb_command_stats(ctx)
+            else:
+                await ctx.message.delete()
+                await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")
+                return
         if arg == admin_commands.get("deb_user_stats"):
-            await deb_command.deb_user_stats(ctx)
+            if DB_USE:
+                await deb_command.deb_user_stats(ctx)
+            else:
+                await ctx.message.delete()
+                await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")
+                return
         if arg == admin_commands.get("deb_reset_stats"):
             await deb_command.deb_reset_stats(ctx)
         if arg is None:
@@ -207,7 +217,7 @@ async def on_ready():
         activity=discord.Game(name="븜 명령어 | 메이플스토리")
     )
     
-    init_bot_stats()
+    # init_bot_stats()
     auto_clear_memory.start()
     update_bot_presence.start(bot)
     logger.info(f'Logged in as... {bot.user}!!')

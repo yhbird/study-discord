@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 
 from service.debug_utils import *
+from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import logger, log_command, with_timeout
 from utils.time import kst_format_now, kst_format_now
@@ -393,7 +394,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
     return
 
 
-# 가장 오래 / 빨리 실행된 명령어 조회
+# 서버(guild)내에서 가장 오래 / 빨리 실행된 명령어 조회
 @with_timeout(config.COMMAND_TIMEOUT)
 async def deb_command_stats(ctx: commands.Context) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -458,6 +459,84 @@ async def deb_command_stats(ctx: commands.Context) -> None:
     await ctx.send(embed=embed)
     return
 
+
+@with_timeout(config.COMMAND_TIMEOUT)
+async def deb_command_stats_v2(ctx: commands.Context) -> None:
+    # 채팅창에 명령어가 노출되지 않도록 삭제
+    await ctx.message.delete()
+
+    # 서버(guild) id 조회
+    guild_id: int = getattr(getattr(ctx, "guild", None), "id", None)
+    if guild_id is None:
+        await ctx.send("서버 정보를 불러오는데 실패했어양...")
+        raise CommandFailure("Failed to get guild ID from context.")
+    
+    # 명령어 통계 데이터 호출
+    try:
+        command_stats = get_command_stats(guild_id)
+    except DB_CONNECTION_ERROR as e:
+        await ctx.send("데이터베이스 연결에 실패했어양")
+        raise CommandFailure("Database connection error.") from e
+    
+    if command_stats == {}:
+        await ctx.send("현재 서버에서 명령어 사용 기록이 없어양...")
+        return
+    
+    # 명령어 통계 출력
+    else:
+        embed = discord.Embed(title="븜끼봇 서버내 명령어 통계")
+        slowest_command: Dict[str, str | float | int] = command_stats.get("slowest_command", {})
+        fastest_command: Dict[str, str | float | int] = command_stats.get("fastest_command", {})
+        
+        if slowest_command:
+            embed.add_field(
+                name  = "가장 오래 걸린 명령어",
+                value = (
+                    f"**{slowest_command.get("command_name") or "몰라양"}**\n"
+                    f"- 평균 실행 시간: {slowest_command.get("average_elapsed")/1000 or 0:.3f}초\n"
+                    f"- 최장 실행 시간: {slowest_command.get("slowest_elapsed")/1000 or 0:.3f}초\n"
+                    f"- 최단 실행 시간: {slowest_command.get("fastest_elapsed")/1000 or 0:.3f}초\n"
+                    f"- 명령어 실행 횟수: {slowest_command.get("call_count") or 0}회\n"
+                )
+            )
+
+        if fastest_command:
+            embed.add_field(
+                name  = "가장 빨리 끝난 명령어",
+                value = (
+                    f"**{fastest_command.get("command_name") or "몰라양"}**\n"
+                    f"- 평균 실행 시간: {fastest_command.get("average_elapsed")/1000 or 0:.3f}초\n"
+                    f"- 최장 실행 시간: {fastest_command.get("slowest_elapsed")/1000 or 0:.3f}초\n"
+                    f"- 최단 실행 시간: {fastest_command.get("fastest_elapsed")/1000 or 0:.3f}초\n"
+                    f"- 명령어 실행 횟수: {fastest_command.get("call_count") or 0}회\n"
+                )
+            )
+
+        lines = []
+        top10_commands: List[Dict[str, str | int | float]] = command_stats.get("top10_commands", [])
+        if top10_commands:
+            for i, command in enumerate(top10_commands, start = 1):
+                lines.append(
+                    f"**{i} 등: {command["command_name"] or "몰라양"}** - "
+                    f"{command["call_count"] or 0}회 호출, 평균 {command["average_elapsed"]/1000 or 0:.3f}초 소요"
+                )
+
+            if lines:
+                embed.add_field(
+                    name  = "명령어별 실행 횟수 및 시간 (Top 10)",
+                    value = "\n".join(lines),
+                    inline=False
+                )
+
+        footer_test = (
+            f"봇 버전: {config.BOT_VERSION} | 봇 이름: {ctx.guild.me.name}\n"
+            f"서버 이름: {getattr(getattr(ctx, "guild", None), "name", "몰라양")}\n"
+            f"집계 기준: {config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')} (KST) 이후\n"
+            f"명령어를 성공적으로 호출한 경우에만 통계에 반영"
+        )
+        embed.set_footer(text=footer_test)
+        await ctx.send(content="서버내 명령어 통계에양!!", embed=embed)
+        return
 
 # 가장 많이 명령어를 호출한 사용자 조회
 @with_timeout(config.COMMAND_TIMEOUT)

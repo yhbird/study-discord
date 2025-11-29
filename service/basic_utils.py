@@ -60,6 +60,7 @@ class ImageViewer(View):
             await interaction.followup.send(send_msg, ephemeral=True)
             return
 
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:               
         action = interaction.data["custom_id"]
 
