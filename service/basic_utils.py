@@ -4,6 +4,7 @@ from discord.ui import View, Button
 
 from exceptions.base import BotWarning
 from dotenv import load_dotenv
+from config import BOT_DEVELOPER_ID
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
@@ -32,7 +33,7 @@ class ImageViewer(View):
             return False
         
         perms = interaction.user.guild_permissions
-        return perms.administrator
+        return perms.administrator or interaction.user.id == BOT_DEVELOPER_ID
     
 
     def has_permission(self, interaction: discord.Interaction, action: str) -> bool:
