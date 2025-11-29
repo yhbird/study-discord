@@ -24,12 +24,15 @@ class ImageViewer(View):
 
 
     def is_owner(self, interaction: discord.Interaction) -> bool:
-        return interaction.user == self.view_owner
+        return interaction.user.id == self.view_owner.id
     
 
     def is_admin(self, interaction: discord.Interaction) -> bool:
-        perms = getattr(interaction.user, "guild_permissions", None)
-        return bool(perms and perms.administrator)
+        if not isinstance(interaction.user, discord.Member):
+            return False
+        
+        perms = interaction.user.guild_permissions
+        return perms.administrator
     
 
     def has_permission(self, interaction: discord.Interaction, action: str) -> bool:
@@ -72,8 +75,14 @@ class ImageViewer(View):
         elif action == "last":
             self.current_index = len(self.images) - 1
         elif action == "delete":
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
             if self.message:
-                await self.message.delete()
+                try:
+                    await self.message.delete()
+                except discord.NotFound:
+                    pass
+            self.stop()
             return False  # View 종료
 
         await self.update_msg(interaction)
@@ -85,6 +94,7 @@ class ImageViewer(View):
         embed.set_image(url=self.images[self.current_index]["image"])
         embed.description = f"[🔗 원본 보기]({self.images[self.current_index]['url']})"
         embed.set_footer(text="문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!")
+
         if interaction.response.is_done():
             await interaction.followup.edit_message(message_id=self.message.id, embed=embed, view=self)
             return
@@ -103,7 +113,7 @@ class ImageViewer(View):
             try:
                 await self.message.edit(view=self)
             except discord.NotFound:
-                raise BotWarning
+                pass
             
             
 def check_ban(image_search_keyword: str) -> bool:
