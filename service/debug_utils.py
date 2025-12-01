@@ -4,7 +4,7 @@ import psutil
 from sqlalchemy import create_engine, text
 
 from config import POSTGRES_DSN
-from exceptions.client_exceptions import DB_CONNECTION_ERROR
+from exceptions.client_exceptions import DB_CONNECTION_ERROR, DB_DATA_NOT_FOUND
 
 from sqlalchemy import Engine, TextClause, Sequence
 from typing import Dict, List, Any
@@ -73,6 +73,7 @@ def get_command_stats(guild_id: int) -> Dict[str, Any]:
              from {source_schema}.{source_table}
             where guild_id = :p_guild_id
               and command_name_alt is not null
+              and command_result = 'success'
          group by command_name_alt
         """
     )
@@ -82,26 +83,26 @@ def get_command_stats(guild_id: int) -> Dict[str, Any]:
 
     # 해당 길드에서 명령어 사용 기록이 없는 경우
     if not rows:
-        return {}
+        raise DB_DATA_NOT_FOUND(f"No command usage data found for guild_id: {guild_id}")
     
     # 명령어 사용 통계 정보 가공
     slowest_command_row = max(rows, key=lambda x: x["slowest_elapsed"])
     fastest_command_row = min(rows, key=lambda x: x["fastest_elapsed"])
 
     slowest_command: Dict[str, str | float | int] = {
-        "command_name": str(slowest_command_row["command_name_alt"]),
-        "fastest_elapsed": int(slowest_command_row["fastest_elapsed"]),
-        "slowest_elapsed": int(slowest_command_row["slowest_elapsed"]),
-        "average_elapsed": float(round(slowest_command_row["average_elapsed"], 2)),
-        "call_count": int(slowest_command_row["usage_count"]),
+        "command_name"    : str(slowest_command_row["command_name_alt"]),
+        "fastest_elapsed" : int(slowest_command_row["fastest_elapsed"]),
+        "slowest_elapsed" : int(slowest_command_row["slowest_elapsed"]),
+        "average_elapsed" : float(round(slowest_command_row["average_elapsed"], 2)),
+        "call_count"      : int(slowest_command_row["usage_count"]),
     }
 
     fastest_command: Dict[str, str | float | int] = {
-        "command_name": str(fastest_command_row["command_name_alt"]),
-        "fastest_elapsed": int(fastest_command_row["fastest_elapsed"]),
-        "slowest_elapsed": int(fastest_command_row["slowest_elapsed"]),
-        "average_elapsed": float(round(fastest_command_row["average_elapsed"], 2)),
-        "call_count": int(fastest_command_row["usage_count"]),
+        "command_name"    : str(fastest_command_row["command_name_alt"]),
+        "fastest_elapsed" : int(fastest_command_row["fastest_elapsed"]),
+        "slowest_elapsed" : int(fastest_command_row["slowest_elapsed"]),
+        "average_elapsed" : float(round(fastest_command_row["average_elapsed"], 2)),
+        "call_count"      : int(fastest_command_row["usage_count"]),
     }
 
     top10_commands: List[Dict[str, Any]] = sorted(
@@ -111,15 +112,126 @@ def get_command_stats(guild_id: int) -> Dict[str, Any]:
 
     top10_command: List[Dict[str, str | float | int]] = [
         {
-            "command_name": str(row["command_name_alt"]),
-            "call_count": int(row["usage_count"]),
-            "average_elapsed": float(round(row["average_elapsed"], 2)),
+            "command_name"    : str(row["command_name_alt"]),
+            "call_count"      : int(row["usage_count"]),
+            "average_elapsed" : float(round(row["average_elapsed"], 2)),
         }
         for row in top10_commands
     ]
 
     return {
-        "slowest_command": slowest_command,
-        "fastest_command": fastest_command,
-        "top10_commands": top10_command,
+        "slowest_command" : slowest_command,
+        "fastest_command" : fastest_command,
+        "top10_commands"  : top10_command,
+    }
+
+
+# 서버(guild)내에서 사용자 통계 정보를 반환
+def get_user_stats(guild_id: int) -> Dict[str, List[Dict[str, Any]]]:
+    """서버(guild)내에서 사용자 통계 정보를 반환
+
+    Args:
+        guild_id (int): 서버(guild) ID
+
+    Returns:
+        dict: 사용자 통계 정보
+
+    Note:
+        반환 예시:
+        {
+            "user_stats": [
+                {
+                    "user_name": "사용자1",
+                    "usage_count": 150,
+                    "last_command": "븜 도움말",
+                    "last_command_time": "2024-01-01 12:34:56",
+                    "most_command_name": "븜 주식",
+                    "most_command_count": 100,
+                },
+                ...
+            ]
+        }
+    """
+    if POSTGRES_DSN == "":
+        raise DB_CONNECTION_ERROR("PostgreSQL DSN is not configured.")
+    
+    psql_engine   : Engine = create_engine(POSTGRES_DSN)
+
+    source_schema : str = "app_service"
+    source_table  : str = "discord_user_stats"
+
+    excute_query  : TextClause = text(
+        f"""
+            with base_cte as (
+                select user_name
+                    , command_name_alt as command_name
+                    , created_at
+                    , guild_id 
+                    from {source_schema}.{source_table}
+                where guild_id = :p_guild_id
+                    and elapsed_time_ms is not null
+                    and command_result = 'success'
+                    and user_name is not null
+            ),
+            last_command as (
+                select distinct on (user_name)
+                        user_name
+                    , command_name as last_command
+                    , created_at   as last_command_time
+                    from base_cte
+                order by user_name, created_at desc
+            ),
+            most_command as (
+                select user_name
+                    , command_name
+                    , count(*)     as command_count
+                    , row_number() over (
+                        partition by user_name
+                        order by count(*) desc
+                    ) as rn
+                    from base_cte
+                group by user_name, command_name
+            )
+               select B.user_name            as user_name
+                      , count(*)            as usage_count
+                      , L.last_command      as last_command
+                      , L.last_command_time as last_command_time
+                      , M.command_name      as most_command_name
+                      , M.command_count     as most_command_count
+                 from base_cte B
+            left join last_command L
+                   on B.user_name = L.user_name
+            left join most_command M
+                   on B.user_name = M.user_name and M.rn = 1
+             group by B.user_name
+                    , L.last_command
+                    , L.last_command_time
+                    , M.command_name
+                    , M.command_count
+             order by usage_count desc
+                limit 10
+        """
+    )
+    
+    with psql_engine.connect() as conn:
+        rows: Sequence = conn.execute(excute_query, {"p_guild_id": guild_id}).mappings().all()
+
+    # 해당 길드에서 사용자 통계 기록이 없는 경우
+    if not rows:
+        raise DB_DATA_NOT_FOUND(f"No user stats data found for guild_id: {guild_id}")
+    
+    user_stats: List[Dict[str, str | int | float]] = [
+        {
+            "user_name"         : str(row["user_name"]),
+            "usage_count"       : int(row["usage_count"]),
+            "last_command"      : str(row["last_command"]),
+            "last_command_time" : str(row["last_command_time"]),
+            "most_command_name" : str(row["most_command_name"]),
+            "most_command_count": int(row["most_command_count"]),
+        }
+        for row in rows
+    ]
+
+    return {
+        "user_stats": user_stats,
     }

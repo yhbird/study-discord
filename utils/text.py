@@ -1,6 +1,9 @@
 from typing import Literal
 
 
+SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
+
+
 def safe_float(input_val, digits: int = 2) -> str:
     try:
         return f"{float(input_val):.{digits}f}"
@@ -76,4 +79,21 @@ def preprocess_int_for_stocks(input_val: int) -> str:
         return str(input_val)
 
 
-SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
+def rank_to_emoji(rank: int) -> str:
+    """순위를 이모지로 변환
+
+    Args:
+        rank (int): 순위 (1, 2, 3, ...)
+
+    Returns:
+        str: 순위에 해당하는 이모지
+
+    Note:
+        4위 이상은 그냥 "4", "5" 형태로 반환
+    """
+    rank_emojis = {
+        1 : "🥇",
+        2 : "🥈",
+        3 : "🥉",
+    }
+    return rank_emojis.get(rank, str(rank))

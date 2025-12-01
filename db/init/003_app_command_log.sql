@@ -14,7 +14,7 @@ create table if not exists app_service.discord_command_logs(
     args_json jsonb,
 
     -- 명령어 실행 결과
-    result text, -- "success", "error", "warning"
+    command_result text, -- "success", "error", "warning"
     elapsed_time_ms int, -- 명령어 실행에 걸린 시간 (밀리초 단위)
     error_code text, -- 커스텀 에러 코드
     error_type text, -- 에러 타입
