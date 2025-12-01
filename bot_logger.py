@@ -188,7 +188,7 @@ def _format_bound_args(func, args, kwargs) -> str:
     return ", ".join(parts)
 
 
-def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool = True):
+def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool = False):
     """Docker 컨테이너에 실행한 봇 명령어를 기록하고, 소요시간 및 예외를 로깅
 
     Args:
@@ -222,6 +222,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
             try:
                 await inner_func(*args, **kwargs)
                 elapsed_time: float = time.time() - start_time
+                ctx = kwargs.get("ctx") or (args[0] if args else None)
 
                 # 인자 정보 포맷팅
                 try:
@@ -237,7 +238,6 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
 
                 if stats and bot_stats is not None:
                     # 명령어 / 사용자 통계 기록
-                    ctx = kwargs.get("ctx") or (args[0] if args else None)
                     if ctx and isinstance(ctx, commands.Context):
                         user_id = get_discord_user_id(ctx)
                         bot_stats.record_command_usage(user_id, func_name, elapsed_time, alt_func_name)
@@ -246,7 +246,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 logger.info(info_log)
 
                 # Kafka로 로그 전송 (성공)
-                if config.KAFKA_ACTIVE:
+                if config.KAFKA_ACTIVE and stats:
                     asyncio.create_task(
                         build_and_send(
                             ctx=ctx,
@@ -277,7 +277,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 logger.warning(f"{warn_log}")
 
                 # Kafka로 로그 전송 (경고)
-                if config.KAFKA_ACTIVE:
+                if config.KAFKA_ACTIVE and stats:
                     asyncio.create_task(
                         build_and_send(
                             ctx=ctx,
@@ -311,7 +311,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 logger.error(f"{errr_log}")
 
                 # Kafka로 로그 전송 (오류)
-                if config.KAFKA_ACTIVE:
+                if config.KAFKA_ACTIVE and stats:
                     asyncio.create_task(
                         build_and_send(
                             ctx=ctx,

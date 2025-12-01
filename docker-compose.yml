@@ -61,6 +61,19 @@ services:
     environment:
       TZ: Asia/Seoul
       PYTHON_RUN_ENV: ${APP_ENV}
+    volumes:
+      - ./assets:/app/assets
+      - ./data:/app/data
+      - ./db:/app/db
+      - ./env:/app/env
+      - ./exceptions:/app/exceptions
+      - ./kafka:/app/kafka
+      - ./service:/app/service
+      - ./bot_helper.py:/app/bot_helper.py
+      - ./bot_logger.py:/app/bot_logger.py
+      - ./config.py:/app/config.py
+      - ./main.py:/app/main.py
+      - ./requirements.txt:/app/requirements.txt
     depends_on:
       db:
         condition: service_healthy

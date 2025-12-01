@@ -12,14 +12,23 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 
 from service.debug_utils import *
+from utils.text import rank_to_emoji
+from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import logger, log_command, with_timeout
 from utils.time import kst_format_now, kst_format_now
 import config as config
 import bot_logger as bl
 
+
+# 전역 변수 설정
+command_timeout: int = config.COMMAND_TIMEOUT
+bot_developer_id: int = config.BOT_DEVELOPER_ID
+bot_version: str = config.BOT_VERSION
+
+
 # 메모리 사용량 조회
-@with_timeout(config.COMMAND_TIMEOUT)
+@with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="봇 메모리 사용량 조회")
 async def deb_memory_usage(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -32,7 +41,7 @@ async def deb_memory_usage(ctx: commands.Context):
 
 
  # 봇 정보 조회
-@with_timeout(config.COMMAND_TIMEOUT)
+@with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="봇 정보")
 async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -70,7 +79,7 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
 
 
 # 디버그 모드 ON/OFF
-@with_timeout(config.COMMAND_TIMEOUT)
+@with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="븜 디버그 모드 전환")
 async def deb_switch(ctx: commands.Context):
     # 채팅창에 명령어가 노출되지 않도록 삭제
@@ -84,7 +93,7 @@ async def deb_switch(ctx: commands.Context):
 
 
 # "븜 명령어" 리다이렉트
-@with_timeout(config.COMMAND_TIMEOUT)
+@with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="븜 명령어 리다이렉트")
 async def deb_help_redirection(ctx: commands.Context, category: str = None):
     """사용자에게 도움말을 리다이렉트하는 기능
@@ -111,7 +120,7 @@ async def deb_help_redirection(ctx: commands.Context, category: str = None):
 
 
 # 도움말 명령어
-@with_timeout(config.COMMAND_TIMEOUT)
+@with_timeout(command_timeout)
 @log_command(alt_func_name="븜 명령어")
 async def deb_help(ctx: commands.Context, category: str = None):
     """봇의 사용법을 안내하는 기능 (카테고리별)
@@ -260,6 +269,11 @@ async def deb_help(ctx: commands.Context, category: str = None):
             value="던전앤파이터 캐릭터의 주간 던파를 요약합니다.\n*레이드 클리어 기록, 태초획득 기록까지 븜미가 친절히 알려줘양*\n ",
             inline=False
         )
+        embed.add_field(
+            name="븜 던파장비 <서버이름> <캐릭터이름>",
+            value="던전앤파이터 캐릭터의 장비 정보를 조회합니다.\n*장비 아이템명, 등급, 강화수치, 세트포인트 등을 보여줘양*\n ",
+            inline=False
+        )
     elif category == "기타":
         # 기타 카테고리 도움말
         embed = discord.Embed(
@@ -310,7 +324,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
     elif category == "관리자":
         is_admin: bool = False
         # 명령어 요청자 권한 확인
-        if ctx.message.author.guild_permissions.administrator or ctx.message.author.id == config.BOT_DEVELOPER_ID:
+        if ctx.message.author.guild_permissions.administrator or ctx.message.author.id == bot_developer_id:
             is_admin: bool = True
             # 관리자 권한 있음 -> DM으로 명령어 전송
             embed = discord.Embed(
@@ -365,7 +379,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
     embed_footer:str = (
         "------\n"
         f"봇 이름: {ctx.guild.me.name}\n"
-        f"봇 버전: {config.BOT_VERSION}\n"
+        f"봇 버전: {bot_version}\n"
         f"소스코드: https://github.com/yhbird/study-discord\n"
         "------\n"
         "Data based on NEXON Open API\n"
@@ -388,130 +402,184 @@ async def deb_help(ctx: commands.Context, category: str = None):
     return
 
 
-# 가장 오래 / 빨리 실행된 명령어 조회
-@with_timeout(config.COMMAND_TIMEOUT)
-async def deb_command_stats(ctx: commands.Context) -> None:
-    # 채팅창에 명령어가 노출되지 않도록 삭제
-    await ctx.message.delete()
-
-    # 명령어 통계 데이터 호출
-    command_stats: Dict[str, str | int | float] = bl.bot_stats.command_stats
-    if isinstance(command_stats, dict):
-        slowest_command: str = bl.bot_stats.slowest_command_name or "몰라양"
-        fastest_command: str = bl.bot_stats.fastest_command_name or "몰라양"
-        slowest_elapsed: float = bl.bot_stats.slowest_command_elapsed
-        fastest_elapsed: float = bl.bot_stats.fastest_command_elapsed
-    else:
-        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
-        return False
-
-    # 명령어 통계 출력
-    what_is_slowest = (
-        f"가장 오래 걸리는 명령어: {slowest_command} ({slowest_elapsed:.3f}초)\n"
-    )
-    what_is_fastest = (
-        f"가장 빨리 끝나는 명령어: {fastest_command} ({fastest_elapsed:.3f}초)\n"
-    )
-
-    # 명령어 순위 통계 (상위 10개)
-    top10_commands: list = sorted(command_stats.items(), key=lambda item: item[1]['count'], reverse=True)[:10]
-    rank_emoji: list = ["🥇", "🥈", "🥉"]
-    command_stats = "\n".join(
-        f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등')} "
-        f"{info['alt_name'] or cmd_name}: {info['count']}회 "
-        f"(최고: {info['fast']:.3f}초, 최저: {info['slow']:.3f}초)"
-        for idx, (cmd_name, info) in enumerate(top10_commands)
-    )
-
-    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
-    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 명령어 통계"
-    stats_message = (
-        f"통계 집계 기준: {bot_start} (KST) 이후\n"
-        f"현재 시간: {now_kst} (KST)\n\n"
-        f"지금 까지 실행된 상위 10개 명령어 통계에양!\n"
-        f"```ini\n"
-        f"[상위 명령어 통계 top 10]\n"
-        f"{what_is_slowest}"
-        f"{what_is_fastest}\n"
-        f"[명령어별 실행 횟수 및 시간]\n"
-        f"{command_stats}\n"
-        f"```"
-    )
-    embed_footer_text = (
-        f"봇 버전: {config.BOT_VERSION} | 봇 이름: {ctx.guild.me.name}\n"
-        f"명령어를 성공적으로 호출한 경우에만 통계에 반영돼양!"
-    )
-
-    embed: discord.Embed = discord.Embed(
-        title=embed_title,
-        description=stats_message,
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text=embed_footer_text)
-
-    await ctx.send(embed=embed)
-    return
-
-
-# 가장 많이 명령어를 호출한 사용자 조회
-@with_timeout(config.COMMAND_TIMEOUT)
-async def deb_user_stats(ctx: commands.Context) -> None:
-    """사용자별 명령어 호출 통계를 조회합니다.
+# 서버(guild)내에서 가장 오래/빨리 실행된 명령어 조회
+@with_timeout(command_timeout)
+@log_command(stats=False, alt_func_name="븜 명령어 통계 조회")
+async def deb_command_stats_v2(ctx: commands.Context) -> None:
+    """서버(guild) 내 가장 오래/빨리 실행된 명령어와 순위를 집계합니다.
 
     Args:
         ctx (commands.Context): Discord 명령어 컨텍스트
 
-    Note:
-        USER_STATS 딕셔너리에서 사용자 ID를 키로 사용하여
-        각 사용자의 명령어 호출 횟수를 저장합니다.
-        {user_id: {'total_count': int, 'last_command': str, 'command_counts': {command_name: int, ...}}} 형태
-    """
+    Raises:
+        CommandFailure: DB_CONNECTION_ERROR(DB 접속 실패)시 발생
+        CommandFailure: DB_DATA_NOT_FOUND(데이터 없음)시 발생
 
+    Note:
+        명령어 통계는 명령어가 성공적으로 실행된 경우에만 집계됩니다.
+        통계 데이터는 PostgreSQL 데이터베이스에서 조회합니다.
+        데이터 없음 오류 발생시 성공처리로 간주하고 안내 메시지 전송
+    """
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
-    # 사용자 통계 출력 (상위 3명, mention 포함)
-    user_stats_raw = bl.USER_STATS
-    if not user_stats_raw:
-        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
+    # 서버(guild) id 조회
+    guild_id: int = getattr(getattr(ctx, "guild", None), "id", None)
+    if guild_id is None:
+        await ctx.send("서버 정보를 불러오는데 실패했어양...")
+        raise CommandFailure("Failed to get guild ID from context.")
+    
+    # 명령어 통계 데이터 호출
+    try:
+        command_stats = get_command_stats(guild_id)
+
+    except DB_CONNECTION_ERROR as e:
+        await ctx.send("데이터베이스 연결에 실패했어양")
+        raise CommandFailure("Database connection error.") from e
+    
+    except DB_DATA_NOT_FOUND as e:
+        await ctx.send("현재 서버에서 명령어 사용 기록이 없어양...")
         return
     
-    rank_emoji: list = ["🥇", "🥈", "🥉"]
-    top3_users: list = sorted(user_stats_raw.items(), key=lambda item: item[1]['total_count'], reverse=True)[:3]
-    user_stats = "\n".join(
-        f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등 ')}"
-        f"<@{user_id}>: {info['total_count']}회\n"
-        f"- 최근 사용 명령어: {info.get('last_command', '몰라양')}\n"
-        f"- 많이 사용한 명령어: {max(info['command_counts'], key=info['command_counts'].get, default='몰라양')} "
-        f"({max(info['command_counts'].values(), default=0)}회)\n"
-        for idx, (user_id, info) in enumerate(top3_users)
-    )
-    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
-    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 사용자 통계"
-    stats_message = (
-        f"통계 집계 기준: {bot_start} (KST) 이후\n"
-        f"현재 시간: {now_kst} (KST)\n\n"
-        f"지금 까지 명령어를 가장 많이 호출한 사용자 통계에양!\n"
-        f"\n[상위 사용자 3명 명령어 통계]\n"
-        f"{user_stats}\n"
-        f""
-    )
-    embed_footer_text = (
-        f"봇 버전: {config.BOT_VERSION} | 봇 이름: {ctx.guild.me.name}\n"
-        f"명령어를 성공적으로 호출한 경우에만 통계에 반영돼양!"
-    )
+    # 명령어 통계 출력
+    else:
+        embed = discord.Embed(title="븜끼봇 서버내 명령어 통계")
+        slowest_command: Dict[str, str | float | int] = command_stats.get("slowest_command", {})
+        fastest_command: Dict[str, str | float | int] = command_stats.get("fastest_command", {})
+        
+        if slowest_command:
+            slowest_command_nam : str   = slowest_command.get("command_name") or "몰라양"
+            slowest_command_avg : float = slowest_command.get("average_elapsed")/1000 or 0.000
+            slowest_command_slo : float = slowest_command.get("slowest_elapsed")/1000 or 0.000
+            slowest_command_fas : float = slowest_command.get("fastest_elapsed")/1000 or 0.000
+            slowest_command_cnt : int   = slowest_command.get("call_count", 0) or 0
+            embed.add_field(
+                name  = "가장 오래 걸린 명령어",
+                value = (
+                    f"**{slowest_command_nam}**\n"
+                    f"- 평균 실행 시간: {slowest_command_avg:.3f}초\n"
+                    f"- 최장 실행 시간: {slowest_command_slo:.3f}초\n"
+                    f"- 최단 실행 시간: {slowest_command_fas:.3f}초\n"
+                    f"- 명령어 실행 횟수: {slowest_command_cnt}회\n"
+                )
+            )
 
-    embed: discord.Embed = discord.Embed(
-        title=embed_title,
-        description=stats_message,
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text=embed_footer_text)
+        if fastest_command:
+            fastest_command_nam : str   = fastest_command.get("command_name") or "몰라양"
+            fastest_command_avg : float = fastest_command.get("average_elapsed")/1000 or 0.000
+            fastest_command_slo : float = fastest_command.get("slowest_elapsed")/1000 or 0.000
+            fastest_command_fas : float = fastest_command.get("fastest_elapsed")/1000 or 0.000
+            fastest_command_cnt : int   = fastest_command.get("call_count", 0) or 0
+            embed.add_field(
+                name  = "가장 빨리 끝난 명령어",
+                value = (
+                    f"**{fastest_command_nam}**\n"
+                    f"- 평균 실행 시간: {fastest_command_avg:.3f}초\n"
+                    f"- 최장 실행 시간: {fastest_command_slo:.3f}초\n"
+                    f"- 최단 실행 시간: {fastest_command_fas:.3f}초\n"
+                    f"- 명령어 실행 횟수: {fastest_command_cnt}회\n"
+                )
+            )
 
-    await ctx.send(embed=embed)
-    return
+        lines = []
+        top10_commands: List[Dict[str, str | int | float]] = command_stats.get("top10_commands", [])
+        if top10_commands:
+            for i, command in enumerate(top10_commands, start = 1):
+                command_rank    : str   = f"{i}위:" if i > 3 else rank_to_emoji(i)
+                command_name    : str   = command["command_name"] or "몰라양"
+                command_count   : int   = command["call_count"] or 0
+                average_elapsed : float = command["average_elapsed"]/1000 or 0.000
+                lines.append(
+                    f"**{command_rank} {command_name}** - "
+                    f"{command_count}회 호출, "
+                    f"평균 {average_elapsed:.3f}초 소요"
+                )
+
+            if lines:
+                embed.add_field(
+                    name  = "명령어별 실행 횟수 및 시간 (Top 10)",
+                    value = "\n".join(lines),
+                    inline=False
+                )
+
+        server_name: str = getattr(getattr(ctx, "guild", None), "name", "몰라양")
+        footer_test = (
+            f"봇 버전: {bot_version} | 봇 이름: {ctx.guild.me.name}\n"
+            f"서버 이름: {server_name}\n"
+            f"집계 기준: 전체 기간\n"
+            f"명령어를 성공적으로 호출한 경우에만 통계에 반영"
+        )
+        embed.set_footer(text=footer_test)
+        await ctx.send(content="서버내 명령어 통계에양!!", embed=embed)
+        return
+
+
+@with_timeout(command_timeout)
+@log_command(stats=False, alt_func_name="봇 사용자 통계 조회")
+async def deb_user_stats_v2(ctx: commands.Context) -> None:
+    # 채팅창에 명령어가 노출되지 않도록 삭제
+    await ctx.message.delete()
+
+    # 서버(guild) id 조회
+    guild_id: int = getattr(getattr(ctx, "guild", None), "id", None)
+    if guild_id is None:
+        await ctx.send("서버 정보를 불러오는데 실패했어양...")
+        raise CommandFailure("Failed to get guild ID from context.")
+    
+    # 사용자 통계 데이터 호출
+    try:
+        user_stats = get_user_stats(guild_id)
+
+    except DB_CONNECTION_ERROR as e:
+        await ctx.send("데이터베이스 연결에 실패했어양")
+        raise CommandFailure("Database connection error.") from e
+    
+    except DB_DATA_NOT_FOUND as e:
+        await ctx.send("현재 서버에서 사용자 명령어 사용 기록이 없어양...")
+        return
+
+    # 사용자 통계 출력
+    else:
+        embed = discord.Embed(title="븜끼봇 서버내 사용자 명령어 통계")
+        
+        lines = []
+        top10_users: List[Dict[str, str | int]] = user_stats.get("user_stats", [])
+        if top10_users:
+            for i, user in enumerate(top10_users, start = 1):
+                user_rank      : str = f"{i}위." if i > 3 else rank_to_emoji(i)
+                user_name      : str = user["user_name"] or "몰라양"
+                user_count     : int = user["usage_count"] or 0
+                last_command   : str = user["last_command"] or "몰라양"
+                last_command_t : str = user["last_command_time"].split(".")[0] or "몰라양"
+                most_command   : str = user["most_command_name"] or "몰라양"
+                most_command_c : int = user["most_command_count"] or 0
+                lines.append(
+                    f"**{user_rank} {user_name}** - {user_count}회 호출\n"
+                    f"- 최근 사용한 명령어: {last_command} @{last_command_t}\n"
+                    f"- 많이 사용한 명령어: {most_command} ({most_command_c}회)\n"
+                )
+
+            if lines:
+                embed.add_field(
+                    name  = "사용자별 명령어 호출 통계 (Top 5)",
+                    value = "\n".join(lines),
+                    inline=False
+                )
+        else:
+            await ctx.send("현재 서버에서 명령어를 사용한 사람이 너무 적어양...")
+            return
+
+        server_name: str = getattr(getattr(ctx, "guild", None), "name", "몰라양")
+        footer_test = (
+            f"------\n"
+            f"봇 버전: {bot_version} | 봇 이름: {ctx.guild.me.name}\n"
+            f"서버 이름: {server_name}\n"
+            f"집계 기준: 전체 기간\n"
+            f"명령어를 성공적으로 호출한 경우에만 통계에 반영"
+        )
+        embed.set_footer(text=footer_test)
+        await ctx.send(content="서버내 사용자 명령어 통계에양!!", embed=embed)
+        return
 
 
 # 통계 초기화 (메모리 사용량 감소 목적)
