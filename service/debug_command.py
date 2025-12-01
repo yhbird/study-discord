@@ -489,26 +489,36 @@ async def deb_command_stats_v2(ctx: commands.Context) -> None:
         fastest_command: Dict[str, str | float | int] = command_stats.get("fastest_command", {})
         
         if slowest_command:
+            slowest_command_nam : str   = slowest_command.get("command_name") or "몰라양"
+            slowest_command_avg : float = slowest_command.get("average_elapsed")/1000 or 0.000
+            slowest_command_slo : float = slowest_command.get("slowest_elapsed")/1000 or 0.000
+            slowest_command_fas : float = slowest_command.get("fastest_elapsed")/1000 or 0.000
+            slowest_command_cnt : int   = slowest_command.get("call_count", 0) or 0
             embed.add_field(
                 name  = "가장 오래 걸린 명령어",
                 value = (
-                    f"**{slowest_command.get("command_name") or "몰라양"}**\n"
-                    f"- 평균 실행 시간: {slowest_command.get("average_elapsed")/1000 or 0:.3f}초\n"
-                    f"- 최장 실행 시간: {slowest_command.get("slowest_elapsed")/1000 or 0:.3f}초\n"
-                    f"- 최단 실행 시간: {slowest_command.get("fastest_elapsed")/1000 or 0:.3f}초\n"
-                    f"- 명령어 실행 횟수: {slowest_command.get("call_count") or 0}회\n"
+                    f"**{slowest_command_nam}**\n"
+                    f"- 평균 실행 시간: {slowest_command_avg:.3f}초\n"
+                    f"- 최장 실행 시간: {slowest_command_slo:.3f}초\n"
+                    f"- 최단 실행 시간: {slowest_command_fas:.3f}초\n"
+                    f"- 명령어 실행 횟수: {slowest_command_cnt}회\n"
                 )
             )
 
         if fastest_command:
+            fastest_command_nam : str   = fastest_command.get("command_name") or "몰라양"
+            fastest_command_avg : float = fastest_command.get("average_elapsed")/1000 or 0.000
+            fastest_command_slo : float = fastest_command.get("slowest_elapsed")/1000 or 0.000
+            fastest_command_fas : float = fastest_command.get("fastest_elapsed")/1000 or 0.000
+            fastest_command_cnt : int   = fastest_command.get("call_count", 0) or 0
             embed.add_field(
                 name  = "가장 빨리 끝난 명령어",
                 value = (
-                    f"**{fastest_command.get("command_name") or "몰라양"}**\n"
-                    f"- 평균 실행 시간: {fastest_command.get("average_elapsed")/1000 or 0:.3f}초\n"
-                    f"- 최장 실행 시간: {fastest_command.get("slowest_elapsed")/1000 or 0:.3f}초\n"
-                    f"- 최단 실행 시간: {fastest_command.get("fastest_elapsed")/1000 or 0:.3f}초\n"
-                    f"- 명령어 실행 횟수: {fastest_command.get("call_count") or 0}회\n"
+                    f"**{fastest_command_nam}**\n"
+                    f"- 평균 실행 시간: {fastest_command_avg:.3f}초\n"
+                    f"- 최장 실행 시간: {fastest_command_slo:.3f}초\n"
+                    f"- 최단 실행 시간: {fastest_command_fas:.3f}초\n"
+                    f"- 명령어 실행 횟수: {fastest_command_cnt}회\n"
                 )
             )
 
@@ -516,9 +526,13 @@ async def deb_command_stats_v2(ctx: commands.Context) -> None:
         top10_commands: List[Dict[str, str | int | float]] = command_stats.get("top10_commands", [])
         if top10_commands:
             for i, command in enumerate(top10_commands, start = 1):
+                command_name    : str = command["command_name"] or "몰라양"
+                command_count   : int = command["call_count"] or 0
+                average_elapsed : float = command["average_elapsed"]/1000 or 0.000
                 lines.append(
-                    f"**{i} 등: {command["command_name"] or "몰라양"}** - "
-                    f"{command["call_count"] or 0}회 호출, 평균 {command["average_elapsed"]/1000 or 0:.3f}초 소요"
+                    f"**{i} 등: {command_name}** - "
+                    f"{command_count}회 호출, "
+                    f"평균 {average_elapsed:.3f}초 소요"
                 )
 
             if lines:
@@ -528,10 +542,11 @@ async def deb_command_stats_v2(ctx: commands.Context) -> None:
                     inline=False
                 )
 
+        server_name: str = getattr(getattr(ctx, "guild", None), "name", "몰라양")
         footer_test = (
             f"봇 버전: {config.BOT_VERSION} | 봇 이름: {ctx.guild.me.name}\n"
-            f"서버 이름: {getattr(getattr(ctx, "guild", None), "name", "몰라양")}\n"
-            f"집계 기준: {config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')} (KST) 이후\n"
+            f"서버 이름: {server_name}\n"
+            f"집계 기준: 전체 기간\n"
             f"명령어를 성공적으로 호출한 경우에만 통계에 반영"
         )
         embed.set_footer(text=footer_test)
