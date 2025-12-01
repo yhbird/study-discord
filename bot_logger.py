@@ -246,7 +246,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 logger.info(info_log)
 
                 # Kafka로 로그 전송 (성공)
-                if config.KAFKA_ACTIVE:
+                if config.KAFKA_ACTIVE and stats:
                     asyncio.create_task(
                         build_and_send(
                             ctx=ctx,
@@ -277,7 +277,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 logger.warning(f"{warn_log}")
 
                 # Kafka로 로그 전송 (경고)
-                if config.KAFKA_ACTIVE:
+                if config.KAFKA_ACTIVE and stats:
                     asyncio.create_task(
                         build_and_send(
                             ctx=ctx,
@@ -311,7 +311,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
                 logger.error(f"{errr_log}")
 
                 # Kafka로 로그 전송 (오류)
-                if config.KAFKA_ACTIVE:
+                if config.KAFKA_ACTIVE and stats:
                     asyncio.create_task(
                         build_and_send(
                             ctx=ctx,
