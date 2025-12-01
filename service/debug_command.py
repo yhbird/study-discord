@@ -485,12 +485,12 @@ async def deb_command_stats_v2(ctx: commands.Context) -> None:
         top10_commands: List[Dict[str, str | int | float]] = command_stats.get("top10_commands", [])
         if top10_commands:
             for i, command in enumerate(top10_commands, start = 1):
-                command_rank    : str   = f"{i} 등" if i > 4 else rank_to_emoji(i)
+                command_rank    : str   = f"{i}위:" if i > 3 else rank_to_emoji(i)
                 command_name    : str   = command["command_name"] or "몰라양"
                 command_count   : int   = command["call_count"] or 0
                 average_elapsed : float = command["average_elapsed"]/1000 or 0.000
                 lines.append(
-                    f"**{command_rank}: {command_name}** - "
+                    f"**{command_rank} {command_name}** - "
                     f"{command_count}회 호출, "
                     f"평균 {average_elapsed:.3f}초 소요"
                 )
@@ -512,66 +512,6 @@ async def deb_command_stats_v2(ctx: commands.Context) -> None:
         embed.set_footer(text=footer_test)
         await ctx.send(content="서버내 명령어 통계에양!!", embed=embed)
         return
-
-# 가장 많이 명령어를 호출한 사용자 조회
-@with_timeout(command_timeout)
-@log_command(stats=False, alt_func_name="븜 사용자 통계 조회")
-async def deb_user_stats(ctx: commands.Context) -> None:
-    """사용자별 명령어 호출 통계를 조회합니다.
-
-    Args:
-        ctx (commands.Context): Discord 명령어 컨텍스트
-
-    Note:
-        USER_STATS 딕셔너리에서 사용자 ID를 키로 사용하여
-        각 사용자의 명령어 호출 횟수를 저장합니다.
-        {user_id: {'total_count': int, 'last_command': str, 'command_counts': {command_name: int, ...}}} 형태
-    """
-
-    # 채팅창에 명령어가 노출되지 않도록 삭제
-    await ctx.message.delete()
-
-    # 사용자 통계 출력 (상위 3명, mention 포함)
-    user_stats_raw = bl.USER_STATS
-    if not user_stats_raw:
-        await ctx.send("아직 통계에 집계된 데이터가 없어양...")
-        return
-    
-    rank_emoji: list = ["🥇", "🥈", "🥉"]
-    top3_users: list = sorted(user_stats_raw.items(), key=lambda item: item[1]['total_count'], reverse=True)[:3]
-    user_stats = "\n".join(
-        f"{(rank_emoji[idx] if idx < 3 else f'{idx+1}등 ')}"
-        f"<@{user_id}>: {info['total_count']}회\n"
-        f"- 최근 사용 명령어: {info.get('last_command', '몰라양')}\n"
-        f"- 많이 사용한 명령어: {max(info['command_counts'], key=info['command_counts'].get, default='몰라양')} "
-        f"({max(info['command_counts'].values(), default=0)}회)\n"
-        for idx, (user_id, info) in enumerate(top3_users)
-    )
-    now_kst: str = kst_format_now().strftime('%Y-%m-%d %H:%M:%S')
-    bot_start: str = config.BOT_START_DT.strftime('%Y-%m-%d %H:%M:%S')
-    embed_title = f"븜끼봇 사용자 통계"
-    stats_message = (
-        f"통계 집계 기준: {bot_start} (KST) 이후\n"
-        f"현재 시간: {now_kst} (KST)\n\n"
-        f"지금 까지 명령어를 가장 많이 호출한 사용자 통계에양!\n"
-        f"\n[상위 사용자 3명 명령어 통계]\n"
-        f"{user_stats}\n"
-        f""
-    )
-    embed_footer_text = (
-        f"봇 버전: {config.BOT_VERSION} | 봇 이름: {ctx.guild.me.name}\n"
-        f"명령어를 성공적으로 호출한 경우에만 통계에 반영돼양!"
-    )
-
-    embed: discord.Embed = discord.Embed(
-        title=embed_title,
-        description=stats_message,
-        color=discord.Color.blue()
-    )
-    embed.set_footer(text=embed_footer_text)
-
-    await ctx.send(embed=embed)
-    return
 
 
 @with_timeout(command_timeout)
@@ -606,23 +546,22 @@ async def deb_user_stats_v2(ctx: commands.Context) -> None:
         top10_users: List[Dict[str, str | int]] = user_stats.get("user_stats", [])
         if top10_users:
             for i, user in enumerate(top10_users, start = 1):
-                user_rank      : str = f"{i} 등" if i > 4 else rank_to_emoji(i)
+                user_rank      : str = f"{i}위." if i > 3 else rank_to_emoji(i)
                 user_name      : str = user["user_name"] or "몰라양"
-                user_count     : int = user["total_count"] or 0
+                user_count     : int = user["usage_count"] or 0
                 last_command   : str = user["last_command"] or "몰라양"
-                last_command_t : str = user["last_command_time"] or "몰라양"
-                most_command   : str = user["most_used_command"] or "몰라양"
-                most_command_c : int = user["most_used_count"] or 0
+                last_command_t : str = user["last_command_time"].split(".")[0] or "몰라양"
+                most_command   : str = user["most_command_name"] or "몰라양"
+                most_command_c : int = user["most_command_count"] or 0
                 lines.append(
-                    f"**{user_rank}: {user_name}** - "
-                    f"{user_count}회 호출\n"
-                    f"- 최근 사용 명령어: {last_command}\n @{last_command_t}\n"
-                    f"- 많이 사용한 명령어: {most_command} ({most_command_c}회)\n\n"
+                    f"**{user_rank} {user_name}** - {user_count}회 호출\n"
+                    f"- 최근 사용한 명령어: {last_command} @{last_command_t}\n"
+                    f"- 많이 사용한 명령어: {most_command} ({most_command_c}회)\n"
                 )
 
             if lines:
                 embed.add_field(
-                    name  = "사용자별 명령어 호출 통계 (Top 10)",
+                    name  = "사용자별 명령어 호출 통계 (Top 5)",
                     value = "\n".join(lines),
                     inline=False
                 )
@@ -632,6 +571,7 @@ async def deb_user_stats_v2(ctx: commands.Context) -> None:
 
         server_name: str = getattr(getattr(ctx, "guild", None), "name", "몰라양")
         footer_test = (
+            f"------\n"
             f"봇 버전: {bot_version} | 봇 이름: {ctx.guild.me.name}\n"
             f"서버 이름: {server_name}\n"
             f"집계 기준: 전체 기간\n"

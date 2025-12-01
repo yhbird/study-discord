@@ -158,7 +158,7 @@ def get_user_stats(guild_id: int) -> Dict[str, List[Dict[str, Any]]]:
     psql_engine   : Engine = create_engine(POSTGRES_DSN)
 
     source_schema : str = "app_service"
-    source_table  : str = "discord_user_stats"
+    source_table  : str = "discord_command_logs"
 
     excute_query  : TextClause = text(
         f"""
@@ -209,7 +209,7 @@ def get_user_stats(guild_id: int) -> Dict[str, List[Dict[str, Any]]]:
                     , M.command_name
                     , M.command_count
              order by usage_count desc
-                limit 10
+                limit 5
         """
     )
     
