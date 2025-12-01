@@ -222,6 +222,7 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
             try:
                 await inner_func(*args, **kwargs)
                 elapsed_time: float = time.time() - start_time
+                ctx = kwargs.get("ctx") or (args[0] if args else None)
 
                 # 인자 정보 포맷팅
                 try:
@@ -237,7 +238,6 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
 
                 if stats and bot_stats is not None:
                     # 명령어 / 사용자 통계 기록
-                    ctx = kwargs.get("ctx") or (args[0] if args else None)
                     if ctx and isinstance(ctx, commands.Context):
                         user_id = get_discord_user_id(ctx)
                         bot_stats.record_command_usage(user_id, func_name, elapsed_time, alt_func_name)
