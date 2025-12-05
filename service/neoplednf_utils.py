@@ -235,7 +235,7 @@ async def get_dnf_character_info(sid: str, cid: str) -> Dict[str, Any]:
     request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
     response_data: dict = await general_request_handler_neople(request_url)
 
-    adv_name : Optional[str] = response_data.get("characterName")
+    adv_name : Optional[str] = response_data.get("adventureName")
     c_level : Optional[int] = response_data.get("level")
     c_job_name : Optional[str] = response_data.get("jobName")
     c_job_grow : Optional[str] = response_data.get("jobGrowName")
