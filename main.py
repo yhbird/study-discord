@@ -59,26 +59,29 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
             await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
         if arg == admin_commands.get("deb_switch"):
             await deb_command.deb_switch(ctx)
-        if arg == admin_commands.get("deb_command_stats"):
-            if DB_USE:
-                await deb_command.deb_command_stats_v2(ctx)
-            else:
-                await ctx.message.delete()
-                await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")
-                return
-        if arg == admin_commands.get("deb_user_stats"):
-            if DB_USE:
-                await deb_command.deb_user_stats_v2(ctx)
-            else:
-                await ctx.message.delete()
-                await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")
-                return
         if arg == admin_commands.get("deb_reset_stats"):
             await deb_command.deb_reset_stats(ctx)
         if arg is None:
             await ctx.send(f"{ctx.message.author.mention}님, 디버그 명령어 사용법: `븜 디버그 [명령어]` 입력 혹은 `븜 명령어 관리자` 참고")
     return
 
+@bot.command(name="명령어통계", help="서버 내 명령어 사용 통계를 조회해양. 예: `븜 명령어통계` (DB가 연결되어 있어야 사용 가능)")
+async def run_deb_command_stats(ctx: commands.Context):
+    if DB_USE:
+        await deb_command.deb_command_stats_v2(ctx)
+        return
+    else:
+        await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!", reference=ctx.message)
+        return
+    
+@bot.command(name="사용자통계", help="서버 내 사용자별 명령어 사용 통계를 조회해양. 예: `븜 사용자통계` (DB가 연결되어 있어야 사용 가능)")
+async def run_deb_user_stats(ctx: commands.Context):
+    if DB_USE:
+        await deb_command.deb_user_stats_v2(ctx)
+        return
+    else:
+        await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!", reference=ctx.message)
+        return
 
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
 @bot.command(name="help")
