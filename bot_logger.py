@@ -188,7 +188,7 @@ def _format_bound_args(func, args, kwargs) -> str:
     return ", ".join(parts)
 
 
-def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool = False):
+def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool = True):
     """Docker 컨테이너에 실행한 봇 명령어를 기록하고, 소요시간 및 예외를 로깅
 
     Args:
