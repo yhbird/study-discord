@@ -33,7 +33,7 @@ async def build_and_send(
         "command_name": func_name,
         "command_name_alt": func_name_alt or func_name,
         "args_json": args_info,
-        "result" : status,
+        "command_result": status,
         "elapsed_time_ms": int(elapsed_time * 1000),
         "error_code": None,
         "error_type": type(error).__name__ if error else None,
