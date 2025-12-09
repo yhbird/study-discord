@@ -16,7 +16,7 @@ target_schema = "app_service"
 target_table = "discord_command_logs"
 
 # DB 엔진 생성
-def get_engine() -> Engine:
+def get_engine() -> Engine | None:
     if POSTGRES_DSN != "":
         return create_engine(POSTGRES_DSN, pool_pre_ping=True)
     else:

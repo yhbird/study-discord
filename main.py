@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 # bot logging 추가
-from bot_logger import logger, init_bot_stats
+from bot_logger import logger
 
 # bot 유틸리티 함수
 from bot_helper import build_command_help, resolve_command, build_command_hint #도움말 예외처리
@@ -15,7 +15,7 @@ from kafka.consumer import consume_kafka_logs
 # 봇 설정값 불러오기
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
-from config import KAFKA_ACTIVE, DB_USE
+from config import KAFKA_ACTIVE, DB_USE, BOT_TOKEN_RUN
 from typing import Literal
 
 # Matplotlib 한글 폰트 설정
@@ -34,9 +34,6 @@ import data.hidden.hidden_command as hid_command
 
 # 디스코드 디버그용 명령어
 import service.debug_command as deb_command
-
-# 명령어 실행중 발생하는 예외 처리
-from exceptions.command_exceptions import InvalidCommandParameter
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -207,13 +204,16 @@ async def run_hidden_command_3(ctx: commands.Context):
 async def on_ready():
     logger.info(f"Initializing bot... {bot.user}")
 
-    if KAFKA_ACTIVE and DB_USE:
+    if KAFKA_ACTIVE and DB_USE and BOT_TOKEN_RUN=="prd":
         await init_kafka_producer()
 
         if not getattr(bot, "kafka_consumer_started", False):
             bot.loop.create_task(consume_kafka_logs())
             bot.kafka_consumer_started = True
             logger.info("Apache-Kafka Active: Kafka consumer task started.")
+
+    else:
+        logger.info("Skipped Kafka-init: dev environment start")
 
     await bot.change_presence(
         status=discord.Status.online,

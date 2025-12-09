@@ -143,12 +143,15 @@ DB_USE: bool = True # DB 사용 여부
 if DB_USE:
     try:
         assert load_dotenv("./env/db.env"), BotConfigFailed("db.env file not found")
-        db_user: Optional[str] = os.getenv('db_user')
-        db_pass: Optional[str] = os.getenv('db_password')
-        db_host: Optional[str] = os.getenv('db_host')
-        db_port: Optional[str] = os.getenv('db_port')
-        db_name: Optional[str] = os.getenv('db_name')
-        POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        db_user: Optional[str] = os.getenv('DB_USER')
+        db_pass: Optional[str] = os.getenv('DB_PASSWORD')
+        db_host: Optional[str] = os.getenv('DB_HOST')
+        db_port: Optional[str] = os.getenv('DB_PORT')
+        db_name: Optional[str] = os.getenv('DB_NAME')
+        if BOT_TOKEN_RUN == 'dev':
+            POSTGRES_DSN: str = f"postgresql://{db_user}:{db_pass}@localhost:{db_port}/{db_name}"
+        else:
+            POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
         #connection test
         from sqlalchemy import create_engine
         engine = create_engine(POSTGRES_DSN)
