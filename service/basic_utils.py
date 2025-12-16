@@ -1,10 +1,16 @@
 import os
 import discord
+import asyncio
 from discord.ui import View, Button
 
-from exceptions.base import BotWarning
 from dotenv import load_dotenv
 from config import BOT_DEVELOPER_ID
+from config import MINECRAFT_RCON_HOST, MINECRAFT_RCON_PORT, MINECRAFT_RCON_PASSWORD
+from mctools import RCONClient
+from contextlib import contextmanager
+from typing import Generator
+
+from exceptions.client_exceptions import RCON_CLIENT_ERROR
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
@@ -90,6 +96,7 @@ class ImageViewer(View):
         await self.update_msg(interaction)
         return True
 
+
     async def update_msg(self, interaction: discord.Interaction):
         index = f"{self.current_index + 1}/{len(self.images)}"
         embed = discord.Embed(title=f"'{self.image_search_keyword}' 이미지 검색 결과 에양 ({index})")
@@ -127,11 +134,11 @@ def check_ban(image_search_keyword: str) -> bool:
     Returns:
         bool: 금지어 포함 여부
     """
-    load_dotenv("env/ban.env")
-    ban_cmd_1 = os.getenv("ban_cmd_1")
-    ban_cmd_2 = os.getenv("ban_cmd_2")
-    ban_cmd_3 = os.getenv("ban_cmd_3")
-    ban_cmd_4 = os.getenv("ban_cmd_4")
+    load_dotenv("env/secret.env")
+    ban_cmd_1 = os.getenv("BAN_CMD_1")
+    ban_cmd_2 = os.getenv("BAN_CMD_2")
+    ban_cmd_3 = os.getenv("BAN_CMD_3")
+    ban_cmd_4 = os.getenv("BAN_CMD_4")
 
     ban_list: list = [ban_cmd_1, ban_cmd_2, ban_cmd_3, ban_cmd_4]
 
@@ -140,3 +147,83 @@ def check_ban(image_search_keyword: str) -> bool:
             return True
         
     return False
+
+
+@contextmanager
+def rcon_client(
+    host: str = MINECRAFT_RCON_HOST,
+    port: int = MINECRAFT_RCON_PORT,
+    password: str = MINECRAFT_RCON_PASSWORD
+) -> Generator[RCONClient, None, None]:
+    """
+    RCON 클라이언트 생성 및 반환
+    
+    :return: RCON 클라이언트 인스턴스
+    :rtype: RCONClient
+    """
+    rcon_client = None
+    try:
+        rcon_client = RCONClient(host, port=port)
+        print(f"try connect to {host}:{port} ...")
+        if not rcon_client.login(password):
+            raise RCON_CLIENT_ERROR("RCON 로그인 실패")
+        yield rcon_client
+    except Exception as e:
+        raise RCON_CLIENT_ERROR(f"RCON 클라이언트 오류: {str(e)}")
+    finally:
+        if rcon_client is not None:
+            try:
+                rcon_client.stop()
+            except Exception:
+                pass
+
+
+async def rcon_command(
+    rcon: RCONClient, 
+    cmd: str
+) -> str:
+    """
+    RCON 명령어를 실행하는 함수
+
+    :param rcon: RCON 클라이언트 인스턴스
+    :type rcon: RCONClient
+    :param cmd: 실행할 명령어
+    :type cmd: str
+    :return: 명령어 실행 결과
+    :rtype: str
+    """
+    return await asyncio.to_thread(rcon.command, cmd)
+
+
+async def rcon_command_retry(
+    rcon: RCONClient, 
+    cmd: str, 
+    *, 
+    retries: int = 3, 
+    interval: float = 0.5, 
+    retry_flag: str | None = None
+) -> str:
+    """
+    RCON 명령어를 재시도하여 실행하는 함수
+
+    :param rcon: RCON 클라이언트 인스턴스
+    :type rcon: RCONClient
+    :param cmd: 실행할 명령어
+    :type cmd: str
+    :param retries: 재시도 횟수, 기본값은 3
+    :type retries: int
+    :param interval: 재시도 간격(초), 기본값은 0.5초
+    :type interval: float
+    :param retry_flag: 재시도 플래그 문자열, 응답에 포함되면 재시도, 기본값은 None
+    :type retry_flag: str | None
+    :return: 명령어 실행 결과
+    :rtype: str
+    """
+    last = ""
+    for attempt in range(retries):
+        last = await asyncio.to_thread(rcon.command, cmd)
+        if retry_flag and retry_flag in last:
+            await asyncio.sleep(interval * (attempt + 1))
+            continue
+        return last
+    return last

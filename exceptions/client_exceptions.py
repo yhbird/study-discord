@@ -397,3 +397,7 @@ class DB_QUERY_ERROR(ClientBaseException):
 class DB_DATA_NOT_FOUND(ClientBaseException):
     """데이터베이스 데이터 없음 예외"""
     pass
+
+class RCON_CLIENT_ERROR(ClientBaseException):
+    """RCON 클라이언트 오류 예외"""
+    pass

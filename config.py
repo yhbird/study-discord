@@ -80,20 +80,20 @@ except BotInitializationError as e:
 
 # 히든변수 및 히든명령어 loading
 if load_dotenv('./env/secret.env'):
-    BAN_CMD_1 = os.getenv('ban_cmd_1', '')
-    BAN_CMD_2 = os.getenv('ban_cmd_2', '')
-    BAN_CMD_3 = os.getenv('ban_cmd_3', '')
+    BAN_CMD_1 = os.getenv('BAN_CMD_1', '')
+    BAN_CMD_2 = os.getenv('BAN_CMD_2', '')
+    BAN_CMD_3 = os.getenv('BAN_CMD_3', '')
     SECRET_COMMANDS: List[str] = [BAN_CMD_1, BAN_CMD_2, BAN_CMD_3]
-    BOT_DEVELOPER_ID: int = int(os.getenv('discord_bot_developer', '0'))
+    BOT_DEVELOPER_ID: int = int(os.getenv('DISCORD_BOT_DEVELOPER', '0'))
     SECRET_ADMIN_COMMAND: dict = {
-        "deb_memory_usage" : os.getenv('admin_cmd_1'),
-        "deb_bot_info" : os.getenv('admin_cmd_2'),
-        "deb_switch" : os.getenv('admin_cmd_3'),
-        "deb_command_stats" : os.getenv('admin_cmd_4'),
-        "deb_user_stats" : os.getenv('admin_cmd_5'),
-        "deb_reset_stats" : os.getenv('admin_cmd_6'),
+        "deb_memory_usage" : os.getenv('ADMIN_CMD_1'),
+        "deb_bot_info" : os.getenv('ADMIN_CMD_2'),
+        "deb_switch" : os.getenv('ADMIN_CMD_3'),
     }
-    VERSION_NAME: str = os.getenv('discord_bot_version', 'UnKnownVersion')
+    VERSION_NAME: str = os.getenv('DISCORD_BOT_VERSION', 'UnKnownVersion')
+    MINECRAFT_RCON_HOST: str = os.getenv('MINECRAFT_RCON_HOST', 'localhost')
+    MINECRAFT_RCON_PORT: int = int(os.getenv('MINECRAFT_RCON_PORT', '25575'))
+    MINECRAFT_RCON_PASSWORD: str = os.getenv('MINECRAFT_RCON_PASSWORD', '')
 else:
     raise BotInitializationError("Failed loading secret.env file!!")
 
@@ -158,7 +158,7 @@ if DB_USE:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         print("DB connection test successful.")
-        KAFKA_ACTIVE: bool = True
+        KAFKA_ACTIVE: bool = True if BOT_TOKEN_RUN == 'prd' else False
 
     except BotConfigFailed as e:
         print(f"Failed Bot loading during DB config loading: {e}")

@@ -13,12 +13,16 @@ import time
 from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
-from service.basic_utils import check_ban
-from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX
-
-from exceptions.command_exceptions import InvalidCommandFormat
-from ddgs.exceptions import DDGSException
+from service.basic_utils import check_ban, rcon_client, rcon_command_retry, rcon_command
+from utils.text import strip_ansi_escape, parse_tps
+from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX, MINECRAFT_RCON_PASSWORD
 from bot_logger import log_command, with_timeout
+
+from mctools import RCONClient
+
+from ddgs.exceptions import DDGSException
+from exceptions.client_exceptions import RCON_CLIENT_ERROR
+from exceptions.command_exceptions import InvalidCommandFormat, CommandFailure
 
 
 # 샴 따라해 기능 복원
@@ -29,6 +33,7 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
 
     Args:
         ctx (commands.Context): "븜 따라해 "로 시작하는 디스코드 메세지
+        repeat_text: 디버그용 변수
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -63,11 +68,12 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
 # 샴 이미지 기능 복원
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 이미지")
-async def msg_handle_image(ctx: commands.Context, search_term: str = None):
+async def msg_handle_image(ctx: commands.Context, search_term: str | None = None):
     """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
 
     Args:
         ctx (commands.Context): "븜 이미지 "로 시작하는 디스코드 메세지
+        search_term (str): 이미지 검색어 (일부 문자열 금지)
 
     Raises:
         Exception: 메세지 삭제 권한이 없거나, 메세지 삭제 실패시 발생
@@ -95,7 +101,7 @@ async def msg_handle_image(ctx: commands.Context, search_term: str = None):
             await ctx.send(file=dnf_file, reference=ctx.message)
         return
 
-    results: list[dict] = None
+    results: list[dict] | None = None
     with DDGS() as ddgs:
         try:
             time.sleep(2) # API rate limit 
@@ -162,3 +168,60 @@ async def msg_handle_blinkbang(ctx: commands.Context):
         await ctx.message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
         return
 
+
+# 마크 서버 명령어: 서버 정보 조회
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 마크서버")
+async def msg_mcserver_info(ctx: commands.Context) -> None:
+    """
+    마인크래프트 서버 정보를 조회하는 기능
+    
+    :param ctx: discord 명령어 컨텍스트
+    :type ctx: commands.Context
+
+    :raises Exception: 네트워크 연결 오류, 마인크래프트 서버 offline 상태일 때 발생
+    """
+
+    try:
+        with rcon_client() as rcon:
+            if rcon is None:
+                await ctx.message.channel.send("RCON 클라이언트 생성에 실패했어양...")
+                raise CommandFailure("RCON 클라이언트 생성 실패")
+
+            login_ok = rcon.login(MINECRAFT_RCON_PASSWORD)
+            if not login_ok:
+                await ctx.message.channel.send("RCON 로그인에 실패했어양...")
+                raise CommandFailure("RCON 로그인 실패")
+
+            version_info = await rcon_command_retry(
+                rcon,
+                "version",
+                retries=5,
+                interval=1.0,
+                retry_flag="Checking"
+            )
+            player_list = await rcon_command(rcon, "list")
+            tps_text = await rcon_command(rcon, "tps")
+            tps_t1, tps_t5, tps_t15 = parse_tps(tps_text)
+
+            data: dict = {
+                "version": strip_ansi_escape(version_info),
+                "list": strip_ansi_escape(player_list),
+                "tps_t1": tps_t1,
+                "tps_t5": tps_t5,
+                "tps_t15": tps_t15
+            }
+
+            info_msg = (
+                f"**마인크래프트 서버 정보**\n"
+                f"버전: {data['version']}\n"
+                f"접속자: {data['list']}\n"
+                f"TPS(1/5/15분): {data['tps_t1']}, {data['tps_t5']}, {data['tps_t15']}"
+            )
+    
+    except RCON_CLIENT_ERROR as e:
+        await ctx.message.channel.send("마인크래프트 서버와의 통신 중 오류가 발생했어양...")
+        raise CommandFailure(f"RCON 클라이언트 오류: {str(e)}")
+    
+    await ctx.message.channel.send(info_msg)
+    return
