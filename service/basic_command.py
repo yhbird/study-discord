@@ -13,22 +13,22 @@ import time
 from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
-from service.basic_utils import check_ban, rcon_client, rcon_command_retry, rcon_command
+from service.basic_utils import check_ban, parse_user_list, parse_version_info
+from service.basic_utils import rcon_client, rcon_command_retry, rcon_command
 from utils.text import strip_ansi_escape, parse_tps
-from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX, MINECRAFT_RCON_PASSWORD
+from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX, MINECRAFT_RCON_PASSWORD, MINECRAFT_PUBLIC_DOMAIN
 from bot_logger import log_command, with_timeout
-
-from mctools import RCONClient
 
 from ddgs.exceptions import DDGSException
 from exceptions.client_exceptions import RCON_CLIENT_ERROR
 from exceptions.command_exceptions import InvalidCommandFormat, CommandFailure
 
+from typing import Dict
 
 # 샴 따라해 기능 복원
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 따라해")
-async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
+async def msg_handle_repeat(ctx: commands.Context, repeat_text: str) -> None:
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
     Args:
@@ -47,15 +47,15 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str):
 
         except discord.Forbidden:
             await ctx.message.channel.send("메세지 삭제 권한이 없어양")
-            return
+            raise CommandFailure("Forbidden access to delete message")
         
-        except discord.HTTPException as e:
+        except discord.HTTPException:
             await ctx.message.channel.send("메세지 삭제 중 오류가 발생했어양")
-            return
+            raise CommandFailure("HTTP error while deleting message")
 
-        except Exception as e:
+        except Exception:
             await ctx.message.channel.send("알 수 없는 오류가 발생했어양")
-            return
+            raise CommandFailure("Unknown error while deleting message")
         
         if output:
             await ctx.message.channel.send(output)
@@ -113,10 +113,10 @@ async def msg_handle_image(ctx: commands.Context, search_term: str | None = None
             )
         except DDGSException as e:
             await ctx.message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
-            return
+            raise CommandFailure(f"DDGS API error: {str(e)}")
         except Exception as e:
             await ctx.message.channel.send(f"검색 중에 오류가 발생했어양...")
-            return
+            raise CommandFailure(f"Unknown error: {str(e)}")
     
     if not results:
         await ctx.message.channel.send("이미지를 찾을 수 없어양!!")
@@ -163,7 +163,7 @@ async def msg_handle_blinkbang(ctx: commands.Context):
             await ctx.message.delete()
         except discord.Forbidden:
             await ctx.message.channel.send("메세지 삭제 권한이 없어양")
-            return
+            raise CommandFailure("Forbidden access to delete message")
 
         await ctx.message.channel.send(f"{mention}님의 블링크빵 결과: {result}미터 만큼 날아갔어양! 💨💨💨")
         return
@@ -204,19 +204,26 @@ async def msg_mcserver_info(ctx: commands.Context) -> None:
             tps_text = await rcon_command(rcon, "tps")
             tps_t1, tps_t5, tps_t15 = parse_tps(tps_text)
 
-            data: dict = {
-                "version": strip_ansi_escape(version_info),
-                "list": strip_ansi_escape(player_list),
-                "tps_t1": tps_t1,
-                "tps_t5": tps_t5,
-                "tps_t15": tps_t15
-            }
+            version_info_text: str = strip_ansi_escape(version_info)
+            player_list_text: str = strip_ansi_escape(player_list)
+            player_count, player_names = parse_user_list(player_list_text)
+            parse_version_text: str = parse_version_info(version_info_text)
+
+            if player_count == "알 수 없음" or parse_version_text == "Error":
+                await ctx.message.channel.send("서버 정보를 불러오는데 실패했어양...")
+                raise CommandFailure("플레이어 수 정보 파싱 실패")
+            
+            if player_count:
+                player_info_text: str = f"{player_count}\n{player_names}"
+            else:
+                player_info_text: str = f"{player_names}"
 
             info_msg = (
                 f"**마인크래프트 서버 정보**\n"
-                f"버전: {data['version']}\n"
-                f"접속자: {data['list']}\n"
-                f"TPS(1/5/15분): {data['tps_t1']}, {data['tps_t5']}, {data['tps_t15']}"
+                f"서버 주소: {MINECRAFT_PUBLIC_DOMAIN}\n"
+                f"버전: {parse_version_text}\n"
+                f"{player_info_text}\n"
+                f"TPS(1/5/15분): {tps_t1}, {tps_t5}, {tps_t15}"
             )
     
     except RCON_CLIENT_ERROR as e:

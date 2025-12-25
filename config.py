@@ -91,6 +91,7 @@ if load_dotenv('./env/secret.env'):
         "deb_switch" : os.getenv('ADMIN_CMD_3'),
     }
     VERSION_NAME: str = os.getenv('DISCORD_BOT_VERSION', 'UnKnownVersion')
+    MINECRAFT_PUBLIC_DOMAIN: str = os.getenv('MINECRAFT_PUBLIC_DOMAIN', 'localhost')
     MINECRAFT_RCON_HOST: str = os.getenv('MINECRAFT_RCON_HOST', 'localhost')
     MINECRAFT_RCON_PORT: int = int(os.getenv('MINECRAFT_RCON_PORT', '25575'))
     MINECRAFT_RCON_PASSWORD: str = os.getenv('MINECRAFT_RCON_PASSWORD', '')

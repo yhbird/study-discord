@@ -204,20 +204,14 @@ async def rcon_command_retry(
     retry_flag: str | None = None
 ) -> str:
     """
-    RCON 명령어를 재시도하여 실행하는 함수
+    RCON 명령어를 재시도 로직을 통해 실행하는 함수
 
-    :param rcon: RCON 클라이언트 인스턴스
-    :type rcon: RCONClient
-    :param cmd: 실행할 명령어
-    :type cmd: str
-    :param retries: 재시도 횟수, 기본값은 3
-    :type retries: int
-    :param interval: 재시도 간격(초), 기본값은 0.5초
-    :type interval: float
-    :param retry_flag: 재시도 플래그 문자열, 응답에 포함되면 재시도, 기본값은 None
-    :type retry_flag: str | None
-    :return: 명령어 실행 결과
-    :rtype: str
+    Args:
+        rcon (RCONClient): RCON 클라이언트 인스턴스
+        cmd (str): 실행할 명령어
+        retries (int, optional): 재시도 횟수. Defaults to 3.
+        interval (float, optional): 재시도 간격(초). Defaults to 0.5.
+        retry_flag (str | None, optional): 재시도 플래그 문자열. 응답에 이 문자열이 포함되면 재시도함. Defaults to None.
     """
     last = ""
     for attempt in range(retries):
@@ -227,3 +221,53 @@ async def rcon_command_retry(
             continue
         return last
     return last
+
+
+def parse_user_list(list_text: str) -> tuple[str | int, str]:
+    """
+    현재 접속자 목록(list 명령어 결과)을 파싱하는 함수
+
+    Args:
+        list_text (str): list 명령어 결과 문자열
+
+    Returns:
+        tuple[str, str]: (현재 접속자 수, 접속자 목록 문자열)
+    """
+    try:
+        split_text: list[str] = list_text.split(":")
+        count_part = split_text[0].strip()
+        users_part = split_text[1].strip() if len(split_text) > 1 else ""
+
+        # 현재 접속한 유저가 없는 경우
+        if users_part == "":
+            return (0, "접속한 유저가 없어양!")
+
+        # 현재 접속자 수 추출 (There are X of a max of 20 players online)
+        else:
+            current_users = count_part.split(" ")[2]
+            max_users = count_part.split(" ")[5]
+            count_part_text = f"현재 접속자 수: {current_users}/{max_users}명"
+            users_part_text = f"접속자 목록: {users_part.replace(' ', ', ')}"
+            return (count_part_text, users_part_text)
+        
+    except Exception:
+        return ("알 수 없음", "접속자 목록을 불러오는 중 오류가 발생했어양...")
+
+
+def parse_version_info(version_text: str) -> str:
+    """
+    마인크래프트 버전 정보를 파싱하는 함수
+
+    Args:
+        version_text (str): version 명령어 결과 문자열
+
+    Returns:
+        str: 파싱된 버전 정보 문자열
+    """
+    try:
+        # 예시: "This server is running Paper version 1.21.11-39-main@... ""
+        split_text: list[str] = version_text.split("@")
+        version_info = split_text[0].replace("This server is running ", "").strip()
+        return version_info
+    except Exception:
+        return "Error"
