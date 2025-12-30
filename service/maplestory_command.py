@@ -1,10 +1,9 @@
-import asyncio
 import discord
 from discord.ext import commands
 
 import pandas as pd
 import numpy as np
-import io
+
 from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup
 
@@ -69,12 +68,9 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     except NexonAPIError:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
         raise CommandFailure("Character basic info not found")
-    
-    # 캐릭터 기본 정보 0 - 캐릭터 OCID (추가 데이터 조회용)
-    character_ocid: str = basic_info.get('character_ocid')
 
     # 캐릭터 기본 정보 1 - 캐릭터 이름
-    character_name: str = basic_info.get('character_name')
+    character_name: str | None = basic_info.get('character_name')
     if not character_name:
         await ctx.send(f"캐릭터 이름이 '{character_name}'인 캐릭터가 없어양!")
         return
@@ -102,6 +98,8 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != "":
         character_image_url: str = get_character_image_url(character_image)
+    else:
+        character_image_url: str = ""
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -121,6 +119,8 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
             f"{int(character_date_create_ymd[1])}월 "
             f"{int(character_date_create_ymd[2])}일"
         )
+    else:
+        character_date_create_str: str = "몰라양"
 
     if character_exp >= 1000:
         character_exp_str: str = f"{character_exp:,}"
@@ -193,19 +193,19 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
     """
     try:
         notice_data: dict = await get_notice(target_event="pcbang")
-    except NexonAPIBadRequest as e:
+    except NexonAPIBadRequest:
         await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
         raise CommandFailure("PC Bang notice not found")
-    except NexonAPIForbidden as e:
+    except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests as e:
+    except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
         raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable as e:
+    except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
         raise CommandFailure("Nexon Open API Internal server error")
-    except NexonAPIError as e:
+    except NexonAPIError:
         await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
         raise CommandFailure("PC Bang notice not found")
         
@@ -246,8 +246,11 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            notice_image_bytes: io.BytesIO = get_image_bytes(image_url)
+            notice_image_bytes: io.BytesIO | None = get_image_bytes(image_url)
             notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
+        else:
+            notice_image_bytes = None
+            notice_image_file = None
         notice_embed = discord.Embed(
             url=notice_url,
             color=discord.Colour.from_rgb(239, 111, 148)
@@ -256,10 +259,11 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
         notice_embed.set_footer(text=footer_notice_text)
         await ctx.send(
             embed=notice_embed,
-            file=notice_image_file if image_url != '알 수 없음' else None,
+            file=notice_image_file,
             content=content_text
         )
-        notice_image_bytes.close()
+        if notice_image_bytes is not None:
+            notice_image_bytes.close()
 
     # 공지사항이 없을 때
     else:
@@ -282,22 +286,22 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
     """
     try:
         notice_data: dict = await get_notice(target_event="sunday")
-    except NexonAPIBadRequest as e:
+    except NexonAPIBadRequest:
         await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
         raise CommandFailure("Sunday event notice not found")
-    except NexonAPIForbidden as e:
+    except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests as e:
+    except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
         raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable as e:
+    except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
         raise CommandFailure("Nexon Open API Internal server error")
-    except NexonAPISundayEventNotFound as e:
+    except NexonAPISundayEventNotFound:
         await ctx.send("썬데이 이벤트 공지사항이 아직 없어양!!\n매주 금요일 오전 10시에 업데이트 되니 참고해양!!")
         return
-    except NexonAPIError as e:
+    except NexonAPIError:
         await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
         raise CommandFailure("Sunday event notice not found")
 
@@ -337,8 +341,11 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            notice_image_bytes: io.BytesIO = get_image_bytes(image_url)
+            notice_image_bytes: io.BytesIO | None = get_image_bytes(image_url)
             notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
+        else:
+            notice_image_bytes = None
+            notice_image_file = None
         notice_embed = discord.Embed(
             url=notice_url,
             color=discord.Colour.from_rgb(239, 111, 148)
@@ -347,10 +354,11 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
         notice_embed.set_footer(text=footer_notice_text)
         await ctx.send(
             embed=notice_embed,
-            file=notice_image_file if image_url != '알 수 없음' else None,
+            file=notice_image_file,
             content=content_text
         )
-        notice_image_bytes.close()
+        if notice_image_bytes is not None:
+            notice_image_bytes.close()
 
     # 공지사항이 없을 때
     else:
@@ -439,7 +447,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     character_job: str | Literal["알수없음"] = basic_info.get('character_job')
 
     # 캐릭터 기본 정보 6 - 경험치
-    character_exp: int = basic_info.get('character_exp')
+    # character_exp: int = basic_info.get('character_exp')
     character_exp_rate: str | Literal["0.000%"] = basic_info.get('character_exp_rate')
 
     # 캐릭터 기본 정보 7 - 소속길드
@@ -448,7 +456,9 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     # 캐릭터 기본 정보 8 - 캐릭터 외형 이미지 (기본값에 기본 이미지가 들어가도록 수정예정)
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
-        character_image_url: str = get_character_image_url(character_image)
+        character_image_url: str | None = get_character_image_url(character_image)
+    else:
+        character_image_url: str | None = None
 
     # 캐릭터 기본 정보 9 - 캐릭터 생성일 "2023-12-21T00:00+09:00"
     character_date_create: str | Literal["알수없음"] = basic_info.get('character_date_create')
@@ -468,13 +478,15 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
             f"{int(character_date_create_ymd[1])}월 "
             f"{int(character_date_create_ymd[2])}일"
         )
-
-    if character_exp >= 1000:
-        character_exp_str: str = f"{character_exp:,}"
     else:
-        character_exp_str: str = str(character_exp)
-    
-    character_name_quote: str = quote(character_name)
+        character_date_create_str: str = "몰라양"
+
+    # if character_exp >= 1000:
+    #     character_exp_str: str = f"{character_exp:,}"
+    # else:
+    #     character_exp_str: str = str(character_exp)
+    #
+    # character_name_quote: str = quote(character_name)
 
     if character_access_flag:
         character_access_flag_str = "최근 7일 이내 접속함"
@@ -664,6 +676,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
     embed = discord.Embed(title=embed_title, description=embed_description)
     if character_image_url != '알 수 없음':
         embed.set_image(url=character_image_url)
+
     embed.set_footer(text=embed_footer)
     if character_gender in ["남성", "남"]:
         embed.colour = discord.Colour.from_rgb(0, 128, 255)
@@ -756,6 +769,8 @@ async def maple_ability_info(ctx: commands.Context, character_name: str) -> None
             embed_color: discord.Color = discord.Color.purple()
         elif current_ability_grade == "레어":
             embed_color: discord.Color = discord.Color.blue()
+        else:
+            embed_color: discord.Color = discord.Color.dark_teal()
 
         embed = discord.Embed(
             title=f"{character_world}월드 '{character_name}' 어빌리티 정보에양",
@@ -813,16 +828,16 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     try:
         character_ocid: str = await ocid_resolver.resolve(character_name)
 
-    except NexonAPIBadRequest as e:
+    except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
         raise CommandFailure(f"Character '{character_name}' not found")
-    except NexonAPIForbidden as e:
+    except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests as e:
+    except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
         raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable as e:
+    except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
         raise CommandFailure("Nexon Open API Service unavailable")
     except NexonAPIOCIDNotFound:
@@ -837,16 +852,16 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
     # 캐릭터 월드/생성일 확인
     try:
         basic_info: dict = await get_basic_info(character_ocid)
-    except NexonAPIBadRequest as e:
+    except NexonAPIBadRequest:
         await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
         raise CommandFailure(f"Character '{character_name}' basic info not found")
-    except NexonAPIForbidden as e:
+    except NexonAPIForbidden:
         await ctx.send("Nexon Open API 접근 권한이 없어양!")
         raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests as e:
+    except NexonAPITooManyRequests:
         await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
         raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable as e:
+    except NexonAPIServiceUnavailable:
         await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
         raise CommandFailure("Nexon Open API Service unavailable")
     character_world: str = (
@@ -865,20 +880,22 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
         character_date_create_str: str = (
             f"{int(character_date_create_ymd[0])}년 "
             f"{int(character_date_create_ymd[1])}월 "
-            f"{int(character_date_create_ymd[2])}일"
+            f"{int(character_date_create_ymd[2])}일생"
         )
+    else:
+        character_date_create_str: str = "몰라양"
 
     # 시드 생성
     base_today_text: str = f"{datetime.now().strftime('%Y-%m-%d')}"
     base_ocid: str = character_ocid
-    base_seed: str = f"{base_today_text}-{base_ocid}".encode('utf-8')
+    base_seed: bytes = f"{base_today_text}-{base_ocid}".encode('utf-8')
     h = hashlib.md5(base_seed).hexdigest()
     seed = int(h, 16) # 128-bit 정수형 변환
 
     embed_title: str = f"{character_world}월드 '{character_name}' 용사님의 오늘의 운세에양!"
     fortune_text: str = maple_pick_fortune(seed=seed)
     embed_description: str = (
-        f"캐릭터 생년월일: {character_date_create_str}생\n"
+        f"캐릭터 생년월일: {character_date_create_str}\n"
         f"오늘의 날짜: {datetime.now().strftime('%Y년 %m월 %d일')}\n"
         f"\n{fortune_text}"
     )
@@ -1099,7 +1116,9 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
 
     character_image: str | Literal[""] = basic_info.get('character_image')
     if character_image != '알 수 없음':
-        character_image_url: str = get_character_image_url(character_image)
+        character_image_url: str | None = get_character_image_url(character_image)
+    else:
+        character_image_url: str | None = None
 
     look_mode: str = cash_equipment_info.get('character_look_mode')
 
@@ -1175,7 +1194,7 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
         item_name: str = item_info.get("item_name")
         item_label: str = item_info.get("item_label")
         item_gender: str = item_info.get("item_gender")
-        item_coloring: Dict[str, str] = item_info.get("item_coloring_prism")
+        item_coloring: Dict[str, str] | None = item_info.get("item_coloring_prism")
         freestyle_flag: str = item_info.get("freestyle_flag")
         if item_coloring != "없음":
             color_range: str = item_coloring.get("color_range")
@@ -1262,20 +1281,22 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
     xp_history_data: List[Tuple[str, int, str]] = []
 
     # 캐릭터 생성일
-    character_date_create_str: str = (
+    character_date_create_str: str | Literal["알 수 없음"] = (
         str(character_basic_info.get('character_date_create')).strip()
         if character_basic_info.get('character_date_create') is not None
         else '알 수 없음'
     )
 
     if character_date_create_str != '알 수 없음':
-        character_date_create: datetime = datetime.strptime(
+        character_date_create: datetime | None = datetime.strptime(
             character_date_create_str.split("T")[0], "%Y-%m-%d"
         )
+    else:
+        character_date_create: datetime | None = None
 
     try:
         xp_history_data: List[Tuple[str, int, str]] = await get_weekly_xp_history_v2(
-            ocid=character_ocid, search_end=character_date_create
+            character_ocid=character_ocid, search_end=character_date_create
         )
 
     except NexonAPIBadRequest:
@@ -1297,14 +1318,10 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
         if character_basic_info.get('character_world') is not None
         else '알 수 없음'
     )
-    character_date_create: str = (
-        str(character_basic_info.get('character_date_create')).strip()
-        if character_basic_info.get('character_date_create') is not None
-        else '알 수 없음'
-    )
-    if character_date_create != '알 수 없음':
-        character_date_create = character_date_create.split("T")[0]
-        character_date_create_ymd = character_date_create.split("-")
+
+    if isinstance(character_date_create_str, str):
+        character_date_create_out : str = character_date_create_str.split("T")[0]
+        character_date_create_ymd = character_date_create_out.split("-")
         character_date_create_str: str = (
             f"{int(character_date_create_ymd[0])}년 "
             f"{int(character_date_create_ymd[1])}월 "
@@ -1444,7 +1461,9 @@ async def maple_cordinate_history(ctx: commands.Context, character_name: str) ->
     if character_date_create_str != '알 수 없음':
         character_date_create: datetime = datetime.strptime(
             character_date_create_str.split("T")[0], "%Y-%m-%d"
-        ) 
+        )
+    else:
+        character_date_create: None = None
 
     if character_date_create_str != '알수없음':
         create_date = character_date_create_str.split("T")[0]  # "2023-12-21" 형태로 변환
@@ -1454,8 +1473,13 @@ async def maple_cordinate_history(ctx: commands.Context, character_name: str) ->
             f"{int(create_date_ymd[1])}월 "
             f"{int(create_date_ymd[2])}일"
         )
+    else:
+        content_create_date: str = "몰라양"
 
-    cordinate_collections: List[Tuple[str, str]] = await get_cordinate_collections(character_ocid, character_date_create)
+    cordinate_collections: List[Tuple[str, str]] = await get_cordinate_collections(
+        ocid = character_ocid,
+        search_end = character_date_create
+    )
     if not cordinate_collections or len(cordinate_collections) == 0:
         await ctx.send(f"캐릭터 '{character_name}'의 코디 컬렉션 정보를 찾을 수 없어양!")
         return
@@ -1471,3 +1495,19 @@ async def maple_cordinate_history(ctx: commands.Context, character_name: str) ->
         file = discord.File(cordinate_collections_image, filename=f"{character_ocid}_cordinate_{now_kst}.png")
         await ctx.send(content=f"캐릭터 생성일: {content_create_date}", file=file)
         cordinate_collections_image.close()
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 장비")
+async def maple_equipment_info(ctx: commands.Context, character_name: str) -> None:
+    """메이플스토리 캐릭터 장착중인 장비 어빌리티 정보 조회
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 캐릭터 이름
+    """
+    if ctx.message.author.bot:
+        return
+    
+    
+    

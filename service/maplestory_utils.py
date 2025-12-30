@@ -4,7 +4,6 @@ import io
 import asyncio
 import hashlib
 import random
-import httpx
 import math
 import time
 import json
@@ -20,29 +19,31 @@ from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
 from config import NEXON_API_RPS_LIMIT, NEXON_CHARACTER_IMAGE_URL # Nexon Open API Rate Limit 방지용 시간 간격
 from data.json.fortune_message_table import fortune_message_table_raw
 
-from typing import Literal, Optional, Dict, List, Tuple, Any
-
 from exceptions.client_exceptions import *
+# from utils.image import MapleEquipmentViewerConfig, ImageTools
 from utils.time import parse_iso_string
 from utils.image import get_image_bytes
+
+from typing import Literal, Optional, Dict, List, Tuple, Any
 
 API_MAX_DATE_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
 
 
-class maplestory_urls:
-    ocid : str = "/maplestory/v1/id"
-    pop : str = "/maplestory/v1/character/popularity"
-    ability : str = "/maplestory/v1/character/ability"
-    notice : str = "/maplestory/v1/notice-event"
-    notice_detail : str = "/maplestory/v1/notice-event/detail"
-    basic_info: str = "/maplestory/v1/character/basic"
-    stat_info: str = "/maplestory/v1/character/stat"
-    cash_equipment: str = "/maplestory/v1/character/cashitem-equipment"
-    beauty_equipment: str = "/maplestory/v1/character/beauty-equipment"
-    character_image_url: str = NEXON_CHARACTER_IMAGE_URL
+class MaplestoryUrls:
+    OCID = "/maplestory/v1/id"
+    POP = "/maplestory/v1/character/popularity"
+    ABILITY = "/maplestory/v1/character/ability"
+    NOTICE = "/maplestory/v1/notice-event"
+    NOTICE_DETAIL = "/maplestory/v1/notice-event/detail"
+    BASIC_INFO = "/maplestory/v1/character/basic"
+    STAT_INFO = "/maplestory/v1/character/stat"
+    ITEM_EQUIPMENT = "/maplestory/v1/character/item-equipment"
+    CASH_EQUIPMENT = "/maplestory/v1/character/cashitem-equipment"
+    BEAUTY_EQUIPMENT = "/maplestory/v1/character/beauty-equipment"
+    CHARACTER_IMAGE_URL = NEXON_CHARACTER_IMAGE_URL
 
 
-class cordinate_vars:
+class CordinateVars:
     # 이미지 크기 및 설정
     image_size : Literal[180] = 180
     caption_height : Literal[28] = 28
@@ -109,7 +110,7 @@ def get_httpx_client() -> httpx.AsyncClient:
     return _httpx_client
 
 
-def get_character_image_url(character_image: str) -> str:
+def get_character_image_url(character_image: str) -> str | None:
     """캐릭터 이미지 URL 생성 함수
     캐릭터 정보로 얻은 이미지 URL을 avatar.maplestory.nexon.com 도메인으로 변경
 
@@ -123,10 +124,10 @@ def get_character_image_url(character_image: str) -> str:
     if character_image == "" or character_image is None:
         return None
     look_value = character_image.split("/character/look/")[-1].split("?")[0]
-    return f"{maplestory_urls.character_image_url}{look_value}.png"
+    return f"{MaplestoryUrls.CHARACTER_IMAGE_URL}{look_value}.png"
 
 
-async def general_request_handler_nexon(request_path: str, headers: Optional[dict] = None) -> dict:
+async def general_request_handler_nexon(request_path: str, headers: Optional[dict] = None) -> dict | None:
     """Nexon Open API의 일반적인 요청을 처리하는 비동기 함수(v2)  
 
     API 초당 호출 횟수 제한 (RPS)에 걸리지 않도록 Rate Limiter 적용
@@ -164,10 +165,11 @@ async def general_request_handler_nexon(request_path: str, headers: Optional[dic
     if response.status_code == 200:
         try:
             return response.json()
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             return {"raw": response.text, "status": response.status_code}
 
     nexon_api_error_handler(response)
+    return None
 
 
 async def get_ocid(character_name: str) -> str:
@@ -186,7 +188,7 @@ async def get_ocid(character_name: str) -> str:
         Reference에 있는 URL 참조
         (예외처리는 함수 밖에서 처리)
     """
-    service_url = maplestory_urls.ocid
+    service_url = MaplestoryUrls.OCID
     url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
     try:
@@ -202,7 +204,7 @@ async def get_ocid(character_name: str) -> str:
         raise NexonAPICharacterNotFound("OCID not found in response")
 
 
-async def get_popularity(ocid: str) -> str:
+async def get_popularity(ocid: str) -> int | str:
     """OCID에 해당하는 캐릭터의 인기도를 가져오는 함수
 
     Args:
@@ -214,11 +216,11 @@ async def get_popularity(ocid: str) -> str:
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    service_url = maplestory_urls.pop
+    service_url = MaplestoryUrls.POP
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     try:
         response_data: dict = await general_request_handler_nexon(request_url)
-        popularity: int = response_data.get('popularity', "몰라양")
+        popularity: int | str = response_data.get('popularity', "몰라양")
         return popularity
     except NexonAPIError:
         return "몰라양"  # 예외 발생 시 기본값으로 "몰라양" 반환
@@ -233,7 +235,7 @@ async def get_ability_info(ocid: str) -> dict:
     Returns:
         dict: 캐릭터의 어빌리티 정보
     """
-    service_url = maplestory_urls.ability
+    service_url = MaplestoryUrls.ABILITY
     request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
     response_data: dict = await general_request_handler_nexon(request_url)
     return response_data
@@ -442,7 +444,7 @@ async def get_notice(target_event: str = None, recent_notice: bool = True) -> Li
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=24
     """
-    service_url = maplestory_urls.notice
+    service_url = MaplestoryUrls.NOTICE
     request_url = f"{NEXON_API_HOME}{service_url}"
     response_data: dict = await general_request_handler_nexon(request_url)
     notices: list = response_data.get('event_notice', [])
@@ -452,6 +454,8 @@ async def get_notice(target_event: str = None, recent_notice: bool = True) -> Li
         notice_filter = "PC방"
     elif target_event == "sunday":
         notice_filter = "썬데이"
+    else:
+        notice_filter = target_event
 
     # 특정 이벤트에 대한 공지사항 필터링
     if target_event:
@@ -541,7 +545,7 @@ async def get_notice_details(notice_id: str) -> dict:
     Raises:
         Exception: 요청 오류에 대한 예외를 발생시킴
     """
-    service_url = maplestory_urls.notice_detail
+    service_url = MaplestoryUrls.NOTICE_DETAIL
     request_url = f"{NEXON_API_HOME}{service_url}?notice_id={notice_id}"
     response_data: dict = await general_request_handler_nexon(request_url)
     return response_data
@@ -621,7 +625,7 @@ def maple_pick_fortune(seed: int) -> str:
     fortune_message_table: Dict[str, List[Tuple[str, int]]] = fortune_message_table_raw
 
     # 운세 메세지 list 생성 (가중치 반영)
-    def generate_fortune_messages(table_name: str) -> List[str]:
+    def _generate_fortune_messages(table_name: str) -> List[str]:
         msg_table = fortune_message_table.get(table_name, {})
         return_msgs = []
         if not msg_table:
@@ -634,39 +638,39 @@ def maple_pick_fortune(seed: int) -> str:
 
     fortune_message : Dict[str, Dict[int, List[str]]] = {
         "StarForce": {
-            5: generate_fortune_messages("StarForce_lv5"),
-            4: generate_fortune_messages("StarForce_lv4"),
-            3: generate_fortune_messages("StarForce_lv3"),
-            2: generate_fortune_messages("StarForce_lv2"),
-            1: generate_fortune_messages("StarForce_lv1"),
+            5: _generate_fortune_messages("StarForce_lv5"),
+            4: _generate_fortune_messages("StarForce_lv4"),
+            3: _generate_fortune_messages("StarForce_lv3"),
+            2: _generate_fortune_messages("StarForce_lv2"),
+            1: _generate_fortune_messages("StarForce_lv1"),
         },
         "Cube": {
-            5: generate_fortune_messages("Cube_lv5"),
-            4: generate_fortune_messages("Cube_lv4"),
-            3: generate_fortune_messages("Cube_lv3"),
-            2: generate_fortune_messages("Cube_lv2"),
-            1: generate_fortune_messages("Cube_lv1"),
+            5: _generate_fortune_messages("Cube_lv5"),
+            4: _generate_fortune_messages("Cube_lv4"),
+            3: _generate_fortune_messages("Cube_lv3"),
+            2: _generate_fortune_messages("Cube_lv2"),
+            1: _generate_fortune_messages("Cube_lv1"),
         },
         "Boss": {
-            5: generate_fortune_messages("Boss_lv5"),
-            4: generate_fortune_messages("Boss_lv4"),
-            3: generate_fortune_messages("Boss_lv3"),
-            2: generate_fortune_messages("Boss_lv2"),
-            1: generate_fortune_messages("Boss_lv1"),
+            5: _generate_fortune_messages("Boss_lv5"),
+            4: _generate_fortune_messages("Boss_lv4"),
+            3: _generate_fortune_messages("Boss_lv3"),
+            2: _generate_fortune_messages("Boss_lv2"),
+            1: _generate_fortune_messages("Boss_lv1"),
         },
         "Cash": {
-            5: generate_fortune_messages("Cash_lv5"),
-            4: generate_fortune_messages("Cash_lv4"),
-            3: generate_fortune_messages("Cash_lv3"),
-            2: generate_fortune_messages("Cash_lv2"),
-            1: generate_fortune_messages("Cash_lv1"),
+            5: _generate_fortune_messages("Cash_lv5"),
+            4: _generate_fortune_messages("Cash_lv4"),
+            3: _generate_fortune_messages("Cash_lv3"),
+            2: _generate_fortune_messages("Cash_lv2"),
+            1: _generate_fortune_messages("Cash_lv1"),
         },
         "Hunter": {
-            5: generate_fortune_messages("Hunter_lv5"),
-            4: generate_fortune_messages("Hunter_lv4"),
-            3: generate_fortune_messages("Hunter_lv3"),
-            2: generate_fortune_messages("Hunter_lv2"),
-            1: generate_fortune_messages("Hunter_lv1"),
+            5: _generate_fortune_messages("Hunter_lv5"),
+            4: _generate_fortune_messages("Hunter_lv4"),
+            3: _generate_fortune_messages("Hunter_lv3"),
+            2: _generate_fortune_messages("Hunter_lv2"),
+            1: _generate_fortune_messages("Hunter_lv1"),
         }
     }
     
@@ -695,11 +699,12 @@ def maple_pick_fortune(seed: int) -> str:
     return "\n".join(fortune_result)
 
 
-async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tuple[str, int, str]:
+async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> List[Tuple[str, int, str]]:
     """메이플 스토리 캐릭터의 1주일 간 경험치 추세 데이터 수집
     
     Args:
         character_ocid (str): 캐릭터 고유 ID
+        time_delta (int): N일전 날짜부터 조회
 
     Returns:
         List[Tuple[str, int, float]]: 날짜, 레벨, 경험치 퍼센트 데이터 (1주일치)
@@ -713,14 +718,14 @@ async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tup
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
 
-    start_date: datetime = datetime.now(tz=timezone("Asia/Seoul")).date()
+    start_date = datetime.now(tz=timezone("Asia/Seoul")).date()
     date_list: List[str] = [
         (start_date - timedelta(days=time_delta + i)).strftime("%Y-%m-%d") for i in range(7)
     ]
     return_data: List[Tuple[str, int, str]] = []
 
     for param_date in date_list:
-        request_service_url: str = maplestory_urls.basic_info
+        request_service_url: str = MaplestoryUrls.BASIC_INFO
         request_url: str = f"{NEXON_API_HOME}{request_service_url}?ocid={character_ocid}&date={param_date}"
         response_data: dict = await general_request_handler_nexon(request_url)
         character_level: int = (
@@ -738,11 +743,13 @@ async def get_weekly_xp_history(character_ocid: str, time_delta: int = 2) -> Tup
     return return_data
 
 
-async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tuple[str, int, str]]:
+async def get_weekly_xp_history_v2(character_ocid: str, search_end: datetime | None) -> List[Tuple[str, int, str]]:
     """메이플 스토리 캐릭터의 1주일 간 경험치 추세 데이터 수집_v2
     
     Args:
         character_ocid (str): 캐릭터 고유 ID
+        search_end (Optional[datetime]): 검색 중단 위치
+
 
     Returns:
         List[Tuple[str, int, float]]: 날짜, 레벨, 경험치 퍼센트 데이터 (1주일치)
@@ -751,6 +758,9 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
     Raises:
         1일전 데이터 호출 실패한 경우: 2일전 데이터 호출
         NexonAPIError: API 호출 오류
+
+    Notes:
+        search_end는 자동으로 캐릭터의 생성날짜 or API 서비스 오픈날짜로 설정
 
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
@@ -762,13 +772,13 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
     else:
         time_offset: int = 1
     
-    start_date: datetime = kst_now.date() - timedelta(days=time_offset)
+    start_date = kst_now.date() - timedelta(days=time_offset)
 
-    if search_end < API_MAX_DATE_SEARCH_END:
+    if search_end < API_MAX_DATE_SEARCH_END or search_end is None:
         search_end = API_MAX_DATE_SEARCH_END
 
-    search_index_date: datetime = start_date
-    search_end_date: datetime = search_end.date()
+    search_index_date = start_date
+    search_end_date = search_end.date()
     return_data: List[Tuple[str, int, str]] = []
     search_flag_exp = 0
 
@@ -776,7 +786,7 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
     while len(return_data) < 7 and search_index_date >= search_end_date:
         index_date: str = search_index_date.strftime("%Y-%m-%d")
 
-        basic_info_data: dict = await get_basic_info(ocid, date_param=index_date)
+        basic_info_data: dict = await get_basic_info(character_ocid, date_param=index_date)
         character_level: int = (
             int(basic_info_data.get("character_level", -1))
             if basic_info_data.get("character_level") is not None
@@ -812,18 +822,19 @@ async def get_weekly_xp_history_v2(ocid: str, search_end: datetime) -> List[Tupl
     return return_data
 
 
-async def get_basic_info(ocid: str, date_param: Optional[str] = None) -> Dict[str, str | int | bool | Literal["..."]]:
+async def get_basic_info(ocid: str, date_param: Optional[str] = None) -> Optional[Dict[str, Any]] | bool:
     """메이플스토리 캐릭터 기본 정보 데이터를 가져와서 가공하는 함수
 
     Args:
         ocid (str): 캐릭터 OCID
+        date_param (str | None, default None): 조회 기준 날짜 (None: 실시간 정보)
 
     Returns:
         dict: 가공된 캐릭터 기본 정보 데이터
     """
     character_ocid: str = ocid
 
-    service_url = maplestory_urls.basic_info
+    service_url = MaplestoryUrls.BASIC_INFO
     if date_param is not None and isinstance(date_param, str):
         requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}&date={date_param}"
     else:
@@ -947,21 +958,23 @@ async def get_basic_info(ocid: str, date_param: Optional[str] = None) -> Dict[st
             else "알수없음"
         )
         return_data['liberation_quest_clear'] = character_liberation_quest_clear
+    else:
+        return False
 
     return return_data
 
 
-async def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없음"]]:
+async def get_stat_info(character_ocid: str) -> Optional[Dict[str, Any]] | None:
     """메이플스토리 캐릭터 상세 정보 데이터를 가공하는 함수
 
     Args:
-        raw_data (dict): 메이플스토리 캐릭터 상세 정보 데이터
+        character_ocid (str) : 스탯 데이터를 조회할 캐릭터 OCID
 
     Returns:
         dict: 가공된 캐릭터 상세 정보 데이터
     """
-    service_url = maplestory_urls.stat_info
-    requests_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+    service_url = MaplestoryUrls.STAT_INFO
+    requests_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
     response_data: dict = await general_request_handler_nexon(requests_url)
     stat_list: List[dict] = response_data.get('final_stat', [])
     
@@ -1246,26 +1259,61 @@ async def get_stat_info(ocid: str) -> Dict[str, str | int | Literal["알수없�
             "stat_familiar_duration": stat_familiar_duration,
         }
         return processed_stat_info
-    
 
-async def get_cash_equipment_info(
-        ocid: str,
-        date_param: Optional[str] = None,
-        look_mode_pin: Optional[str] = None
-    ) -> Dict[str, str | int | List[dict] | Literal["기타"] | None]:
-    """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 정보를 조회하는 함수
+    else:
+        raise NexonAPIError("Invalid stat data format")
+
+async def get_item_equipment_info(
+        character_ocid: str,
+        date_param: Optional[str] = None
+    ) -> Dict[str, Optional[Any]] | None:
+    """캐릭터의 장착중인 장비 아이템 정보를 조회/가공하는 함수
 
     Args:
-        ocid (str): 캐릭터 OCID
+        character_ocid (str): 메이플스토리 캐릭터 OCID
+        date_param (str | None, Optional): 조회 기준 날짜 (None: 실시간 정보). Defaults to None.
+
+    Returns:
+        Dict[str, Optional[Any]]: 가공된 캐릭터 장착 장비 아이템 정보
+        예시) 
+        {
+            "모자" : { ... },
+        }
 
     Reference:
         https://openapi.nexon.com/ko/game/maplestory/?id=14
     """
-    service_url = maplestory_urls.cash_equipment
+    service_url = MaplestoryUrls.ITEM_EQUIPMENT
     if date_param is not None and isinstance(date_param, str):
-        request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}&date={date_param}"
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}&date={date_param}"
     else:
-        request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}"
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
+
+    response_data: dict = await general_request_handler_nexon(request_url)
+
+async def get_cash_equipment_info(
+        character_ocid: str,
+        date_param: Optional[str] = None,
+        look_mode_pin: Optional[str] = None
+    ) -> Dict[str, Optional[Any]]:
+    """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 정보를 조회하는 함수
+
+    Args:
+        character_ocid (str): 메이플스토리 캐릭터 OCID
+        date_param (str | None, Optional): 조회 기준 날짜 (None: 실시간 정보). Defaults to None.
+        look_mode_pin (str | None, Optional): 외형 모드 값 (0: 기본, 1: 드레스업/베타). Defaults to None.
+
+    Returns:
+        Dict[str, Optional[Any]]: 가공된 캐릭터 장착중인 캐시 아이템 정보
+
+    Reference:
+        https://openapi.nexon.com/ko/game/maplestory/?id=14
+    """
+    service_url = MaplestoryUrls.CASH_EQUIPMENT
+    if date_param is not None and isinstance(date_param, str):
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}&date={date_param}"
+    else:
+        request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
     response_data: dict = await general_request_handler_nexon(request_url)
 
     
@@ -1325,7 +1373,7 @@ def get_current_beauty_equipment_info(
     """캐릭터의 뷰티(헤어/성형) 정보 가공하는 함수
 
     Args:
-        beauty_equipment_data (Dict[str, str | Dict[str, str] | None]): 캐릭터 뷰티 장비 정보
+        current_beauty_equipment_data (Dict[str, str | Dict[str, str] | None]): 캐릭터 뷰티 장비 정보
         look_mode (str, optional): 캐릭터 외형 모드 (0: 기본, 1: 드레스업/베타). Defaults to "0".
 
     Returns:
@@ -1350,12 +1398,12 @@ def get_current_beauty_equipment_info(
 
 
 def get_current_cash_equipment_info(
-        current_cash_equipment_data: Dict[str, str | int | List[dict] | Literal["기타"] | None]
+        current_cash_equipment_data: Dict[str, Optional[Any]]
     ) -> Dict[str, Dict[str, str]]:
     """캐릭터의 장착중인 캐시 아이템 정보를 가공하는 함수
 
     Args:
-        cash_equipment_data (Dict[str, str | int | List[dict] | Literal["기타"] | None]): 캐릭터 장착중인 캐시 아이템 정보
+        current_cash_equipment_data (Dict[str, Optional[Any]]): 캐릭터 장착중인 캐시 아이템 정보
 
         장착 아이템 -> 외형 아이템(프리셋) 순서로 데이터 덮어쓰기 처리
 
@@ -1417,8 +1465,9 @@ async def get_beauty_equipment_info(
 
     Args:
         ocid (str): 캐릭터 OCID
+        param_date (Optional[str]): 조회날짜 (None = 실시간)
     """
-    service_url = maplestory_urls.beauty_equipment
+    service_url = MaplestoryUrls.BEAUTY_EQUIPMENT
     if param_date is not None and isinstance(param_date, str):
         request_url = f"{NEXON_API_HOME}{service_url}?ocid={ocid}&date={param_date}"
     else:
@@ -1428,14 +1477,18 @@ async def get_beauty_equipment_info(
     return response_data
 
 
-async def get_cordinate_collections(ocid: str, search_end: datetime) -> List[Tuple[str, str]]:
+async def get_cordinate_collections(ocid: str, search_end: datetime | None) -> List[Tuple[str, str]]:
     """캐릭터의 코디 목록 조회 (최대 8개, 멮지지 컬렉션 기능 참고)
 
     Args:
         ocid (str): 캐릭터 OCID
+        search_end (Optional[datetime]): 검색 중단 위치
 
     Returns:
         io.BytesIO: 캐릭터 코디 목록 이미지
+
+    Notes:
+        search_end는 자동으로 캐릭터 생성 날짜 or API 서비스 오픈 날짜로 변경
     """
     kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))
 
@@ -1444,14 +1497,14 @@ async def get_cordinate_collections(ocid: str, search_end: datetime) -> List[Tup
     else:
         time_offset: int = 1
 
-    search_start_date: datetime = kst_now.date() - timedelta(days=time_offset)
+    search_start_date = kst_now.date() - timedelta(days=time_offset)
 
-    if search_end < API_MAX_DATE_SEARCH_END:
+    if search_end < API_MAX_DATE_SEARCH_END or search_end is None:
         search_end = API_MAX_DATE_SEARCH_END
 
     # 1일전 캐릭터 외형 이미지 URL 수집
-    search_index_date: datetime = search_start_date
-    search_end_date: datetime = search_end.date()
+    search_index_date = search_start_date
+    search_end_date = search_end.date()
 
     cordinate_collections: List[Tuple[str, str]] = []
     collections_length: int = 4 if NEXON_API_RPS_LIMIT == 5 else 8 # dev 환경에선 4개로 제한
@@ -1509,8 +1562,8 @@ def _load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont | 
         if font_path:
             return ImageFont.truetype(font_path, size)
         else:
-            return ImageFont.truetype(cordinate_vars.default_font_path, size)
-    except Exception as e:
+            return ImageFont.truetype(CordinateVars.default_font_path, size)
+    except Exception:
         return ImageFont.load_default()
     
 # Image 객체 생성
@@ -1531,11 +1584,11 @@ async def _fetch_image(client: httpx.AsyncClient, url: str) -> Optional[Image.Im
         response.raise_for_status()
         image = Image.open(io.BytesIO(response.content)).convert("RGBA")
         return image
-    except (httpx.HTTPError, UnidentifiedImageError) as e:
+    except (httpx.HTTPError, UnidentifiedImageError):
         return None
 
 def _placeholder() -> Image.Image:
-    return Image.open(cordinate_vars.place_holder_image_path).convert("RGBA")
+    return Image.open(CordinateVars.place_holder_image_path).convert("RGBA")
 
 
 async def generate_cordinate_collection_image(collection: List[Tuple[str, str]], title: str) -> io.BytesIO:
@@ -1554,28 +1607,28 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
     if not isinstance(title, str) or not title:
         raise ValueError("title must be a non-empty string")
 
-    items = (collection[:8] or [])[: cordinate_vars.images_grid_cols * cordinate_vars.images_grid_rows]
+    items = (collection[:8] or [])[: CordinateVars.images_grid_cols * CordinateVars.images_grid_rows]
 
     # 캔버스 크기 계산
-    cell_w = cordinate_vars.image_size
-    cell_h = cordinate_vars.image_size + cordinate_vars.caption_height
+    cell_w = CordinateVars.image_size
+    cell_h = CordinateVars.image_size + CordinateVars.caption_height
 
     n = len(items)
-    rows = math.ceil(n / cordinate_vars.images_grid_cols)
-    grid_w = cordinate_vars.images_grid_cols * cell_w + (cordinate_vars.images_grid_cols - 1) * cordinate_vars.cell_padding_size
-    grid_h = rows * cell_h + (rows - 1) * cordinate_vars.cell_padding_size
+    rows = math.ceil(n / CordinateVars.images_grid_cols)
+    grid_w = CordinateVars.images_grid_cols * cell_w + (CordinateVars.images_grid_cols - 1) * CordinateVars.cell_padding_size
+    grid_h = rows * cell_h + (rows - 1) * CordinateVars.cell_padding_size
     title_h = 0
     font_title = None
     if title:
-        title_font_size = cordinate_vars.font_size + 6
-        font_title = _load_font(font_path=cordinate_vars.title_font_path, size=title_font_size)
-        title_h = title_font_size + cordinate_vars.title_font_padding
+        title_font_size = CordinateVars.font_size + 6
+        font_title = _load_font(font_path=CordinateVars.title_font_path, size=title_font_size)
+        title_h = title_font_size + CordinateVars.title_font_padding
 
-    canvas_w = grid_w + 2 * cordinate_vars.board_margin
-    canvas_h = grid_h + 2 * cordinate_vars.board_margin + title_h
+    canvas_w = grid_w + 2 * CordinateVars.board_margin
+    canvas_h = grid_h + 2 * CordinateVars.board_margin + title_h
 
     # 캔버스 생성
-    canvas = Image.new("RGBA", (canvas_w, canvas_h), cordinate_vars.bg_color)
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), CordinateVars.bg_color)
     draw = ImageDraw.Draw(canvas)
 
     # 제목 렌더링
@@ -1583,47 +1636,49 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
         tb = draw.textbbox((0, 0), title, font=font_title)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
         tx = (canvas_w - tw) // 2
-        ty = cordinate_vars.board_margin
-        draw.text((tx, ty), title, font=font_title, fill=cordinate_vars.fg_color)
-        grid_origin_y = cordinate_vars.board_margin + title_h
+        ty = CordinateVars.board_margin
+        draw.text((tx, ty), title, font=font_title, fill=CordinateVars.fg_color)
+        grid_origin_y = CordinateVars.board_margin + title_h
     else:
-        grid_origin_y = cordinate_vars.board_margin
+        grid_origin_y = CordinateVars.board_margin
 
     # 이미지 다운로드
-    font_caption = _load_font(font_path=cordinate_vars.caption_font_path, size=cordinate_vars.font_size)
+    font_caption = _load_font(font_path=CordinateVars.caption_font_path, size=CordinateVars.font_size)
 
     # 셀 안에 이미지 및 캡션 렌더링
     for idx, (date_str, url) in enumerate(items):
-        row = idx // cordinate_vars.images_grid_cols
-        col = idx % cordinate_vars.images_grid_cols
-        x = cordinate_vars.board_margin + col * (cell_w + cordinate_vars.cell_padding_size)
-        y = grid_origin_y + row * (cell_h + cordinate_vars.cell_padding_size)
+        row = idx // CordinateVars.images_grid_cols
+        col = idx % CordinateVars.images_grid_cols
+        x = CordinateVars.board_margin + col * (cell_w + CordinateVars.cell_padding_size)
+        y = grid_origin_y + row * (cell_h + CordinateVars.cell_padding_size)
 
         # 카드 배경 + 그림자
         # 그림자 렌더링
-        shadow_offset = cordinate_vars.shadow_offset
+        shadow_offset = CordinateVars.shadow_offset
         shadow_rect = [x + shadow_offset[0], y + shadow_offset[1], x + cell_w, y+ cell_h]
-        draw.rounded_rectangle(shadow_rect, radius=cordinate_vars.cell_radius, fill=cordinate_vars.cell_shadow)
+        draw.rounded_rectangle(shadow_rect, radius=CordinateVars.cell_radius, fill=CordinateVars.cell_shadow)
 
         # 카드 배경 렌더링
         cord_rect = [x, y, x + cell_w, y + cell_h]
-        draw.rounded_rectangle(cord_rect, radius=cordinate_vars.cell_radius, fill=cordinate_vars.cell_bg_color)
+        draw.rounded_rectangle(cord_rect, radius=CordinateVars.cell_radius, fill=CordinateVars.cell_bg_color)
 
         # 이미지 렌더링
-        im_bytes: bytes = get_image_bytes(url)
+        im_bytes: io.BytesIO = get_image_bytes(url)
         im = Image.open(im_bytes).convert("RGBA")
-        thumb = ImageOps.fit(im, (cordinate_vars.image_size, cordinate_vars.image_size), method=Image.Resampling.LANCZOS)
-        thumb = _rounded(thumb, rad=cordinate_vars.cell_radius)
+        thumb = ImageOps.fit(im, (CordinateVars.image_size, CordinateVars.image_size), method=Image.Resampling.LANCZOS)
+        thumb = _rounded(thumb, rad=CordinateVars.cell_radius)
         canvas.paste(thumb, (x, y), thumb)
 
         # 캡션 렌더링
-        caption_y = y + cordinate_vars.image_size + (cordinate_vars.caption_height // 2)
+        caption_y = y + CordinateVars.image_size + (CordinateVars.caption_height // 2)
         tb = draw.textbbox((0, 0), date_str, font=font_caption)
         tw = tb[2] - tb[0]
-        draw.text((x + (cell_w - tw) // 2, caption_y - cordinate_vars.font_size // 2), date_str, font=font_caption, fill=cordinate_vars.fg_color)
+        draw.text((x + (cell_w - tw) // 2, caption_y - CordinateVars.font_size // 2), date_str, font=font_caption, fill=CordinateVars.fg_color)
 
     # 이미지 저장
     buffer = io.BytesIO()
     canvas.save(buffer, format="PNG")
     buffer.seek(0)
     return buffer
+
+
