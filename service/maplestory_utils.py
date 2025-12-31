@@ -22,7 +22,7 @@ from data.json.fortune_message_table import fortune_message_table_raw
 from exceptions.client_exceptions import *
 # from utils.image import MapleEquipmentViewerConfig, ImageTools
 from utils.time import parse_iso_string
-from utils.image import get_image_bytes
+from utils.image import convert_image_url_into_bytes
 
 from typing import Literal, Optional, Dict, List, Tuple, Any
 
@@ -45,24 +45,24 @@ class MaplestoryUrls:
 
 class CordinateVars:
     # 이미지 크기 및 설정
-    image_size : Literal[180] = 180
-    caption_height : Literal[28] = 28
-    images_grid_cols : Literal[4] = 4
-    images_grid_rows : Literal[2] = 2
-    cell_padding_size : Literal[16] = 16
-    board_margin : Literal[24] = 24
-    cell_radius : Literal[10] = 10
-    bg_color = (255, 255, 255, 255)
-    fg_color = (33, 37, 41, 255)
-    cell_bg_color = (255, 255, 255, 255)
-    cell_shadow = (0, 0, 0, 40)
-    shadow_offset = (0, 2)
-    title_font_path = "./assets/font/Maplestory_Bold.ttf"
-    caption_font_path = "./assets/font/Maplestory_Light.ttf"
-    default_font_path = "./assets/font/NanumGothic.ttf"
-    font_size : Literal[18] = 18
-    title_font_padding : Literal[12] = 12
-    place_holder_image_path = "./assets/image/maple_chara_placeholder.png"
+    IMAGE_SIZE : Literal[180] = 180
+    CAPTION_HEIGHT : Literal[28] = 28
+    IMAGES_GRID_COLS : Literal[4] = 4
+    IMAGES_GRID_ROWS : Literal[2] = 2
+    CELL_PADDING_SIZE : Literal[16] = 16
+    BOARD_MARGIN : Literal[24] = 24
+    CELL_RADIUS : Literal[10] = 10
+    BG_COLOR = (255, 255, 255, 255)
+    FG_COLOR = (33, 37, 41, 255)
+    CELL_BG_COLOR = (255, 255, 255, 255)
+    CELL_SHADOW = (0, 0, 0, 40)
+    SHADOW_OFFSET = (0, 2)
+    TITLE_FONT_PATH = "./assets/font/Maplestory_Bold.ttf"
+    CAPTION_FONT_PATH = "./assets/font/Maplestory_Light.ttf"
+    DEFAULT_FONT_PATH = "./assets/font/NanumGothic.ttf"
+    FONT_SIZE : Literal[18] = 18
+    TITLE_FONT_PADDING : Literal[12] = 12
+    PLACE_HOLDER_IMAGE_PATH = "./assets/image/maple_chara_placeholder.png"
 
 
 class APIRateLimiter:
@@ -1263,6 +1263,7 @@ async def get_stat_info(character_ocid: str) -> Optional[Dict[str, Any]] | None:
     else:
         raise NexonAPIError("Invalid stat data format")
 
+
 async def get_item_equipment_info(
         character_ocid: str,
         date_param: Optional[str] = None
@@ -1290,6 +1291,7 @@ async def get_item_equipment_info(
         request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
 
     response_data: dict = await general_request_handler_nexon(request_url)
+
 
 async def get_cash_equipment_info(
         character_ocid: str,
@@ -1562,7 +1564,7 @@ def _load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont | 
         if font_path:
             return ImageFont.truetype(font_path, size)
         else:
-            return ImageFont.truetype(CordinateVars.default_font_path, size)
+            return ImageFont.truetype(CordinateVars.DEFAULT_FONT_PATH, size)
     except Exception:
         return ImageFont.load_default()
     
@@ -1588,7 +1590,7 @@ async def _fetch_image(client: httpx.AsyncClient, url: str) -> Optional[Image.Im
         return None
 
 def _placeholder() -> Image.Image:
-    return Image.open(CordinateVars.place_holder_image_path).convert("RGBA")
+    return Image.open(CordinateVars.PLACE_HOLDER_IMAGE_PATH).convert("RGBA")
 
 
 async def generate_cordinate_collection_image(collection: List[Tuple[str, str]], title: str) -> io.BytesIO:
@@ -1607,28 +1609,28 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
     if not isinstance(title, str) or not title:
         raise ValueError("title must be a non-empty string")
 
-    items = (collection[:8] or [])[: CordinateVars.images_grid_cols * CordinateVars.images_grid_rows]
+    items = (collection[:8] or [])[: CordinateVars.IMAGES_GRID_COLS * CordinateVars.IMAGES_GRID_ROWS]
 
     # 캔버스 크기 계산
-    cell_w = CordinateVars.image_size
-    cell_h = CordinateVars.image_size + CordinateVars.caption_height
+    cell_w = CordinateVars.IMAGE_SIZE
+    cell_h = CordinateVars.IMAGE_SIZE + CordinateVars.CAPTION_HEIGHT
 
     n = len(items)
-    rows = math.ceil(n / CordinateVars.images_grid_cols)
-    grid_w = CordinateVars.images_grid_cols * cell_w + (CordinateVars.images_grid_cols - 1) * CordinateVars.cell_padding_size
-    grid_h = rows * cell_h + (rows - 1) * CordinateVars.cell_padding_size
+    rows = math.ceil(n / CordinateVars.IMAGES_GRID_COLS)
+    grid_w = CordinateVars.IMAGES_GRID_COLS * cell_w + (CordinateVars.IMAGES_GRID_COLS - 1) * CordinateVars.CELL_PADDING_SIZE
+    grid_h = rows * cell_h + (rows - 1) * CordinateVars.CELL_PADDING_SIZE
     title_h = 0
     font_title = None
     if title:
-        title_font_size = CordinateVars.font_size + 6
-        font_title = _load_font(font_path=CordinateVars.title_font_path, size=title_font_size)
-        title_h = title_font_size + CordinateVars.title_font_padding
+        title_font_size = CordinateVars.FONT_SIZE + 6
+        font_title = _load_font(font_path=CordinateVars.TITLE_FONT_PATH, size=title_font_size)
+        title_h = title_font_size + CordinateVars.TITLE_FONT_PADDING
 
-    canvas_w = grid_w + 2 * CordinateVars.board_margin
-    canvas_h = grid_h + 2 * CordinateVars.board_margin + title_h
+    canvas_w = grid_w + 2 * CordinateVars.BOARD_MARGIN
+    canvas_h = grid_h + 2 * CordinateVars.BOARD_MARGIN + title_h
 
     # 캔버스 생성
-    canvas = Image.new("RGBA", (canvas_w, canvas_h), CordinateVars.bg_color)
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), CordinateVars.BG_COLOR)
     draw = ImageDraw.Draw(canvas)
 
     # 제목 렌더링
@@ -1636,44 +1638,44 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
         tb = draw.textbbox((0, 0), title, font=font_title)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
         tx = (canvas_w - tw) // 2
-        ty = CordinateVars.board_margin
-        draw.text((tx, ty), title, font=font_title, fill=CordinateVars.fg_color)
-        grid_origin_y = CordinateVars.board_margin + title_h
+        ty = CordinateVars.BOARD_MARGIN
+        draw.text((tx, ty), title, font=font_title, fill=CordinateVars.FG_COLOR)
+        grid_origin_y = CordinateVars.BOARD_MARGIN + title_h
     else:
-        grid_origin_y = CordinateVars.board_margin
+        grid_origin_y = CordinateVars.BOARD_MARGIN
 
     # 이미지 다운로드
-    font_caption = _load_font(font_path=CordinateVars.caption_font_path, size=CordinateVars.font_size)
+    font_caption = _load_font(font_path=CordinateVars.CAPTION_FONT_PATH, size=CordinateVars.FONT_SIZE)
 
     # 셀 안에 이미지 및 캡션 렌더링
     for idx, (date_str, url) in enumerate(items):
-        row = idx // CordinateVars.images_grid_cols
-        col = idx % CordinateVars.images_grid_cols
-        x = CordinateVars.board_margin + col * (cell_w + CordinateVars.cell_padding_size)
-        y = grid_origin_y + row * (cell_h + CordinateVars.cell_padding_size)
+        row = idx // CordinateVars.IMAGES_GRID_COLS
+        col = idx % CordinateVars.IMAGES_GRID_COLS
+        x = CordinateVars.BOARD_MARGIN + col * (cell_w + CordinateVars.CELL_PADDING_SIZE)
+        y = grid_origin_y + row * (cell_h + CordinateVars.CELL_PADDING_SIZE)
 
         # 카드 배경 + 그림자
         # 그림자 렌더링
-        shadow_offset = CordinateVars.shadow_offset
+        shadow_offset = CordinateVars.SHADOW_OFFSET
         shadow_rect = [x + shadow_offset[0], y + shadow_offset[1], x + cell_w, y+ cell_h]
-        draw.rounded_rectangle(shadow_rect, radius=CordinateVars.cell_radius, fill=CordinateVars.cell_shadow)
+        draw.rounded_rectangle(shadow_rect, radius=CordinateVars.CELL_RADIUS, fill=CordinateVars.CELL_SHADOW)
 
         # 카드 배경 렌더링
         cord_rect = [x, y, x + cell_w, y + cell_h]
-        draw.rounded_rectangle(cord_rect, radius=CordinateVars.cell_radius, fill=CordinateVars.cell_bg_color)
+        draw.rounded_rectangle(cord_rect, radius=CordinateVars.CELL_RADIUS, fill=CordinateVars.CELL_BG_COLOR)
 
         # 이미지 렌더링
-        im_bytes: io.BytesIO = get_image_bytes(url)
+        im_bytes: io.BytesIO = convert_image_url_into_bytes(url)
         im = Image.open(im_bytes).convert("RGBA")
-        thumb = ImageOps.fit(im, (CordinateVars.image_size, CordinateVars.image_size), method=Image.Resampling.LANCZOS)
-        thumb = _rounded(thumb, rad=CordinateVars.cell_radius)
+        thumb = ImageOps.fit(im, (CordinateVars.IMAGE_SIZE, CordinateVars.IMAGE_SIZE), method=Image.Resampling.LANCZOS)
+        thumb = _rounded(thumb, rad=CordinateVars.CELL_RADIUS)
         canvas.paste(thumb, (x, y), thumb)
 
         # 캡션 렌더링
-        caption_y = y + CordinateVars.image_size + (CordinateVars.caption_height // 2)
+        caption_y = y + CordinateVars.IMAGE_SIZE + (CordinateVars.CAPTION_HEIGHT // 2)
         tb = draw.textbbox((0, 0), date_str, font=font_caption)
         tw = tb[2] - tb[0]
-        draw.text((x + (cell_w - tw) // 2, caption_y - CordinateVars.font_size // 2), date_str, font=font_caption, fill=CordinateVars.fg_color)
+        draw.text((x + (cell_w - tw) // 2, caption_y - CordinateVars.FONT_SIZE // 2), date_str, font=font_caption, fill=CordinateVars.FG_COLOR)
 
     # 이미지 저장
     buffer = io.BytesIO()

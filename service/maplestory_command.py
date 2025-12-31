@@ -10,11 +10,11 @@ from bs4 import BeautifulSoup
 from service.maplestory_utils import *
 from service.maplestory_resolver import AsyncCharacterOCIDResolver
 
-from bot_logger import log_command, with_timeout
-from utils.image import get_image_bytes
-from utils.text import preprocess_int_with_korean
-from utils.time import kst_format_now
-from utils.plot import fp_maplestory_light, fp_maplestory_bold
+from bot_logger  import log_command, with_timeout
+from utils.image import convert_image_url_into_bytes
+from utils.text  import preprocess_int_with_korean
+from utils.time  import kst_format_now
+from utils.plot  import fp_maplestory_light, fp_maplestory_bold
 from config import COMMAND_TIMEOUT
 
 from exceptions.client_exceptions import *
@@ -246,7 +246,7 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            notice_image_bytes: io.BytesIO | None = get_image_bytes(image_url)
+            notice_image_bytes: io.BytesIO | None = convert_image_url_into_bytes(image_url)
             notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
         else:
             notice_image_bytes = None
@@ -341,7 +341,7 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
         )
         notice_image_name: str = f"{notice_id}.png"
         if image_url != '알 수 없음':
-            notice_image_bytes: io.BytesIO | None = get_image_bytes(image_url)
+            notice_image_bytes: io.BytesIO | None = convert_image_url_into_bytes(image_url)
             notice_image_file = discord.File(fp=notice_image_bytes, filename=notice_image_name)
         else:
             notice_image_bytes = None
@@ -1505,9 +1505,41 @@ async def maple_equipment_info(ctx: commands.Context, character_name: str) -> No
     Args:
         ctx (commands.Context): Discord 명령어 컨텍스트
         character_name (str): 캐릭터 이름
+    
+    Notes:
+        표시할 데이터 목록
+        - 캐릭터의 기본 정보 (이름, 월드, 생성일, 레벨)
+        - 캐릭터의 장착중인 장비 정보 (장비명, 스타포스, 잠재옵션)
+
     """
     if ctx.message.author.bot:
         return
     
+    # 캐릭터 OCID, Basic 정보 조회
+    try:
+        character_ocid: str = await ocid_resolver.resolve(character_name)
+        basic_info, item_equiopment_info = await asyncio.gather(
+            get_basic_info(character_ocid),
+            get_item_equipment_info(character_ocid)
+        )
+    except NexonAPICharacterNotFound:
+        await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
+        return
+    except NexonAPIBadRequest:
+        await ctx.send(f"캐릭터 '{character_name}'의 장비 정보를 찾을 수 없어양!")
+        raise CommandFailure("Character item equipment info not found")
+    except NexonAPIForbidden:
+        await ctx.send("Nexon Open API 접근 권한이 없어양!")
+        raise CommandFailure("Forbidden access to API")
+    except NexonAPITooManyRequests:
+        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+        raise CommandFailure("Too many requests to API")
+    except NexonAPIServiceUnavailable:
+        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+        raise CommandFailure("Nexon Open API Internal server error")
     
-    
+    if basic_info:
+        # 캐릭터명
+        character_name: str = basic_info.get('character_name', character_name)
+
+        # 캐릭터 월드

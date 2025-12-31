@@ -8,7 +8,7 @@ from exceptions.base import BotBaseException
 from typing import Dict, Tuple
 
 
-def get_image_bytes(image_url: str) -> io.BytesIO:
+def convert_image_url_into_bytes(image_url: str) -> io.BytesIO:
     """이미지 URL로부터 이미지 바이트를 가져오는 함수
 
     Args:
