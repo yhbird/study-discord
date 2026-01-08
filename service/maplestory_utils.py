@@ -1264,6 +1264,15 @@ async def get_stat_info(character_ocid: str) -> Optional[Dict[str, Any]] | None:
         raise NexonAPIError("Invalid stat data format")
 
 
+def parse_equipment_info() -> None:
+    """캐릭터 장착 장비 아이템 정보 파싱 함수
+
+    Notes:
+        - 추후 구현 예정
+    """
+    pass
+
+
 async def get_item_equipment_info(
         character_ocid: str,
         date_param: Optional[str] = None
@@ -1291,6 +1300,59 @@ async def get_item_equipment_info(
         request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
 
     response_data: dict = await general_request_handler_nexon(request_url)
+
+    # 응답데이터 가공
+    """장착 슬롯 별로 장비 데이터 정보 추출
+    
+    - 현재 사용중인 프리셋 번호
+    - 현재 장착중인 장비정보
+    - 1번 프리셋 장비정보
+    - 2번 프리셋 장비정보
+    - 3번 프리셋 장비정보
+    
+    약 1만 줄의 데이터를 모두 파싱, 성능 이슈가 발생하면 추후 개선 필요
+    """
+
+    def _parse_equipment_slot_data(equipment_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        장비 슬롯 별 장비 데이터 파싱 내부 함수
+
+        List[Dict[str, Any]] 형태의 장비 데이터를 장착부위별로 Key 설정
+
+        만약 장착하지 않은 빈 슬롯인 경우, None 값으로 설정
+        
+        Args:
+            equipment_data (List[Dict[str, Any]]): 장비 데이터 목록
+
+        Returns:
+            Dict[str, Any]: 슬롯명(Key) : 장비정보(Value) 형태의 딕셔너리 데이터
+        """
+
+        return_data: Dict[str, Any] = {
+            "모자": None,
+            "상의": None,
+            "하의": None,
+            "신발": None,
+            "장갑": None,
+            "망토": None,
+            "무기": None,
+            "보조무기": None,
+            "얼굴장식": None,
+            "눈장식": None,
+            "귀고리": None,
+            "목걸이": None,
+            "벨트": None,
+            "반지1": None,
+            "반지2": None,
+            "반지3": None,
+            "반지4": None,
+            "기계심장": None,
+            "안드로이드": None,
+        }
+        for slot in equipment_data:
+            slot_name: str = str(slot.get("equipment_slot_name")).strip()
+            return_data[slot_name] = slot
+        return return_data
 
 
 async def get_cash_equipment_info(
