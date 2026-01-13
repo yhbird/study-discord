@@ -15,7 +15,7 @@ from utils.image import convert_image_url_into_bytes
 from utils.text  import preprocess_int_with_korean
 from utils.time  import kst_format_now
 from utils.plot  import fp_maplestory_light, fp_maplestory_bold
-from config import COMMAND_TIMEOUT
+from config import COMMAND_TIMEOUT, BOT_VERSION
 
 from exceptions.client_exceptions import *
 from exceptions.command_exceptions import *
@@ -1543,3 +1543,95 @@ async def maple_equipment_info(ctx: commands.Context, character_name: str) -> No
         character_name: str = basic_info.get('character_name', character_name)
 
         # 캐릭터 월드
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 분배금")
+async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
+    """
+    메이플스토리 보스파티 보상 분배금 계산 기능
+    2~6인까지의 정확하고 공정한 파티 분배금 계산
+
+    Args:
+        ctx (Context): 디스코드 명령어 컨텍스트
+        reward  (str): 메이플 옥션, 교환창에 등록한 판매금액
+
+    Returns:
+        2~6인까지의 최종 분배금액 (수수료 포함)
+
+    Raises:
+        TypeError: 판매금액 형식 오류 (지원하지 않는 형식으로 금액 입력)
+
+    References:
+        https://mapleroad.kr/utils/boss
+
+    Notes:
+        - 메이플스토리의 거래 수수료는 일반적으로 5%, MVP실버 이상은 메이플 옥션을 통해 3%도 가능
+        - "판매한 사람은 `(reward/파티인원)*(1-거래수수료)` 메소 만큼 가져가세양" 안내문구 작성
+        - "나머지 사람들은 `(reward/파티인원)*(1-거래수수료)*(0.95)` 메소 만큼 가세가세양" 문구 작성
+        - 2,3,4,5,6인 분배금을 각각 구분선이나 value, inline 등을 통해 분리
+        - "N인 분배금 복사" 버튼을 생성하여 버튼을 누르면 해당 나머지 사람들 분배금 클립보드 복사기능 계획
+    """
+    try:
+        total_price: int = parse_distribution_meso(reward)
+    except TypeError:
+        await ctx.reply(
+            "금액 형식이 올바르지 않아양! 올바른 입력예시 참고해주세양!!\n"
+            "- 1,200,000메소, 1200000메소 (O)\n"
+            "- 33억, 33.6억 메소 (O)\n"
+        )
+        raise CommandFailure("Invalid distribution price format")
+
+    basic_fee_rate = 0.05 # 메이플 옥션/직접 교환 기본 수수료
+    mvp_fee_rate   = 0.03 # MVP 실버 이상 메이플 옥션 수수료 우대
+
+    # 메이플 옥션/직접 교환 수령 예상 금액
+    net_income_r5  = int(total_price * (1 - basic_fee_rate))
+    net_income_r3  = int(total_price * (1 -   mvp_fee_rate))
+
+    embed = discord.Embed(
+        title="🍁 파티 분배금 계산기",
+        description=(
+            f"**보스 수익금 :** {total_price:,}메소\n"
+            f"기본수수료 적용 **(5%)**: {net_income_r5:,}메소\n"
+            f"MVP수수료 적용 **(3%)**: {net_income_r3:,}메소"
+        ),
+        color=0xffd700
+    )
+    embed.set_footer(text=(
+        f"입력 금액: {reward}\n"
+        f"현재 날짜: {datetime.now(tz=timezone('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"버전: {BOT_VERSION}"
+    ))
+
+    embed.add_field(
+        name="📊 몇명이서 분배하세양?",
+        value="아래 버튼을 누르면 분배금(교환창에 올려야 하는 금액)을 확인할 수 있어양!",
+        inline=False
+    )
+
+    dist_map = {}
+    for person in range(2, 7):
+        # 1. 5% 수수료 기준 (r5)
+        # 공식: 총액 / (인원 - 0.05)
+        raw_share_r5 = total_price / (person - basic_fee_rate)
+        # 100메소 단위 내림 (절삭) -> 파티원 분배금
+        receiver_share_r5 = math.floor(raw_share_r5 / 100) * 100
+        # 파티장 몫: 총액 - (파티원 분배금 * 나머지 인원)
+        # (주의: 사이트와 동일하게 총액 맞춤을 위해 total_price에서 뺍니다)
+        seller_share_r5 = int(total_price - (receiver_share_r5 * (person - 1)))
+
+        # 2. 3% 수수료 기준 (r3)
+        # 공식: 총액 / (인원 - 0.03)
+        raw_share_r3 = total_price / (person - mvp_fee_rate)
+        # 100메소 단위 내림 (절삭) -> 파티원 분배금
+        receiver_share_r3 = math.floor(raw_share_r3 / 100) * 100
+        # 파티장 몫: 총액 - (파티원 분배금 * 나머지 인원)
+        seller_share_r3 = int(total_price - (receiver_share_r3 * (person - 1)))
+
+        dist_map[str(person)] = {
+            "r5": receiver_share_r5,
+            "r3": receiver_share_r3
+        }
+
+    dist_view = DistributeView(distribution_data=dist_map)
+    await ctx.send(embed=embed, view=dist_view)

@@ -152,6 +152,10 @@ async def run_api_maple_cash_equipment_info(ctx: commands.Context, character_nam
 async def run_api_maple_cordinate_history(ctx: commands.Context, character_name: str):
     await map_command.maple_cordinate_history(ctx, character_name)
 
+@bot.command(name="분배금", usage="분배금액", help="메이플스토리 보스파티에서 얻은 분배금을 계산해줘양 (2~6인) 예시: `븜 분배금 10억 메소`")
+async def run_api_maple_party_reward(ctx: commands.Context, amount: str):
+    await map_command.maple_party_reward(ctx, amount)
+
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")
 async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):

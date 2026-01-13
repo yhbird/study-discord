@@ -12,6 +12,8 @@ import re
 from urllib.parse import quote
 from collections import deque
 from datetime import datetime, timedelta
+from discord import Interaction, ButtonStyle
+from discord.ui import View, Button
 from pytz import timezone
 from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
@@ -86,6 +88,43 @@ class APIRateLimiter:
                 wait = self.period - (now - self.calls[0])
                 await asyncio.sleep(wait)
 
+
+# 보스 분배금 계산을 위한 Viewer 정의
+class DistributeView(View):
+    def __init__(self, distribution_data):
+        super().__init__(timeout=60 * 5) # 5분뒤 버튼 비활성화
+        self.distribution_data = distribution_data
+        self.add_copy_button()
+
+    # button 동적생성
+    def add_copy_button(self):
+        for party_size, amounts in self.distribution_data.items():
+            button = Button(
+                label=f"{party_size}인 분배",
+                style=ButtonStyle.primary,
+                custom_id=f"party_{party_size}"
+            )
+
+            # 콜백 함수 (클로저 문제 방지를 위해 기본값 인자 사용)
+            async def callback(interaction: Interaction, p_size=party_size, val=amounts):
+                # 가독성을 위해 천 단위 콤마 포맷팅
+                r5_str = f"{val['r5']:,}"
+                r3_str = f"{val['r3']:,}"
+
+                # 복사하기 쉽게 코드 블록(``)으로 감싸서 출력
+                msg = (
+                    f"**[{p_size}인 파티]** 파티원에게 줄 금액이에양!\n\n"
+                    f"🔹 **일반 (수수료 5% 적용시)**\n"
+                    f"```\n{val['r5']}\n```\n"
+                    f"🔸 **MVP (수수료 3% 적용시)**\n"
+                    f"```\n{val['r3']}\n```\n"
+                    f"💡 상황에 맞는 금액을 복사해서 거래하세양!"
+                )
+
+                await interaction.response.send_message(msg, ephemeral=True)
+
+            button.callback = callback
+            self.add_item(button)
 
 _httpx_client: Optional[httpx.AsyncClient] = None
 _api_rate_limiter: Dict[str, APIRateLimiter] = {
@@ -1746,3 +1785,51 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
     return buffer
 
 
+def parse_distribution_meso(reward: str) -> int:
+    """
+    메이플스토리 보스 분배금을 파싱하는 함수
+
+    Args:
+        reward       (str): 디스코드 메세지에 포함된 보상내용
+
+    Returns:
+        party_reward (int): 파싱 함수가 인식한 최종 보상내용
+
+    Notes:
+        - 1,200,000메소 -> 1_200_000 (int)로 변환
+        - 33억 메소 -> 3_300_000_000 (int)로 변환
+    """
+    # 1. "," "메소" 문구 삭제, strip
+    if "메소" in reward:
+        reward_str: str = reward.split("메소")[0].replace(",", "").strip()
+    else:
+        reward_str: str = reward.replace(",", "").strip()
+
+    # 1. 진행 후 단순 숫자만 남아 있다면 바로 return
+    if reward_str.isdigit():
+        party_reward = int(reward_str)
+        return party_reward
+
+    # 2. 아니라면, 조, 억, 만 단위를 구분해서 변환
+    else:
+        total_reward = 0
+        units = {
+            "조": 1_000_000_000_000,
+            "억":       100_000_000,
+            "만":            10_000,
+        }
+
+        current_num = ""
+        for char in reward_str:
+            if char.isdigit() or char == '.':
+                current_num += char
+            elif char in units:
+                if current_num:
+                    total_reward += int(float(current_num) * units[char])
+                    current_num = ""
+
+        if current_num:  # 단위 없이 끝에 남은 숫자 처리
+            total_reward += int(current_num)
+
+        party_reward = total_reward
+        return party_reward
