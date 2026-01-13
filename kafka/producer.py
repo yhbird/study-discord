@@ -18,7 +18,12 @@ async def init_kafka_producer() -> None:
             bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
             value_serializer=lambda v: json.dumps(v, ensure_ascii=False).encode("utf-8")
         )
-        await producer.start()
+        try:
+            await producer.start()
+        except Exception as e:
+            print(f"[ERROR] Failed to start Kafka producer: {e}")
+            traceback.print_exc()
+            producer = None
 
 
 async def close_kafka_producer() -> None:
@@ -35,5 +40,7 @@ async def send_log_to_kafka(payload: Dict[str, Any]) -> None:
     
     try:
         await producer.send_and_wait(KAFKA_TOPIC_NAME, payload)
-    except Exception:
+
+    except Exception as e:
+        print(f"[ERROR] Failed to send log to Kafka: {e}")
         traceback.print_exc()

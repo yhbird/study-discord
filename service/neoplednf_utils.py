@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageOps
 from typing import Optional, Dict, List, Any, Literal, Tuple
 from config import NEOPLE_API_HOME, NEOPLE_API_KEY
 from config import NEOPLE_API_RPS_LIMIT
-from utils.image import get_image_bytes
+from utils.image import convert_image_url_into_bytes
 from exceptions.client_exceptions import *
 
 
@@ -235,7 +235,7 @@ async def get_dnf_character_info(sid: str, cid: str) -> Dict[str, Any]:
     request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
     response_data: dict = await general_request_handler_neople(request_url)
 
-    adv_name : Optional[str] = response_data.get("characterName")
+    adv_name : Optional[str] = response_data.get("adventureName")
     c_level : Optional[int] = response_data.get("level")
     c_job_name : Optional[str] = response_data.get("jobName")
     c_job_grow : Optional[str] = response_data.get("jobGrowName")
@@ -267,7 +267,7 @@ async def get_dnf_character_image(sid: str, cid: str) -> io.BytesIO:
         https://developers.neople.co.kr/contents/apiDocs/df    
     """
     c_image_url = neople_service_url.dnf_character_image.format(sid=sid, cid=cid)
-    image_bytes: io.BytesIO = get_image_bytes(c_image_url)
+    image_bytes: io.BytesIO = convert_image_url_into_bytes(c_image_url)
     return image_bytes
 
 
@@ -825,7 +825,7 @@ def _load_icon_bytes(item_id: Optional[str]) -> io.BytesIO:
     if item_id is None:
         return io.BytesIO(EQUIPMENT_PLACEHOLDER_ICON.read_bytes())
     try:
-        return get_image_bytes(get_item_icon_url(item_id))
+        return convert_image_url_into_bytes(get_item_icon_url(item_id))
     except Exception:
         return io.BytesIO(EQUIPMENT_PLACEHOLDER_ICON.read_bytes())
 

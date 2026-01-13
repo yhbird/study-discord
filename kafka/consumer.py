@@ -1,5 +1,6 @@
 import asyncio
 import json
+import traceback
 
 from aiokafka import AIOKafkaConsumer
 from sqlalchemy import create_engine, text
@@ -15,7 +16,7 @@ target_schema = "app_service"
 target_table = "discord_command_logs"
 
 # DB 엔진 생성
-def get_engine() -> Engine:
+def get_engine() -> Engine | None:
     if POSTGRES_DSN != "":
         return create_engine(POSTGRES_DSN, pool_pre_ping=True)
     else:
@@ -123,6 +124,7 @@ async def consume_kafka_logs() -> None:
                 await handle_message(engine, payload)
             except Exception as e:
                 print(f"[ERROR] Failed to insert log: {e}")
+                traceback.print_exc()
                 print(f"Payload: {payload}")
     finally:
         await consumer.stop()

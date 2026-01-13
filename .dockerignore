@@ -15,3 +15,4 @@ README.md
 !pyproject.toml/requirements.txt
 db/
 docker-compose.yml
+docker-compose.test.yml

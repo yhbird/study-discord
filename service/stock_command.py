@@ -103,7 +103,11 @@ async def stk_us_price(ctx: commands.Context, search_ticker: str) -> float:
         kst_time = datetime.now(tz=timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
         change_pct: float = ((today_close - previous_close) / previous_close) * 100
         market_cap_text: str = f"시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}" if market_cap != '몰라양' else "시가총액 정보 없음"
-        analyst_rate_opinion_text: str = f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})" if analyst_rate_opinion != '몰라양' else "의견이 없어양"
+        analyst_rate_opinion_text: str = (
+            f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})"
+            if analyst_rate_opinion != '몰라양' and analyst_rate_score is not None
+            else "의견이 없어양"
+        )
         stk_us_info = (
             f"거래소: {stock_exchange}\n섹터: {stock_sector}\n{market_cap_text}\n\n"
             f"- **이전 종가:** {safe_float(previous_close)} {stock_currency} {pc_krw_text}\n"
@@ -304,7 +308,11 @@ async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
     stock_time = datetime.now(tz=timezone(stock_timezone)).strftime("%Y-%m-%d %H:%M:%S")
     change_pct: float = ((today_close - previous_close) / previous_close) * 100
     market_cap_text: str = f"시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}" if market_cap != '몰라양' else "시가총액 정보 없음"
-    analyst_rate_opinion_text: str = f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})" if analyst_rate_opinion != '몰라양' and analyst_rate_score is not None else "의견이 없어양"
+    analyst_rate_opinion_text: str = (
+        f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})"
+        if analyst_rate_opinion != '몰라양' and analyst_rate_score is not None
+        else "의견이 없어양"
+    )
 
     # KRW의 소수점을 없애기
     previous_close = int(previous_close)

@@ -321,6 +321,16 @@ async def deb_help(ctx: commands.Context, category: str = None):
             value="한국 주식의 가격 차트를 조회합니다.\n기간 옵션: 1주, 1개월, 3개월, 6개월, 1년, 5년, 최대\n*종목명이나 종목코드를 입력해양* ",
             inline=False
         )
+        embed.add_field(
+            name="븜 명령어통계",
+            value="서버 내에서 가장 오래/빨리 실행된 명령어와 순위를 집계합니다.\n*DB에 연결되어 있어야해양!*\n ",
+            inline=False
+        )
+        embed.add_field(
+            name="븜 사용자통계",
+            value="서버 내에서 가장 많이 명령어를 호출한 사용자 통계를 조회합니다.\n*DB에 연결되어 있어야해양!*\n ",
+            inline=False
+        )
     elif category == "관리자":
         is_admin: bool = False
         # 명령어 요청자 권한 확인

@@ -215,3 +215,11 @@ dev/
 data/
 postgres-data/
 user_stock_favorites.json
+
+# pycharm + mac 개발환경
+*.venv/
+.idea/
+.python-version
+.DS_Store
+.vscode/
+docker-compose.test.yml

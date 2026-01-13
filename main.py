@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 # bot logging 추가
-from bot_logger import logger, init_bot_stats
+from bot_logger import logger
 
 # bot 유틸리티 함수
 from bot_helper import build_command_help, resolve_command, build_command_hint #도움말 예외처리
@@ -15,7 +15,7 @@ from kafka.consumer import consume_kafka_logs
 # 봇 설정값 불러오기
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
-from config import KAFKA_ACTIVE, DB_USE
+from config import KAFKA_ACTIVE, DB_USE, BOT_TOKEN_RUN
 from typing import Literal
 
 # Matplotlib 한글 폰트 설정
@@ -34,9 +34,6 @@ import data.hidden.hidden_command as hid_command
 
 # 디스코드 디버그용 명령어
 import service.debug_command as deb_command
-
-# 명령어 실행중 발생하는 예외 처리
-from exceptions.command_exceptions import InvalidCommandParameter
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -59,26 +56,29 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
             await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
         if arg == admin_commands.get("deb_switch"):
             await deb_command.deb_switch(ctx)
-        if arg == admin_commands.get("deb_command_stats"):
-            if DB_USE:
-                await deb_command.deb_command_stats_v2(ctx)
-            else:
-                await ctx.message.delete()
-                await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")
-                return
-        if arg == admin_commands.get("deb_user_stats"):
-            if DB_USE:
-                await deb_command.deb_user_stats_v2(ctx)
-            else:
-                await ctx.message.delete()
-                await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!")
-                return
         if arg == admin_commands.get("deb_reset_stats"):
             await deb_command.deb_reset_stats(ctx)
         if arg is None:
             await ctx.send(f"{ctx.message.author.mention}님, 디버그 명령어 사용법: `븜 디버그 [명령어]` 입력 혹은 `븜 명령어 관리자` 참고")
     return
 
+@bot.command(name="명령어통계", help="서버 내 명령어 사용 통계를 조회해양. 예: `븜 명령어통계` (DB가 연결되어 있어야 사용 가능)")
+async def run_deb_command_stats(ctx: commands.Context):
+    if DB_USE:
+        await deb_command.deb_command_stats_v2(ctx)
+        return
+    else:
+        await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!", reference=ctx.message)
+        return
+    
+@bot.command(name="사용자통계", help="서버 내 사용자별 명령어 사용 통계를 조회해양. 예: `븜 사용자통계` (DB가 연결되어 있어야 사용 가능)")
+async def run_deb_user_stats(ctx: commands.Context):
+    if DB_USE:
+        await deb_command.deb_user_stats_v2(ctx)
+        return
+    else:
+        await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!", reference=ctx.message)
+        return
 
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
 @bot.command(name="help")
@@ -107,6 +107,9 @@ async def run_msg_handle_repeat(ctx: commands.Context, *, repeat_text: str):
 async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
     await basic_command.msg_handle_image(ctx, search_term)
 
+@bot.command(name="마크서버", help="마인크래프트 서버 상태를 조회해양. 예: `븜 마크서버`")
+async def run_msg_mcserver_info(ctx: commands.Context):
+    await basic_command.msg_mcserver_info(ctx)
 
 # 메이플스토리 명령어 등록 from service.maplestory_command as map_command
 @bot.command(name="기본정보", usage="캐릭터명", help="메이플스토리 캐릭터의 기본 정보를 조회해양. 예: `븜 기본정보 마법사악`")
@@ -117,11 +120,11 @@ async def run_api_basic_info(ctx: commands.Context, character_name: str):
 async def run_api_detail_info(ctx: commands.Context, character_name: str):
     await map_command.maple_detail_info(ctx, character_name)
     
-@bot.command(name="피씨방")
+@bot.command(name="피씨방", help="현재 진행중인 메이플스토리 PC방 공지사항을 조회해양. 예: `븜 피씨방`")
 async def run_api_pcbang_notice(ctx: commands.Context):
     await map_command.maple_pcbang_notice(ctx)
 
-@bot.command(name="썬데이")
+@bot.command(name="썬데이", help="메이플스토리 썬데이 공지사항을 조회해양. 예: `븜 썬데이`")
 async def run_api_sunday_notice(ctx: commands.Context):
     await map_command.maple_sunday_notice(ctx)
 
@@ -148,6 +151,10 @@ async def run_api_maple_cash_equipment_info(ctx: commands.Context, character_nam
 @bot.command(name="컬렉션", usage="캐릭터명", help="메이플스토리 캐릭터의 코디 모음 이미지를 만들어줘양(최대 8개). 예: `븜 컬렉션 마법사악`")
 async def run_api_maple_cordinate_history(ctx: commands.Context, character_name: str):
     await map_command.maple_cordinate_history(ctx, character_name)
+
+@bot.command(name="분배금", usage="분배금액", help="메이플스토리 보스파티에서 얻은 분배금을 계산해줘양 (2~6인) 예시: `븜 분배금 10억 메소`")
+async def run_api_maple_party_reward(ctx: commands.Context, amount: str):
+    await map_command.maple_party_reward(ctx, amount)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")
@@ -204,13 +211,16 @@ async def run_hidden_command_3(ctx: commands.Context):
 async def on_ready():
     logger.info(f"Initializing bot... {bot.user}")
 
-    if KAFKA_ACTIVE and DB_USE:
+    if KAFKA_ACTIVE and DB_USE and BOT_TOKEN_RUN=="prd":
         await init_kafka_producer()
 
         if not getattr(bot, "kafka_consumer_started", False):
             bot.loop.create_task(consume_kafka_logs())
             bot.kafka_consumer_started = True
             logger.info("Apache-Kafka Active: Kafka consumer task started.")
+
+    else:
+        logger.info("Skipped Kafka-init: dev environment start")
 
     await bot.change_presence(
         status=discord.Status.online,
