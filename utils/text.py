@@ -1,4 +1,5 @@
 from typing import Literal
+import re
 
 
 SENSITIVE_KEYS = {"token", "password", "passwd", "secret", "key", "apikey", "authorization", "cookie", "session", "bearer"}
@@ -97,3 +98,36 @@ def rank_to_emoji(rank: int) -> str:
         3 : "🥉",
     }
     return rank_emojis.get(rank, str(rank))
+
+
+_ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
+def strip_ansi_escape(text: str) -> str:
+    """문자열에서 ANSI 이스케이프 시퀀스 제거
+
+    Args:
+        text (str): ANSI 이스케이프 시퀀스를 포함한 문자열
+
+    Returns:
+        str: ANSI 이스케이프 시퀀스가 제거된 문자열
+    """
+    return _ANSI_RE.sub("", text).strip()
+
+
+def parse_tps(tps_str: str) -> tuple[float|None, float|None, float|None]:
+    """TPS 문자열을 파싱하여 세 개의 TPS 값으로 분리
+
+    Args:
+        tps_str (str): TPS 문자열 (예: "20.0, 19.8, 19.5")
+
+    Returns:
+        tuple[float|None, float|None, float|None]: 세 개의 TPS 값 (1분, 5분, 15분)
+    """
+
+    s = _ANSI_RE.sub("", tps_str).strip()
+    m = re.match(r"TPS from last 1m, 5m, 15m:\s*([0-9.]+),\s*([0-9.]+),\s*([0-9.]+)", s)
+    if not m:
+        return (None, None, None)
+    else:
+        return (float(m.group(1)), float(m.group(2)), float(m.group(3)))

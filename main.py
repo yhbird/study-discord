@@ -107,6 +107,9 @@ async def run_msg_handle_repeat(ctx: commands.Context, *, repeat_text: str):
 async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
     await basic_command.msg_handle_image(ctx, search_term)
 
+@bot.command(name="마크서버", help="마인크래프트 서버 상태를 조회해양. 예: `븜 마크서버`")
+async def run_msg_mcserver_info(ctx: commands.Context):
+    await basic_command.msg_mcserver_info(ctx)
 
 # 메이플스토리 명령어 등록 from service.maplestory_command as map_command
 @bot.command(name="기본정보", usage="캐릭터명", help="메이플스토리 캐릭터의 기본 정보를 조회해양. 예: `븜 기본정보 마법사악`")
@@ -117,11 +120,11 @@ async def run_api_basic_info(ctx: commands.Context, character_name: str):
 async def run_api_detail_info(ctx: commands.Context, character_name: str):
     await map_command.maple_detail_info(ctx, character_name)
     
-@bot.command(name="피씨방")
+@bot.command(name="피씨방", help="현재 진행중인 메이플스토리 PC방 공지사항을 조회해양. 예: `븜 피씨방`")
 async def run_api_pcbang_notice(ctx: commands.Context):
     await map_command.maple_pcbang_notice(ctx)
 
-@bot.command(name="썬데이")
+@bot.command(name="썬데이", help="메이플스토리 썬데이 공지사항을 조회해양. 예: `븜 썬데이`")
 async def run_api_sunday_notice(ctx: commands.Context):
     await map_command.maple_sunday_notice(ctx)
 
@@ -148,6 +151,10 @@ async def run_api_maple_cash_equipment_info(ctx: commands.Context, character_nam
 @bot.command(name="컬렉션", usage="캐릭터명", help="메이플스토리 캐릭터의 코디 모음 이미지를 만들어줘양(최대 8개). 예: `븜 컬렉션 마법사악`")
 async def run_api_maple_cordinate_history(ctx: commands.Context, character_name: str):
     await map_command.maple_cordinate_history(ctx, character_name)
+
+@bot.command(name="분배금", usage="분배금액", help="메이플스토리 보스파티에서 얻은 분배금을 계산해줘양 (2~6인) 예시: `븜 분배금 10억 메소`")
+async def run_api_maple_party_reward(ctx: commands.Context, amount: str):
+    await map_command.maple_party_reward(ctx, amount)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")
