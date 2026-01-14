@@ -1608,6 +1608,15 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
             f"메이플스토리에서 최대 소지 가능한 메소는 {MAX_MESO:,}메소 이에양!\n"
         )
         raise CommandFailure("Distribution price exceeds maximum meso limit")
+    
+    if total_price <= 0:
+        await ctx.reply(
+            "🚫 **분배금은 0메소보다 커야해양!**\n"
+            "올바른 금액을 입력해주세양!"
+        )
+        raise CommandFailure("Distribution price must be greater than zero")
+
+    # 수수료 계산
     basic_fee_rate = 0.05 # 메이플 옥션/직접 교환 기본 수수료
     mvp_fee_rate   = 0.03 # MVP 실버 이상 메이플 옥션 수수료 우대
 
