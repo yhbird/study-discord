@@ -50,9 +50,10 @@ services:
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d discord_bot"]
-      interval: 5s
+      interval: 60s
       timeout: 3s
       retries: 10
+      start_period: 30s
     ports:
       - "5432:5432"
     networks:

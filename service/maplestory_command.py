@@ -1559,7 +1559,7 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
         2~6인까지의 최종 분배금액 (수수료 포함)
 
     Raises:
-        TypeError: 판매금액 형식 오류 (지원하지 않는 형식으로 금액 입력)
+        CommandFailure: 올바르지 않은 입력값 또는 내부 처리 오류 발생 시
 
     References:
         https://mapleroad.kr/utils/boss
@@ -1570,7 +1570,28 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
         - "나머지 사람들은 `(reward/파티인원)*(1-거래수수료)*(0.95)` 메소 만큼 가세가세양" 문구 작성
         - 2,3,4,5,6인 분배금을 각각 구분선이나 value, inline 등을 통해 분리
         - "N인 분배금 복사" 버튼을 생성하여 버튼을 누르면 해당 나머지 사람들 분배금 클립보드 복사기능 계획
+        - 분배금이 최대 소지 가능 메소*6 을 초과할 경우 오류 메시지 출력
     """
+    # 0. 최대 소지 메소
+    MAX_MESO = 1_999_999_999_999  # 2조 - 1 메소
+
+    # reward validation: 숫자 포함 여부, 이모티콘 사용 여부 체크
+    if not re.search(r'\d', reward):
+        await ctx.reply(
+            "🚫 **올바르지 않은 입력이에양!**\n"
+            "tip. 숫자가 포함된 정확한 분배금을 입력해주세양!\n"
+            "예시: `120억`, `33.5억`, `1,200,000`"
+        )
+        raise CommandFailure("No numeric value found in reward input")
+
+    if reward.startswith(":") and ":" in reward[1:]:
+        await ctx.reply(
+            "🚫 **이모티콘 빼고 입력해주세양!**\n"
+            "tip. 숫자가 포함된 정확한 분배금을 입력해주세양!\n"
+            "예시: `120억(메소)`, `33.5억`, `1,200,000`"
+        )
+        raise CommandFailure("Emoji format not supported in reward input")
+    
     try:
         total_price: int = parse_distribution_meso(reward)
     except TypeError:
@@ -1581,6 +1602,21 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
         )
         raise CommandFailure("Invalid distribution price format")
 
+    if total_price > MAX_MESO * 6:
+        await ctx.reply(
+            f"🚫 **분배금이 너무 많아양!**\n"
+            f"메이플스토리에서 최대 소지 가능한 메소는 {MAX_MESO:,}메소 이에양!\n"
+        )
+        raise CommandFailure("Distribution price exceeds maximum meso limit")
+    
+    if total_price <= 0:
+        await ctx.reply(
+            "🚫 **분배금은 0메소보다 커야해양!**\n"
+            "올바른 금액을 입력해주세양!"
+        )
+        raise CommandFailure("Distribution price must be greater than zero")
+
+    # 수수료 계산
     basic_fee_rate = 0.05 # 메이플 옥션/직접 교환 기본 수수료
     mvp_fee_rate   = 0.03 # MVP 실버 이상 메이플 옥션 수수료 우대
 
@@ -1591,9 +1627,9 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
     embed = discord.Embed(
         title="🍁 파티 분배금 계산기",
         description=(
-            f"**보스 수익금 :** {total_price:,}메소\n"
-            f"기본수수료 적용 **(5%)**: {net_income_r5:,}메소\n"
-            f"MVP수수료 적용 **(3%)**: {net_income_r3:,}메소"
+            f"**보스 보상 판매 수익금 :** {total_price:,} 메소 ({preprocess_int_with_korean(total_price)})\n"
+            f"기본수수료 적용 **(5%)**: {net_income_r5:,} 메소 ({preprocess_int_with_korean(net_income_r5)})\n"
+            f"MVP수수료 적용 **(3%)**: {net_income_r3:,} 메소 ({preprocess_int_with_korean(net_income_r3)})"
         ),
         color=0xffd700
     )
