@@ -100,7 +100,7 @@ class DistributeView(View):
     def add_copy_button(self):
         for party_size, amounts in self.distribution_data.items():
             button = Button(
-                label=f"{party_size}인 분배",
+                label=f"{party_size}인",
                 style=ButtonStyle.primary,
                 custom_id=f"party_{party_size}"
             )
@@ -113,12 +113,13 @@ class DistributeView(View):
 
                 # 복사하기 쉽게 코드 블록(``)으로 감싸서 출력
                 msg = (
-                    f"**[{p_size}인 파티]** 파티원에게 줄 금액이에양!\n\n"
+                    f"**[{p_size}인 파티]** 파티원에게 줄 금액이에양!\n"
+                    f"숫자 우측에 클립보드 복사 버튼을 눌러서 복사할 수 있어양!\n\n"
                     f"🔹 **일반 (수수료 5% 적용시)**\n"
                     f"```\n{val['r5']}\n```\n"
                     f"🔸 **MVP (수수료 3% 적용시)**\n"
                     f"```\n{val['r3']}\n```\n"
-                    f"💡 상황에 맞는 금액을 복사해서 거래하세양!"
+                    f"💡 상황에 맞는 금액을 복사해서 거래해양!"
                 )
 
                 await interaction.response.send_message(msg, ephemeral=True)
@@ -1796,6 +1797,7 @@ def parse_distribution_meso(reward: str) -> int:
         party_reward (int): 파싱 함수가 인식한 최종 보상내용
 
     Notes:
+        - 메이플스토리 소지 환도: (2조 - 1)메소
         - 1,200,000메소 -> 1_200_000 (int)로 변환
         - 33억 메소 -> 3_300_000_000 (int)로 변환
     """
