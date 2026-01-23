@@ -1367,32 +1367,40 @@ async def get_item_equipment_info(
         Returns:
             Dict[str, Any]: 슬롯명(Key) : 장비정보(Value) 형태의 딕셔너리 데이터
         """
-
-        return_data: Dict[str, Any] = {
+        return_parse_data: Dict[str, Any] = {
             "모자": None,
+            "얼굴장식": None,
+            "눈장식": None,
+            "귀고리": None,
             "상의": None,
             "하의": None,
             "신발": None,
             "장갑": None,
             "망토": None,
-            "무기": None,
             "보조무기": None,
-            "얼굴장식": None,
-            "눈장식": None,
-            "귀고리": None,
-            "목걸이": None,
-            "벨트": None,
+            "무기": None,
             "반지1": None,
             "반지2": None,
             "반지3": None,
             "반지4": None,
-            "기계심장": None,
-            "안드로이드": None,
+            "펜던트": None,
+            "훈장": None,
+            "벨트": None,
+            "어깨장식": None,
+            "포켓 아이템": None,
+            "기계 심장": None,
+            "뱃지": None,
+            "엠블렘": None,
+            "펜던트2": None,
         }
         for slot in equipment_data:
-            slot_name: str = str(slot.get("equipment_slot_name")).strip()
-            return_data[slot_name] = slot
-        return return_data
+            slot_name: str = str(slot.get("item_equipment_slot")).strip()
+            return_parse_data[slot_name] = slot
+        return return_parse_data
+
+    equipment_data: List[Dict[str, Any]] = response_data.get("item_equipment")
+    return_data: Dict[str, Any] = _parse_equipment_slot_data(equipment_data=equipment_data)
+    return return_data
 
 
 async def get_cash_equipment_info(
