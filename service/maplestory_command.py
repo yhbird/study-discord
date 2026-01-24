@@ -1635,14 +1635,14 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
             f"**수수료 적용 전 판매금액 :** {total_price:,} 메소 ({kor_total_price})\n"
             f"───────────────\n"
             f"기본수수료 적용 **(5%)**: {net_income_r5:,} 메소 ({kor_net_income_r5})\n"
-            f"MVP수수료 적용 **(3%)**: {net_income_r3:,} 메소 ({kor_net_income_r3})"
+            f"MVP수수료 적용 **(3%)**: {net_income_r3:,} 메소 ({kor_net_income_r3})\n\n"
         ),
         color=0xffd700
     )
     embed.set_footer(text=(
-        f"입력 금액: {reward}\n | 분배금 기준: 실수령액에서 1/N인 분배"
+        f"입력 금액: {reward} | 분배금 기준: 실수령액에서 1/N인 분배\n"
         f"현재 날짜: {datetime.now(tz=timezone('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')}\n"
-        f"버전: {BOT_VERSION}"
+        f"버전: {BOT_VERSION}\n"
         f"주의! 5분 뒤에 버튼이 비활성화 되니 그 전에 눌러주세양!"
     ))
 

@@ -1835,3 +1835,15 @@ def parse_distribution_meso(reward: str) -> int:
 
         party_reward = total_reward
         return party_reward
+
+
+# 테스트 코드 실행
+def main():
+    import os
+    test_api_key: str = os.environ.get("NEXON_API_TOKEN_TEST")
+    test_ocid: str = os.environ.get("NEXON_API_DEBUG_OCID")
+
+    print(test_api_key, test_ocid)
+
+if __name__ == "__main__":
+    main()
