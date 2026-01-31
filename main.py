@@ -26,14 +26,14 @@ applied = set_up_matplotlib_korean("assets/font/NanumGothic.ttf")
 import service.basic_command as basic_command
 
 # 디스코드 API 처리 관련 명령어
-import service.maplestory_command as map_command
-import service.neoplednf_command as dnf_command
-import service.weather_command as wth_command
-import service.stock_command as stk_command
+import service.maplestory.command as map_command
+import service.neoplednf.command as dnf_command
+import service.weather.command as wth_command
+import service.finance.command as fin_command
 import data.hidden.hidden_command as hid_command
 
 # 디스코드 디버그용 명령어
-import service.debug_command as deb_command
+import service.debug.command as deb_command
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -178,19 +178,19 @@ async def run_api_weather(ctx: commands.Context, location: str):
 # 주식 명령어 등록 from service.stock_command as stk_command
 @bot.command(name="미국주식", usage="티커(대문자)", help="미국 주식 시세를 티커를 통해 조회해양. 예: `븜 미국주식 AAPL`")
 async def run_stk_us_price(ctx: commands.Context, ticker: str):
-    await stk_command.stk_us_price(ctx, ticker)
+    await fin_command.stk_us_price(ctx, ticker)
 
 @bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
 async def run_stk_us_chart(ctx: commands.Context, ticker: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
-    await stk_command.stk_us_chart(ctx, ticker, period)
+    await fin_command.stk_us_chart(ctx, ticker, period)
 
 @bot.command(name="한국주식", usage="종목명 또는 종목코드", help="한국 주식 시세를 종목명이나 종목코드를 통해 조회해양. 예: `븜 한국주식 삼성전자` 또는 `븜 한국주식 005930`")
 async def run_stk_kr_price(ctx: commands.Context, stock: str):
-    await stk_command.stk_kr_price(ctx, stock)
+    await fin_command.stk_kr_price(ctx, stock)
 
 @bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
 async def run_stk_kr_chart(ctx: commands.Context, stock: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
-    await stk_command.stk_kr_chart(ctx, stock, period)
+    await fin_command.stk_kr_chart(ctx, stock, period)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])
