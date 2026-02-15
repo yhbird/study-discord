@@ -232,3 +232,50 @@ async def msg_mcserver_info(ctx: commands.Context) -> None:
     
     await ctx.message.channel.send(info_msg)
     return
+
+
+# 이모지출력 toggle 기능 (Admin 전용)
+@with_timeout(COMMAND_TIMEOUT)
+async def msg_toggle_emoji(ctx: commands.Context) -> None:
+    """
+    이모지 출력 토글 기능 (관리자 전용)
+    
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+
+    Returns:
+        None: 이모지 출력 설정이 토글되고, 현재 상태를 안내하는 메시지를 채널에 전송
+
+    Note:
+        - 이 명령어는 서버 관리자만 사용할 수 있습니다.
+        - 이모지 출력 설정은 서버(guild) 단위로 관리되어 DB서버에 저장됩니다.
+        - 서버 내에서 최초로 실행하면 이모지 출력이 활성화(ON)된 상태로 설정됩니다.
+        - 기능을 모르는 서버를 위해 최초 안내 메세지를 출력하고 비활성화(OFF) 상태로 설정됩니다.
+    """
+    if not ctx.guild:
+        await ctx.send("이 명령어는 서버 내에서만 사용할 수 있어양!")
+        return
+    
+    # DB 연결 확인
+    if not ctx.bot.db:
+        await ctx.send("데이터베이스가 연결되어 있지 않아양!")
+        raise CommandFailure("Database not connected")
+    
+    # 서버 정보 가져오기
+    guild_id: int = ctx.guild.id
+    guild_name: str = ctx.guild.name
+    
+    try:
+        # 이모지 출력 설정 토글
+        new_state: bool = await ctx.bot.db.toggle_emoji_convert(guild_id, guild_name)
+        
+        # 결과 안내 메시지
+        status_text = "활성화" if new_state else "비활성화"
+        await ctx.send(
+            f"'{guild_name}' 서버의 이모지 출력 기능이 **{status_text}** 되었어양!\n"
+            f"(웹후크 관리 권한이 필요해양!)"
+        )
+        
+    except Exception as e:
+        await ctx.send("이모지 출력 설정을 변경하는 중 오류가 발생했어양...")
+        raise CommandFailure(f"Failed to toggle emoji output: {str(e)}")
