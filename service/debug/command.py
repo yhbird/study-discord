@@ -9,14 +9,12 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timedelta
 
-from typing import Dict, Optional
-
-from service.debug_utils import *
+from service.debug.utils import *
 from utils.text import rank_to_emoji
 from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import logger, log_command, with_timeout
-from utils.time import kst_format_now, kst_format_now
+from utils.time import kst_format_now
 import config as config
 import bot_logger as bl
 

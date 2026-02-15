@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from service.neoplednf_utils import *
+from service.neoplednf.utils import *
 from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import log_command, with_timeout

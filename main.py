@@ -1,3 +1,4 @@
+import re
 import discord
 from discord.ext import commands
 
@@ -9,31 +10,36 @@ from bot_helper import build_command_help, resolve_command, build_command_hint #
 from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리, 봇 상태 갱신
 
 # Kafka 초기화
+from exceptions.client_exceptions import WebhookNoPermissionError
 from kafka.producer import init_kafka_producer, close_kafka_producer
 from kafka.consumer import consume_kafka_logs
 
 # 봇 설정값 불러오기
 from config import BOT_TOKEN, BOT_DEVELOPER_ID, BOT_COMMAND_PREFIX
 from config import SECRET_COMMANDS, SECRET_ADMIN_COMMAND
-from config import KAFKA_ACTIVE, DB_USE, BOT_TOKEN_RUN
+from config import KAFKA_ACTIVE, DB_USE, BOT_TOKEN_RUN, POSTGRES_DSN_ASYNC
 from typing import Literal
 
 # Matplotlib 한글 폰트 설정
 from utils.plot import set_up_matplotlib_korean
 applied = set_up_matplotlib_korean("assets/font/NanumGothic.ttf")
 
+# Emoji 메시지 처리 함수
+from utils.image import async_convert_image_url_into_bytes
+from utils.webhook import send_msg_as_pretend_user
+
 # 디스코드 메세지 관련 명령어
 import service.basic_command as basic_command
 
 # 디스코드 API 처리 관련 명령어
-import service.maplestory_command as map_command
-import service.neoplednf_command as dnf_command
-import service.weather_command as wth_command
-import service.stock_command as stk_command
+import service.maplestory.command as map_command
+import service.neoplednf.command as dnf_command
+import service.weather.command as wth_command
+import service.finance.command as fin_command
 import data.hidden.hidden_command as hid_command
 
 # 디스코드 디버그용 명령어
-import service.debug_command as deb_command
+import service.debug.command as deb_command
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -41,6 +47,10 @@ bot_command_prefix = BOT_COMMAND_PREFIX
 
 bot = commands.Bot(command_prefix=bot_command_prefix, intents=intents, help_command=None)
 admin_commands = SECRET_ADMIN_COMMAND
+
+# 비동기 DB Connector 설정
+from utils.dbconnector import AsyncDBConnector
+bot.db = AsyncDBConnector(POSTGRES_DSN_ASYNC) if DB_USE or BOT_TOKEN_RUN == "dev" else None
 
 # 디버그용 명령어 등록 from service.debug_command as deb_command
 @bot.command(name="디버그", usage="명령어", help="봇의 디버그용 명령어입니다. 관리자 권한이 필요합니다. 예: `븜 디버그 [명령어]`")
@@ -80,6 +90,15 @@ async def run_deb_user_stats(ctx: commands.Context):
         await ctx.send(f"해당 기능은 데이터베이스와 연결되어 있어야 사용 가능해양!", reference=ctx.message)
         return
 
+@bot.command(name="이모지출력", help="이모지 메세지를 큰 이미지로 출력해줘양 (기본: OFF, 웹후크관리 권한 필요!) 예: `븜 이모지출력`")
+async def run_deb_emoji_output(ctx: commands.Context):
+    if not ctx.message.author.guild_permissions.administrator and ctx.message.author.id != BOT_DEVELOPER_ID:
+        await ctx.send(f"{ctx.message.author.mention}님은 관리자 권한이 없어양! "
+                       "이 명령어는 관리자만 사용할 수 있어양!")
+        return
+    
+    await basic_command.msg_toggle_emoji(ctx)
+    
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
 @bot.command(name="help")
 async def run_deb_help_redirection(ctx: commands.Context, category: str = None):
@@ -178,19 +197,24 @@ async def run_api_weather(ctx: commands.Context, location: str):
 # 주식 명령어 등록 from service.stock_command as stk_command
 @bot.command(name="미국주식", usage="티커(대문자)", help="미국 주식 시세를 티커를 통해 조회해양. 예: `븜 미국주식 AAPL`")
 async def run_stk_us_price(ctx: commands.Context, ticker: str):
-    await stk_command.stk_us_price(ctx, ticker)
+    await fin_command.stk_us_price(ctx, ticker)
 
-@bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
-async def run_stk_us_chart(ctx: commands.Context, ticker: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
-    await stk_command.stk_us_chart(ctx, ticker, period)
+@bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", 
+             help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
+async def run_stk_us_chart(ctx: commands.Context, ticker: str, 
+                           period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
+    await fin_command.stk_us_chart(ctx, ticker, period)
 
-@bot.command(name="한국주식", usage="종목명 또는 종목코드", help="한국 주식 시세를 종목명이나 종목코드를 통해 조회해양. 예: `븜 한국주식 삼성전자` 또는 `븜 한국주식 005930`")
+@bot.command(name="한국주식", usage="종목명 또는 종목코드", 
+             help="한국 주식 시세를 종목명이나 종목코드를 통해 조회해양. 예: `븜 한국주식 삼성전자` 또는 `븜 한국주식 005930`")
 async def run_stk_kr_price(ctx: commands.Context, stock: str):
-    await stk_command.stk_kr_price(ctx, stock)
+    await fin_command.stk_kr_price(ctx, stock)
 
-@bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
-async def run_stk_kr_chart(ctx: commands.Context, stock: str, period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
-    await stk_command.stk_kr_chart(ctx, stock, period)
+@bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", 
+             help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
+async def run_stk_kr_chart(ctx: commands.Context, stock: str, 
+                           period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
+    await fin_command.stk_kr_chart(ctx, stock, period)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])
@@ -219,6 +243,10 @@ async def on_ready():
             bot.kafka_consumer_started = True
             logger.info("Apache-Kafka Active: Kafka consumer task started.")
 
+    if bot.db:
+        await bot.db.connect()
+        logger.info("AsyncDBConnector connected to PostgreSQL database.")
+
     else:
         logger.info("Skipped Kafka-init: dev environment start")
 
@@ -232,12 +260,22 @@ async def on_ready():
     update_bot_presence.start(bot)
     logger.info(f'Logged in as... {bot.user}!!')
 
-    
+
+@bot.event
+async def on_disconnect():
+    if bot.db:
+        await bot.db.close()
+
+
 @bot.event
 async def on_close():
     logger.info("Bot is shutting down...")
     if KAFKA_ACTIVE:
         await close_kafka_producer()
+    if bot.db:
+        await bot.db.close()
+        await super().close()
+
     logger.info("Bot has been shut down.")
 
 
@@ -250,6 +288,58 @@ async def on_message(message: discord.Message):
     # 명령어 처리
     raw = message.content
     command_prefix = bot_command_prefix
+
+    emoji_msg_pattern = re.compile(r'^<(a?):(\w+):(\d+)>$')
+    match = emoji_msg_pattern.match(raw.strip())
+
+    # 이모지 메시지 패턴이 일치하는 경우, 해당 이모지를 큰 이미지로 변환하여 전송
+    if match and message.guild:
+        # DB에서 이모지 출력 설정 확인
+        if bot.db:
+            server_config = await bot.db.get_emoji_convert_server(message.guild.id)
+            
+            # 설정이 없거나 OFF 상태면 이모지 처리하지 않음
+            if server_config is None:
+                await bot.db.register_server_default_off(message.guild.id, message.guild.name)
+                await message.channel.send(
+                    f"이 서버에서는 이모지 출력 기능이 활성화되어 있지 않아양! "
+                    f"이모지 이미지를 큰 이미지로 출력하려면 `븜 이모지출력` 명령어로 기능을 활성화해보세양! (웹후크 관리 권한 필요해양!)"
+                )
+                await bot.process_commands(message)
+                return
+            
+            if not server_config['emoji_convert']: # 설정이 OFF 상태면 이모지 처리하지 않음
+                await bot.process_commands(message)
+                return
+            
+            animated = match.group(1) == 'a'
+            emoji_id = match.group(3)
+            ext = "gif" if animated else "png"
+            emoji_error_msg = "\n(Tip: 다른 discord 봇과 기능이 중복되면 \"븜 이모지출력\" 명령어를 사용해보세양!)"
+
+            emoji_url = f'https://cdn.discordapp.com/emojis/{emoji_id}.{ext}?size=4096'
+
+            try:
+                image_bytes = await async_convert_image_url_into_bytes(emoji_url)
+                attach_file = discord.File(image_bytes, filename=f"emoji_{emoji_id}.{ext}")
+
+                await message.delete()
+
+                await send_msg_as_pretend_user(
+                    channel=message.channel,
+                    user=message.author,
+                    file=attach_file
+                )
+
+            except WebhookNoPermissionError as e:
+                logger.error(f"Webhook Permission Error: {e}")
+                await message.channel.send(
+                    f"이모지 이미지를 처리하려면 웹훅 권한이 필요해양! 관리자에게 문의해보세양! {emoji_error_msg}"
+                )
+
+            except Exception as e:
+                logger.error(f"Error Processing Emoji: {e}")
+                await message.channel.send(f"이모지 이미지를 처리하는 중 오류가 발생했어양! {emoji_error_msg}")
 
     # "븜 <명령어>" 형식 확인
     await bot.process_commands(message)

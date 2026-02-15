@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import List, Literal, Optional
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -10,10 +11,15 @@ from sqlalchemy import text
 
 from exceptions.base import BotConfigFailed, BotInitializationError
 
+
+# Project Home
+BOT_HOME: Path = Path(__file__).resolve()
+PROJECT_HOME: Path = BOT_HOME.parent
+
 # Discord Bot Token loading
 try:
     # Load environment variables from .env file
-    assert load_dotenv('./env/token.env'), BotConfigFailed("token.env file not found")
+    assert load_dotenv(Path(PROJECT_HOME / "env" / "token.env")), BotConfigFailed("token.env file not found")
     assert os.getenv('bot_token_dev'), BotInitializationError("bot_token not found in env file")
     BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'prd')
     BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
@@ -27,7 +33,7 @@ except BotInitializationError as e:
 
 # Nexon Open API Key loading
 try:
-    assert load_dotenv('./env/nexon.env'), BotConfigFailed("nexon.env file not found")
+    assert load_dotenv(Path(PROJECT_HOME / "env" / "nexon.env")), BotConfigFailed("nexon.env file not found")
     assert os.getenv('NEXON_API_TOKEN_LIVE'), BotInitializationError("NEXON_API_TOKEN_LIVE not found in env file")
     if BOT_TOKEN_RUN == 'dev':
         NEXON_API_RUN_ENV = 'TEST'
@@ -48,7 +54,7 @@ except BotInitializationError as e:
 
 # weather API Key loading
 try:
-    assert load_dotenv('./env/weather.env'), BotConfigFailed("weather.env file not found")
+    assert load_dotenv(Path(PROJECT_HOME / "env" / "weather.env")), BotConfigFailed("weather.env file not found")
     assert os.getenv('kko_token_api'), BotInitializationError("kko_token_api not found in env file")
     assert os.getenv('wth_data_api'), BotInitializationError("wth_data_api not found in env file")
     KKO_LOCAL_API_KEY: str = os.getenv('kko_token_api', None)
@@ -65,7 +71,7 @@ except BotInitializationError as e:
 
 # stock API Key loading
 try:
-    assert load_dotenv('./env/stock.env'), BotConfigFailed("stock.env file not found")
+    assert load_dotenv(Path(PROJECT_HOME / "env" / "stock.env")), BotConfigFailed("stock.env file not found")
     assert os.getenv('stk_data_api'), BotInitializationError("stk_data_api not found in env file")
     assert os.getenv('stk_api_url'), BotInitializationError("stk_api_url not found in env file")
     STK_DATA_API_KEY: str = os.getenv('stk_data_api', None)
@@ -79,7 +85,7 @@ except BotInitializationError as e:
     sys.exit(2)
 
 # 히든변수 및 히든명령어 loading
-if load_dotenv('./env/secret.env'):
+if load_dotenv(Path(PROJECT_HOME / "env" / "secret.env")):
     BAN_CMD_1 = os.getenv('BAN_CMD_1', '')
     BAN_CMD_2 = os.getenv('BAN_CMD_2', '')
     BAN_CMD_3 = os.getenv('BAN_CMD_3', '')
@@ -143,16 +149,18 @@ KAFKA_TOPIC_NAME: Literal["discord.command.logs"] = "discord.command.logs"
 DB_USE: bool = True # DB 사용 여부
 if DB_USE:
     try:
-        assert load_dotenv("./env/db.env"), BotConfigFailed("db.env file not found")
+        assert load_dotenv(Path(PROJECT_HOME / "env" / "db.env")), BotConfigFailed("db.env file not found")
         db_user: Optional[str] = os.getenv('DB_USER')
         db_pass: Optional[str] = os.getenv('DB_PASSWORD')
         db_host: Optional[str] = os.getenv('DB_HOST')
         db_port: Optional[str] = os.getenv('DB_PORT')
         db_name: Optional[str] = os.getenv('DB_NAME')
         if BOT_TOKEN_RUN == 'dev':
-            POSTGRES_DSN: str = f"postgresql://{db_user}:{db_pass}@localhost:{db_port}/{db_name}"
+            POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+            POSTGRES_DSN_ASYNC: str = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
         else:
             POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+            POSTGRES_DSN_ASYNC: str = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
         #connection test
         from sqlalchemy import create_engine
         engine = create_engine(POSTGRES_DSN)
