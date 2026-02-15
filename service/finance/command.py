@@ -16,8 +16,8 @@ from matplotlib import pyplot as plt
 from matplotlib import dates as mdates
 import mplfinance as mpf
 
-from service.stock_utils import exchange_krw_rate, get_stock_info, get_stock_history
-from service.stock_utils import search_krx_stock_info, get_krx_stock_info
+from service.finance.utils import exchange_krw_rate, get_stock_info, get_stock_history
+from service.finance.utils import search_krx_stock_info, get_krx_stock_info
 from datetime import datetime
 from pytz import timezone
 
@@ -30,16 +30,18 @@ from typing import List, Literal
 from exceptions.client_exceptions import *
 
 
+class ConcurrencyConfig(object):
+    def __init__(self, input_argument: str):
+
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 미국주식")
-async def stk_us_price(ctx: commands.Context, search_ticker: str) -> float:
+async def stk_us_price(ctx: commands.Context, search_ticker: str) -> None:
     """주식 티커에 해당하는 미국 주식의 현재 가격을 반환합니다.
 
     Args:
-        ticker (str): 주식 티커 심볼 (예: 'AAPL', 'GOOGL')
+        ctx: 디스코드 명령어 Context
+        search_ticker (str): 주식 티커 심볼 (예: 'AAPL', 'GOOGL')
 
-    Returns:
-        float: 현재 주식 가격
     """
     try:
         stock_info: Dict[str, str | float | int | None] = get_stock_info(search_ticker)
@@ -66,7 +68,13 @@ async def stk_us_price(ctx: commands.Context, search_ticker: str) -> float:
 
         # KRW 환율 변환
         if stock_currency != 'KRW':
-            currency_rate: float = exchange_krw_rate(stock_currency)
+            try:
+                currency_rate: float = exchange_krw_rate(stock_currency)
+            except YFI_NO_RATE_WARNING:  # 경고의 경우 no return
+                await ctx.send(f"경고) {stock_currency} 환율 정보를 찾을 수 없어양!")
+            except YFI_STOCK_FETCH_RATE:
+                await ctx.send(f"경고) 환율 정보를 가져오는 데 실패했어양!")
+
             pc_krw = previous_close * currency_rate
             pc_krw_text = f"({pc_krw:,.2f} KRW)"
             tc_krw = today_close * currency_rate
@@ -91,10 +99,7 @@ async def stk_us_price(ctx: commands.Context, search_ticker: str) -> float:
     except YFI_NO_TICKER:
         await ctx.send(f"티커 {search_ticker}는 존재하지 않거나, 주식 정보가 없어양!")
         return
-    except YFI_NO_RATE_WARNING: # 경고의 경우 no return
-        await ctx.send(f"경고) {stock_currency} 환율 정보를 찾을 수 없어양!")
-    except YFI_STOCK_FETCH_RATE:
-        await ctx.send(f"경고) 환율 정보를 가져오는 데 실패했어양!")
+
     
     finally:
         # 가장 최근 거래일의 종가를 가져옵니다.
@@ -113,7 +118,8 @@ async def stk_us_price(ctx: commands.Context, search_ticker: str) -> float:
             f"- **이전 종가:** {safe_float(previous_close)} {stock_currency} {pc_krw_text}\n"
             f"- **현재 가격:** {safe_float(today_close)} {stock_currency} {tc_krw_text}\n"
             f"- **변동률:** {change_pct:.2f} %\n\n"
-            f"- **52주 최고가:** {safe_float(high_52w)} {stock_currency} {high_52w_krw_text} ({safe_percent(high_52w_change_pct)})\n"
+            f"- **52주 최고가:** {safe_float(high_52w)} {stock_currency}"
+            f"{high_52w_krw_text} ({safe_percent(high_52w_change_pct)})\n"
             f"- **52주 최저가:** {safe_float(low_52w)} {stock_currency} {low_52w_krw_text} ({safe_percent(low_52w_change_pct)})\n\n"
             f"- **거래량:** {preprocess_int_for_stocks(regular_volume)} (평균 10일 거래량: {preprocess_int_for_stocks(average_10d_volume)})\n"
             f"- **애널리스트 의견:** {analyst_rate_opinion_text}\n"
@@ -446,7 +452,8 @@ async def stk_kr_chart(
         ax.legend(loc='upper left')
 
         # 차트 제목 및 레이블 설정
-        ax.set_title(f"{stock_name} ({search_ticker}) - {period} 차트", fontproperties=fp_maplestory_bold, fontsize=16)
+        ax.set_title(f"{stock_name} ({search_ticker}) - {period} 차트",
+                     fontproperties=fp_maplestory_bold, fontsize=16)
         ax.set_xlabel("날짜", fontproperties=fp_maplestory_light, fontsize=12)
         ax.set_ylabel(f"가격 ({stock_concurrency})", fontproperties=fp_maplestory_light, fontsize=12)
 
@@ -462,3 +469,31 @@ async def stk_kr_chart(
         await ctx.send(content=f"[한국주식] {stock_name}의 {period} 차트에양!", file=file)
         buffer.close()
         return
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 환율")
+async def stk_concurrency(ctx: commands.Context, text: str) -> None:
+    """
+    입력한 가격과 외화 단위에 맞춰 KRW로 환산하여 표시합니다.
+
+    yahoo finance API를 활용하여 환율정보를 검색하고 전달합니다.
+
+    Notes:
+        환율 계산 방식 =
+
+    Args:
+        ctx:
+        text:
+
+    Returns:
+
+    """
+
+# 테스트 코드
+def main():
+    usd_to_krw = Ticker("KRW=X")
+    print(usd_to_krw)
+
+if __name__ == "__main__":
+    main()

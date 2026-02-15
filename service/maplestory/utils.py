@@ -22,7 +22,7 @@ from config import NEXON_API_RPS_LIMIT, NEXON_CHARACTER_IMAGE_URL # Nexon Open A
 from data.json.fortune_message_table import fortune_message_table_raw
 
 from exceptions.client_exceptions import *
-# from utils.image import MapleEquipmentViewerConfig, ImageTools
+from utils.image import MapleEquipmentViewerConfig, ImageTools, MapleCodiHistoryConfig, ImageBaseConfig
 from utils.time import parse_iso_string
 from utils.image import convert_image_url_into_bytes
 
@@ -467,7 +467,8 @@ def maple_convert_grade_text(grade_text: str) -> str:
     return grade_mapping.get(grade_text, "몰라양")
 
 
-async def get_notice(target_event: str = None, recent_notice: bool = True) -> List[dict] | Dict[str, str | Literal["알수없음"]]:
+async def get_notice(target_event: str = None,
+                     recent_notice: bool = True) -> List[dict] | Dict[str, str | Literal["알수없음"]]:
     """Nexon Open API를 통해 메이플스토리 공지사항을 가져오는 함수
 
     Args:
@@ -1674,7 +1675,7 @@ def _load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont | 
         if font_path:
             return ImageFont.truetype(font_path, size)
         else:
-            return ImageFont.truetype(CordinateVars.DEFAULT_FONT_PATH, size)
+            return ImageFont.truetype(ImageBaseConfig.DEFAULT_FONT_PATH, size)
     except Exception:
         return ImageFont.load_default()
     
@@ -1719,28 +1720,30 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
     if not isinstance(title, str) or not title:
         raise ValueError("title must be a non-empty string")
 
-    items = (collection[:8] or [])[: CordinateVars.IMAGES_GRID_COLS * CordinateVars.IMAGES_GRID_ROWS]
+    items = (collection[:8] or [])[: MapleCodiHistoryConfig.IMAGE_GRID_COLS * MapleCodiHistoryConfig.IMAGE_GRID_ROWS]
 
     # 캔버스 크기 계산
-    cell_w = CordinateVars.IMAGE_SIZE
-    cell_h = CordinateVars.IMAGE_SIZE + CordinateVars.CAPTION_HEIGHT
+    cell_w = MapleCodiHistoryConfig.IMAGE_SIZE
+    cell_h = MapleCodiHistoryConfig.IMAGE_SIZE + MapleCodiHistoryConfig.CAPTION_HEIGHT
 
     n = len(items)
-    rows = math.ceil(n / CordinateVars.IMAGES_GRID_COLS)
-    grid_w = CordinateVars.IMAGES_GRID_COLS * cell_w + (CordinateVars.IMAGES_GRID_COLS - 1) * CordinateVars.CELL_PADDING_SIZE
-    grid_h = rows * cell_h + (rows - 1) * CordinateVars.CELL_PADDING_SIZE
+    rows = math.ceil(n / MapleCodiHistoryConfig.IMAGE_GRID_COLS)
+    grid_w = (MapleCodiHistoryConfig.IMAGE_GRID_COLS * cell_w +
+             (MapleCodiHistoryConfig.IMAGE_GRID_COLS - 1) * MapleCodiHistoryConfig.CELL_PADDING_SIZE)
+    grid_h = rows * cell_h + (rows - 1) * MapleCodiHistoryConfig.CELL_PADDING_SIZE
     title_h = 0
     font_title = None
     if title:
-        title_font_size = CordinateVars.FONT_SIZE + 6
-        font_title = _load_font(font_path=CordinateVars.TITLE_FONT_PATH, size=title_font_size)
-        title_h = title_font_size + CordinateVars.TITLE_FONT_PADDING
+        title_font_size = MapleCodiHistoryConfig.FONT_SIZE + 6
+        font_title = ImageTools.load_font(font_path=MapleCodiHistoryConfig.TITLE_FONT_PATH,
+                                          font_size=title_font_size)
+        title_h = title_font_size + MapleCodiHistoryConfig.TITLE_FONT_PADDING
 
-    canvas_w = grid_w + 2 * CordinateVars.BOARD_MARGIN
-    canvas_h = grid_h + 2 * CordinateVars.BOARD_MARGIN + title_h
+    canvas_w = grid_w + 2 * MapleCodiHistoryConfig.BOARD_MARGIN
+    canvas_h = grid_h + 2 * MapleCodiHistoryConfig.BOARD_MARGIN + title_h
 
     # 캔버스 생성
-    canvas = Image.new("RGBA", (canvas_w, canvas_h), CordinateVars.BG_COLOR)
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), MapleCodiHistoryConfig.BG_COLOR)
     draw = ImageDraw.Draw(canvas)
 
     # 제목 렌더링
@@ -1748,50 +1751,72 @@ async def generate_cordinate_collection_image(collection: List[Tuple[str, str]],
         tb = draw.textbbox((0, 0), title, font=font_title)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
         tx = (canvas_w - tw) // 2
-        ty = CordinateVars.BOARD_MARGIN
-        draw.text((tx, ty), title, font=font_title, fill=CordinateVars.FG_COLOR)
-        grid_origin_y = CordinateVars.BOARD_MARGIN + title_h
+        ty = MapleCodiHistoryConfig.BOARD_MARGIN
+        draw.text((tx, ty), title, font=font_title, fill=MapleCodiHistoryConfig.FG_COLOR)
+        grid_origin_y = MapleCodiHistoryConfig.BOARD_MARGIN + title_h
     else:
-        grid_origin_y = CordinateVars.BOARD_MARGIN
+        grid_origin_y = MapleCodiHistoryConfig.BOARD_MARGIN
 
     # 이미지 다운로드
-    font_caption = _load_font(font_path=CordinateVars.CAPTION_FONT_PATH, size=CordinateVars.FONT_SIZE)
+    font_caption = ImageTools.load_font(font_path=MapleCodiHistoryConfig.CAPTION_FONT_PATH,
+                                        font_size=MapleCodiHistoryConfig.FONT_SIZE)
 
     # 셀 안에 이미지 및 캡션 렌더링
     for idx, (date_str, url) in enumerate(items):
-        row = idx // CordinateVars.IMAGES_GRID_COLS
-        col = idx % CordinateVars.IMAGES_GRID_COLS
-        x = CordinateVars.BOARD_MARGIN + col * (cell_w + CordinateVars.CELL_PADDING_SIZE)
-        y = grid_origin_y + row * (cell_h + CordinateVars.CELL_PADDING_SIZE)
+        row = idx // MapleCodiHistoryConfig.IMAGE_GRID_COLS
+        col = idx % MapleCodiHistoryConfig.IMAGE_GRID_COLS
+        x = MapleCodiHistoryConfig.BOARD_MARGIN + col * (cell_w + MapleCodiHistoryConfig.CELL_PADDING_SIZE)
+        y = grid_origin_y + row * (cell_h + MapleCodiHistoryConfig.CELL_PADDING_SIZE)
 
         # 카드 배경 + 그림자
         # 그림자 렌더링
-        shadow_offset = CordinateVars.SHADOW_OFFSET
+        shadow_offset = MapleCodiHistoryConfig.SHADOW_OFFSET
         shadow_rect = [x + shadow_offset[0], y + shadow_offset[1], x + cell_w, y+ cell_h]
-        draw.rounded_rectangle(shadow_rect, radius=CordinateVars.CELL_RADIUS, fill=CordinateVars.CELL_SHADOW)
+        draw.rounded_rectangle(shadow_rect,
+                               radius=MapleCodiHistoryConfig.CELL_RADIUS,
+                               fill=MapleCodiHistoryConfig.CELL_SHADOW_COLOR)
 
         # 카드 배경 렌더링
         cord_rect = [x, y, x + cell_w, y + cell_h]
-        draw.rounded_rectangle(cord_rect, radius=CordinateVars.CELL_RADIUS, fill=CordinateVars.CELL_BG_COLOR)
+        draw.rounded_rectangle(cord_rect,
+                               radius=MapleCodiHistoryConfig.CELL_RADIUS,
+                               fill=MapleCodiHistoryConfig.CELL_BG_COLOR)
 
         # 이미지 렌더링
         im_bytes: io.BytesIO = convert_image_url_into_bytes(url)
         im = Image.open(im_bytes).convert("RGBA")
-        thumb = ImageOps.fit(im, (CordinateVars.IMAGE_SIZE, CordinateVars.IMAGE_SIZE), method=Image.Resampling.LANCZOS)
-        thumb = _rounded(thumb, rad=CordinateVars.CELL_RADIUS)
+        thumb = ImageOps.fit(image=im,
+                             size=(MapleCodiHistoryConfig.IMAGE_SIZE, MapleCodiHistoryConfig.IMAGE_SIZE),
+                             method=Image.Resampling.LANCZOS)
+        thumb = ImageTools.make_rounded(thumb, radius=MapleCodiHistoryConfig.CELL_RADIUS)
         canvas.paste(thumb, (x, y), thumb)
 
         # 캡션 렌더링
-        caption_y = y + CordinateVars.IMAGE_SIZE + (CordinateVars.CAPTION_HEIGHT // 2)
+        caption_y = y + MapleCodiHistoryConfig.IMAGE_SIZE + (MapleCodiHistoryConfig.CAPTION_HEIGHT // 2)
         tb = draw.textbbox((0, 0), date_str, font=font_caption)
         tw = tb[2] - tb[0]
-        draw.text((x + (cell_w - tw) // 2, caption_y - CordinateVars.FONT_SIZE // 2), date_str, font=font_caption, fill=CordinateVars.FG_COLOR)
+        draw.text(xy= (x + (cell_w - tw) // 2, caption_y - MapleCodiHistoryConfig.FONT_SIZE // 2),
+                  text=date_str, font=font_caption, fill=MapleCodiHistoryConfig.FG_COLOR)
 
     # 이미지 저장
     buffer = io.BytesIO()
     canvas.save(buffer, format="PNG")
     buffer.seek(0)
     return buffer
+
+
+async def generate_item_equipment_image(collection: Dict[str, Any], preset: int | None = None) -> io.BytesIO:
+    """
+    메이플스토리 장비창 이미지 생성
+
+    Args:
+        collection (dict): 현재 메이플스토리 캐릭터 장착 장비
+        preset      (int): 조회하고 싶은 장비 프리셋 번호 (기본값: 현재장착중인 장비로 설정)
+
+    Returns:
+        equipment_image: 메이플스토리 장비창 이미지
+    """
+    cell_w = 1
 
 
 def parse_distribution_meso(reward: str) -> int:
@@ -1851,6 +1876,7 @@ def main():
     test_api_key: str = os.environ.get("NEXON_API_TOKEN_TEST")
     test_ocid: str = os.environ.get("NEXON_API_DEBUG_OCID")
 
+    test_item_equipment_info = asyncio.run(get_item_equipment_info(test_ocid))
     print(test_api_key, test_ocid)
 
 if __name__ == "__main__":

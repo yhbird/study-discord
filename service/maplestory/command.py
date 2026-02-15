@@ -7,8 +7,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup
 
-from service.maplestory_utils import *
-from service.maplestory_resolver import AsyncCharacterOCIDResolver
+from service.maplestory.utils import *
+from service.maplestory.resolver import AsyncCharacterOCIDResolver
 
 from bot_logger  import log_command, with_timeout
 from utils.image import convert_image_url_into_bytes

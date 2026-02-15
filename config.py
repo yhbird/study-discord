@@ -156,9 +156,11 @@ if DB_USE:
         db_port: Optional[str] = os.getenv('DB_PORT')
         db_name: Optional[str] = os.getenv('DB_NAME')
         if BOT_TOKEN_RUN == 'dev':
-            POSTGRES_DSN: str = f"postgresql://{db_user}:{db_pass}@localhost:{db_port}/{db_name}"
+            POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+            POSTGRES_DSN_ASYNC: str = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
         else:
             POSTGRES_DSN = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+            POSTGRES_DSN_ASYNC: str = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
         #connection test
         from sqlalchemy import create_engine
         engine = create_engine(POSTGRES_DSN)

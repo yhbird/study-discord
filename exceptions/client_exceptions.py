@@ -401,3 +401,11 @@ class DB_DATA_NOT_FOUND(ClientBaseException):
 class RCON_CLIENT_ERROR(ClientBaseException):
     """RCON 클라이언트 오류 예외"""
     pass
+
+class GeneralRequestError(ClientBaseException):
+    """일반 요청 예외"""
+    pass
+
+class WebhookNoPermissionError(GeneralRequestError):
+    """Webhook 권한 없음 예외"""
+    pass

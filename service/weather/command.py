@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 from config import COMMAND_TIMEOUT
-from service.weather_utils import *
+from service.weather.utils import *
 
 from bot_logger import log_command, with_timeout
 
