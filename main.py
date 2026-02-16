@@ -1,4 +1,3 @@
-import re
 import discord
 from discord.ext import commands
 
@@ -8,6 +7,7 @@ from bot_logger import logger
 # bot 유틸리티 함수
 from bot_helper import build_command_help, resolve_command, build_command_hint #도움말 예외처리
 from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리, 봇 상태 갱신
+from bot_helper import CUSTOM_EMOJI_PATTERN, expand_custom_emoji # 이모지 메시지 패턴
 
 # Kafka 초기화
 from exceptions.client_exceptions import WebhookNoPermissionError
@@ -23,10 +23,6 @@ from typing import Literal
 # Matplotlib 한글 폰트 설정
 from utils.plot import set_up_matplotlib_korean
 applied = set_up_matplotlib_korean("assets/font/NanumGothic.ttf")
-
-# Emoji 메시지 처리 함수
-from utils.image import async_convert_image_url_into_bytes
-from utils.webhook import send_msg_as_pretend_user
 
 # 디스코드 메세지 관련 명령어
 import service.basic_command as basic_command
@@ -289,57 +285,11 @@ async def on_message(message: discord.Message):
     raw = message.content
     command_prefix = bot_command_prefix
 
-    emoji_msg_pattern = re.compile(r'^<(a?):(\w+):(\d+)>$')
-    match = emoji_msg_pattern.match(raw.strip())
+    match = CUSTOM_EMOJI_PATTERN.match(raw.strip())
 
     # 이모지 메시지 패턴이 일치하는 경우, 해당 이모지를 큰 이미지로 변환하여 전송
-    if match and message.guild:
-        # DB에서 이모지 출력 설정 확인
-        if bot.db:
-            server_config = await bot.db.get_emoji_convert_server(message.guild.id)
-            
-            # 설정이 없거나 OFF 상태면 이모지 처리하지 않음
-            if server_config is None:
-                await bot.db.register_server_default_off(message.guild.id, message.guild.name)
-                await message.channel.send(
-                    f"이 서버에서는 이모지 출력 기능이 활성화되어 있지 않아양! "
-                    f"이모지 이미지를 큰 이미지로 출력하려면 `븜 이모지출력` 명령어로 기능을 활성화해보세양! (웹후크 관리 권한 필요해양!)"
-                )
-                await bot.process_commands(message)
-                return
-            
-            if not server_config['emoji_convert']: # 설정이 OFF 상태면 이모지 처리하지 않음
-                await bot.process_commands(message)
-                return
-            
-            animated = match.group(1) == 'a'
-            emoji_id = match.group(3)
-            ext = "gif" if animated else "png"
-            emoji_error_msg = "\n(Tip: 다른 discord 봇과 기능이 중복되면 \"븜 이모지출력\" 명령어를 사용해보세양!)"
-
-            emoji_url = f'https://cdn.discordapp.com/emojis/{emoji_id}.{ext}?size=4096'
-
-            try:
-                image_bytes = await async_convert_image_url_into_bytes(emoji_url)
-                attach_file = discord.File(image_bytes, filename=f"emoji_{emoji_id}.{ext}")
-
-                await message.delete()
-
-                await send_msg_as_pretend_user(
-                    channel=message.channel,
-                    user=message.author,
-                    file=attach_file
-                )
-
-            except WebhookNoPermissionError as e:
-                logger.error(f"Webhook Permission Error: {e}")
-                await message.channel.send(
-                    f"이모지 이미지를 처리하려면 웹훅 권한이 필요해양! 관리자에게 문의해보세양! {emoji_error_msg}"
-                )
-
-            except Exception as e:
-                logger.error(f"Error Processing Emoji: {e}")
-                await message.channel.send(f"이모지 이미지를 처리하는 중 오류가 발생했어양! {emoji_error_msg}")
+    if match and message.guild and bot.db:
+        await expand_custom_emoji(bot, message)
 
     # "븜 <명령어>" 형식 확인
     await bot.process_commands(message)
