@@ -1,5 +1,5 @@
 import discord
-from exceptions.client_exceptions import WebhookNoPermissionError
+from exceptions.client_exceptions import WebhookETCError, WebhookNoPermissionError
 
 async def send_msg_as_pretend_user(channel: discord.TextChannel, user: discord.Member, 
                                    content: str | None = None, file: discord.File | None = None):
@@ -12,25 +12,34 @@ async def send_msg_as_pretend_user(channel: discord.TextChannel, user: discord.M
         content (str | None, optional): 메세지 내용. Defaults to None.
         file (discord.File | None, optional): 첨부할 파일. Defaults to None.
     """
-    # 1. channel webhook 가져오기
-    webhooks = await channel.webhooks()
-
-    # 2. 봇 전용 webhook 확인
-    webhook_name = "Bot_Proxy_Webhook"
-    webhook = discord.utils.get(webhooks, name=webhook_name)
-
-    # 3. 없으면 새로 생성
-    if not webhook:
-        webhook = await channel.create_webhook(name=webhook_name)
-
     try:
+        # 1. channel webhook 가져오기
+        webhooks = await channel.webhooks()
+
+        # 2. 봇 전용 webhook 확인
+        webhook_name = "Bot_Proxy_Webhook"
+        webhook = discord.utils.get(webhooks, name=webhook_name)
+
+        # 3. 없으면 새로 생성
+        if not webhook:
+            webhook = await channel.create_webhook(name=webhook_name)
+
         # 4. webhook으로 메세지 보내기
         await webhook.send(
             content=content,
             username=user.display_name,
-            avatar_url=user.avatar.url if user.avatar else None,
+            avatar_url=user.display_avatar.url if user.display_avatar else None,
             file=file
         )
-        # permission error 발생시 예외 처리
-    except discord.Forbidden:
-        raise WebhookNoPermissionError(f"[webhook] No Permission. 채널: {channel.name} (ID: {channel.id})")
+            
+    # permission error 발생시 예외 처리 (403 Forbidden)
+    except discord.Forbidden as e:
+        raise WebhookNoPermissionError(
+            f"[webhook] No Permission. 채널: {channel.name} (ID: {channel.id})"
+        ) from e
+    
+    except discord.HTTPException as e:
+        raise WebhookETCError(
+            f"[webhook] HTTP Error. 채널: {channel.name} (ID: {channel.id}). "
+            f"에러: {e}"
+        ) from e

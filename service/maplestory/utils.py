@@ -17,12 +17,13 @@ from discord.ui import View, Button
 from pytz import timezone
 from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
+from service.maplestory.consts import MapleEquipmentViewerConfig, MapleCodiHistoryConfig
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
 from config import NEXON_API_RPS_LIMIT, NEXON_CHARACTER_IMAGE_URL # Nexon Open API Rate Limit 방지용 시간 간격
 from data.json.fortune_message_table import fortune_message_table_raw
 
 from exceptions.client_exceptions import *
-from utils.image import MapleEquipmentViewerConfig, ImageTools, MapleCodiHistoryConfig, ImageBaseConfig
+from utils.image import ImageTools, ImageBaseConfig
 from utils.time import parse_iso_string
 from utils.image import convert_image_url_into_bytes
 

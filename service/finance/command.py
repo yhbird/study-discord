@@ -30,9 +30,6 @@ from typing import List, Literal
 from exceptions.client_exceptions import *
 
 
-class ConcurrencyConfig(object):
-    def __init__(self, input_argument: str):
-
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 미국주식")
 async def stk_us_price(ctx: commands.Context, search_ticker: str) -> None:

@@ -409,3 +409,7 @@ class GeneralRequestError(ClientBaseException):
 class WebhookNoPermissionError(GeneralRequestError):
     """Webhook 권한 없음 예외"""
     pass
+
+class WebhookETCError(GeneralRequestError):
+    """Webhook 기타 오류 예외"""
+    pass
