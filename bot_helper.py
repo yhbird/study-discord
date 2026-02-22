@@ -1,3 +1,5 @@
+import asyncio
+from datetime import datetime
 import os
 import gc
 import random
@@ -64,7 +66,7 @@ async def update_bot_presence(bot: commands.Bot):
     random_game = random.choice(games)
     await bot.change_presence(
         status=discord.Status.online,
-        activity=discord.Game(name=f"븜 명령어 | {random_game}")
+        activity=discord.Game(name=f"뭄 명령어 | {random_game}")
     )
 
 
@@ -140,7 +142,7 @@ async def expand_custom_emoji(bot: commands.Bot, msg: discord.Message) -> None:
             await bot.db.register_server_default_off(msg.guild.id, msg.guild.name)
             await msg.channel.send(
                 "이 서버에서는 이모지 출력 기능이 활성화되어 있지 않아양! \n"
-                "이모지 이미지를 큰 이미지로 출력하려면 `븜 이모지출력` "
+                "이모지 이미지를 큰 이미지로 출력하려면 `뭄 이모지출력` "
                 "명령어로 기능을 활성화해보세양! \n**(주의: 서버 역할에 웹후크 관리 권한 필요해양!)**"
             )
             await bot.process_commands(msg)
@@ -155,21 +157,37 @@ async def expand_custom_emoji(bot: commands.Bot, msg: discord.Message) -> None:
             animated = match.group(1) == 'a'
             emoji_id = match.group(3)
             ext = "gif" if animated else "png"
-            emoji_error_msg = "\n(Tip: 다른 discord 봇과 기능이 중복되면 \"븜 이모지출력\" 명령어를 사용해보세양!)"
-            resize = 512
-            emoji_url = f'https://cdn.discordapp.com/emojis/{emoji_id}.{ext}?size={resize}'
+            emoji_error_msg = "\n(Tip: 다른 discord 봇과 기능이 중복되면 \"뭄 이모지출력\" 명령어를 사용해보세양!)"
+            emoji_url = f'https://cdn.discordapp.com/emojis/{emoji_id}.{ext}'
 
             try:
-                image_files, ext = await async_upscale_emoji_image(emoji_url)
-                attach_file = discord.File(image_files, filename=f"emoji_{emoji_id}.{ext}")
-
+                image_buffer, ext = await async_upscale_emoji_image(emoji_url)
+                
+                filename = f"{emoji_id}_upscaled.{ext}"
+                attach_file = discord.File(image_buffer, filename=filename)
+                
+                # 원본 메시지 삭제
                 await msg.delete()
-
-                await send_msg_as_pretend_user(
-                    channel=msg.channel,
-                    user=msg.author,
-                    file=attach_file
-                )
+                
+                # 더미 채널에 업로드하여 CDN URL 획득
+                dummy_channel_id = 1473003830399733974
+                dummy_channel = bot.get_channel(dummy_channel_id)
+                
+                if not dummy_channel:
+                    raise Exception("더미 채널을 찾을 수 없습니다")
+                
+                temp_msg = await dummy_channel.send(file=attach_file)
+                
+                if temp_msg.attachments:
+                    image_url = temp_msg.attachments[0].url
+                    
+                    # CDN URL을 content 텍스트로 전송
+                    # Discord가 URL을 auto-embed하여 컴팩트한 이미지 카드로 표시
+                    await send_msg_as_pretend_user(
+                        channel=msg.channel,
+                        user=msg.author,
+                        content=image_url
+                    )
 
             except WebhookNoPermissionError as e:
                 logger.error(f"Webhook Permission Error: {e}")
@@ -177,29 +195,12 @@ async def expand_custom_emoji(bot: commands.Bot, msg: discord.Message) -> None:
                     f"이모지 이미지를 처리하려면 `Manage Webhooks` 권한이 필요해양!"
                     f" 관리자에게 문의해보세양! {emoji_error_msg}"
                 )
-
-            except WebhookETCError as e:
-                logger.error(f"Webhook HTTP Error: {e}")
+            except Exception as e:
+                logger.error(f"Error Processing Emoji: {e}")
                 await msg.channel.send(
                     f"이모지 이미지를 처리하는 중 오류가 발생했어양! {emoji_error_msg}"
                 )
-
-            except Exception as e:
-                logger.error(f"Error Processing Emoji: {e}")
-                await msg.channel.send(f"이모지 이미지를 처리하는 중 오류가 발생했어양! {emoji_error_msg}")
             return
         else:
             await bot.process_commands(msg)
             return
-        
-
-async def expand_custom_emoji_v2(bot: commands.Bot, msg: discord.Message) -> None:
-    """
-    사용자가 입력한 단일 커스텀 이모지 메시지를 고화질 이모지 이미지로 변환하는 함수 (v2)
-
-    단순히 size만 키우는 방식이 아닌, 화질과 보정을 통해 최대한 선명한 이미지를 변환
-
-    Args:
-        bot (commands.Bot): Discord 봇 인스턴스
-        msg (discord.Message): Discord 메시지 객체
-    """

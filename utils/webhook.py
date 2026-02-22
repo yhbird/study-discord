@@ -2,7 +2,9 @@ import discord
 from exceptions.client_exceptions import WebhookETCError, WebhookNoPermissionError
 
 async def send_msg_as_pretend_user(channel: discord.TextChannel, user: discord.Member, 
-                                   content: str | None = None, file: discord.File | None = None):
+                                   content: str | None = None, 
+                                   file: discord.File | None = None,
+                                   embed: discord.Embed | None = None):
     """
     Emoji를 사용한 유저의 메세지를 큰 이미지로 내보내는 용도로 사용하는 함수
 
@@ -11,6 +13,7 @@ async def send_msg_as_pretend_user(channel: discord.TextChannel, user: discord.M
         user (discord.Member): 메세지를 보낸 유저
         content (str | None, optional): 메세지 내용. Defaults to None.
         file (discord.File | None, optional): 첨부할 파일. Defaults to None.
+        embed (discord.Embed | None, optional): 첨부할 임베드. Defaults to None.
     """
     try:
         # 1. channel webhook 가져오기
@@ -24,13 +27,22 @@ async def send_msg_as_pretend_user(channel: discord.TextChannel, user: discord.M
         if not webhook:
             webhook = await channel.create_webhook(name=webhook_name)
 
-        # 4. webhook으로 메세지 보내기
-        await webhook.send(
-            content=content,
-            username=user.display_name,
-            avatar_url=user.display_avatar.url if user.display_avatar else None,
-            file=file
-        )
+        if file is not None:
+            # 4. webhook으로 메세지 보내기
+            await webhook.send(
+                content=content,
+                username=user.display_name,
+                avatar_url=user.display_avatar.url if user.display_avatar else None,
+                file=file,
+                embed=embed
+            )
+        else:
+            await webhook.send(
+                content=content,
+                username=user.display_name,
+                avatar_url=user.display_avatar.url if user.display_avatar else None,
+                embed=embed
+            )
             
     # permission error 발생시 예외 처리 (403 Forbidden)
     except discord.Forbidden as e:

@@ -64,31 +64,25 @@ async def async_convert_image_url_into_bytes(image_url: str) -> io.BytesIO:
     return image_bytes
 
 
-async def async_upscale_emoji_image(image_url: str, target_size: int = 160, 
-                                    use_webp: bool = True) -> tuple[io.BytesIO, str]:
+async def async_upscale_emoji_image(image_url: str, target_size: int = 160) -> tuple[io.BytesIO, str]:
     """
     이모지 이미지 URL을 받아서 이미지를 업스케일링 하는 함수
 
     Args:
-        image_url (str): 이모지 이미지 URL,
-        target_size (int, optional): 업스케일링된 이미지의 최소 크기. Defaults to 160.
-        use_webp (bool, optional): 업스케일링된 이미지를 WebP 형식 저장 여부 (True)
+        image_url (str): 이모지 이미지 URL
+        target_size (int, optional): 목표 크기. Defaults to 160.
 
     Returns:
-        tuple[io.BytesIO, str]: 업스케일링된 이미지 바이트와 이미지 형식 (예: "PNG", "GIF")
+        tuple[io.BytesIO, str]: 업스케일링된 이미지 바이트와 형식
     """
-    # 1. 비동기로 이미지 데이터 다운로드
-    image_data: io.BytesIO = await async_convert_image_url_into_bytes(image_url)
-
-    # 2. Pillow 이미지 Open
-    image = Image.open(io.BytesIO(image_data))
-
-    # 3. 애니메이션 여부 확인
+    # CDN에서 고해상도 소스를 가져오기 위해 size 파라미터 추가
+    separator = '&' if '?' in image_url else '?'
+    hq_url = f"{image_url}{separator}size=256"
+    image_data: io.BytesIO = await async_convert_image_url_into_bytes(hq_url)
+    image = Image.open(image_data)
     is_animated = getattr(image, "is_animated", False)
-
     output_buffer = io.BytesIO()
 
-    # 4. is_animated이 True인 경우, 원본 GIF 유지
     if is_animated:
         frames = []
         durations = []
@@ -103,29 +97,21 @@ async def async_upscale_emoji_image(image_url: str, target_size: int = 160,
                     scale_factor = target_size / max(frame.size)
                     new_size = tuple(int(dim * scale_factor) for dim in frame.size)
                     frame = frame.resize(new_size, resample=Image.Resampling.LANCZOS)
-
-                # 선명도 향상
-                image_enhancer = ImageEnhance.Sharpness(frame)
-                frame = image_enhancer.enhance(1.3)
-
-                # 대비 향상
-                image_enhancer = ImageEnhance.Contrast(frame)
-                frame = image_enhancer.enhance(1.15)
+                    
+                    if max(image.size) < target_size:
+                        enhancer = ImageEnhance.Sharpness(frame)
+                        frame = enhancer.enhance(1.2)
 
                 frames.append(frame)
-                durations.append(image.info.get('duration', 100))  # 기본 프레임 지속
-
-                # 다음 프레임으로 이동
+                durations.append(image.info.get('duration', 100))
                 image.seek(image.tell() + 1)
 
         except EOFError:
-            pass  # 모든 프레임 처리 완료
+            pass
 
-        # GIF 저장
-        gif_first_frame: Image.Image = frames[0]
-        gif_first_frame.save(
+        frames[0].save(
             output_buffer,
-            format="GIF",
+            format='GIF',
             save_all=True,
             append_images=frames[1:],
             duration=durations,
@@ -133,7 +119,6 @@ async def async_upscale_emoji_image(image_url: str, target_size: int = 160,
             optimize=True,
             disposal=2
         )
-
         output_buffer.seek(0)
         return output_buffer, "gif"
             
@@ -141,35 +126,18 @@ async def async_upscale_emoji_image(image_url: str, target_size: int = 160,
         if image.mode != 'RGBA':
             image = image.convert("RGBA")
 
-        # 업스케일링
         if max(image.size) != target_size:
             scale_factor = target_size / max(image.size)
             new_size = tuple(int(dim * scale_factor) for dim in image.size)
             image = image.resize(new_size, resample=Image.Resampling.LANCZOS)
+            
+            if max(Image.open(image_data).size) < target_size:
+                enhancer = ImageEnhance.Sharpness(image)
+                image = enhancer.enhance(1.2)
 
-        # 선명도 향상
-        image_enhancer = ImageEnhance.Sharpness(image)
-        image = image_enhancer.enhance(1.3)
-
-        # 대비 향상
-        image_enhancer = ImageEnhance.Contrast(image)
-        image = image_enhancer.enhance(1.15)
-        
-        target_width = image.width * 4
-        target_height = image.height * 4
-
-        # 저장 포맷 결정
-        if use_webp:
-            # WebP (무손실, 작은 용량)
-            image.save(output_buffer, format='WEBP', lossless=True, quality=100, method=6)
-            ext = 'webp'
-        else:
-            # PNG (무손실)
-            image.save(output_buffer, format='PNG', optimize=True, compress_level=9)
-            ext = 'png'
-        
+        image.save(output_buffer, format='PNG', optimize=True)
         output_buffer.seek(0)
-        return output_buffer, ext
+        return output_buffer, "png"
 
 
 class ImageBaseConfig:
@@ -235,7 +203,8 @@ class ImageTools:
             try:
                 response = await client.get(url, timeout=10.0)
                 response.raise_for_status()
-                image = Image.open(io.BytesIO(response.content)).convert("RGBA")
+                content = await response.read()
+                image = Image.open(io.BytesIO(content)).convert("RGBA")
                 return image
             except (httpx.HTTPError, UnidentifiedImageError):
                 return None

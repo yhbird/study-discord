@@ -290,6 +290,7 @@ async def on_message(message: discord.Message):
     # 이모지 메시지 패턴이 일치하는 경우, 해당 이모지를 큰 이미지로 변환하여 전송
     if match and message.guild and bot.db:
         await expand_custom_emoji(bot, message)
+        return
 
     # "븜 <명령어>" 형식 확인
     await bot.process_commands(message)
