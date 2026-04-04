@@ -215,15 +215,15 @@ async def run_stk_kr_chart(ctx: commands.Context, stock: str,
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])
 async def run_hidden_command_1(ctx: commands.Context):
-    await hid_command.hidden_command_1(ctx, text=SECRET_COMMANDS[0])
+    await hid_command.hidden_command_1(ctx)
 
 @bot.command(name=SECRET_COMMANDS[1])
 async def run_hidden_command_2(ctx: commands.Context):
-    await hid_command.hidden_command_2(ctx, text=SECRET_COMMANDS[1])
+    await hid_command.hidden_command_2(ctx)
 
 @bot.command(name=SECRET_COMMANDS[2])
 async def run_hidden_command_3(ctx: commands.Context):
-    await hid_command.hidden_command_3(ctx, text=SECRET_COMMANDS[2])
+    await hid_command.hidden_command_3(ctx)
 
 
 # 봇 실행 + 메모리 정리 반복 작업 시작
