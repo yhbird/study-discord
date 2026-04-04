@@ -35,9 +35,13 @@ class dnf_timeline_codes:
     clear_raid : int = 201 # 레이드 클리어
     clear_region : int = 209 # 레기온 클리어
     item_upgrade: int = 402 # 아이템 강화/증폭/제련
+    item_drop: int = 505 # 아이템 획득 (던전 드랍)
     reward_pot_and_box: int = 504 # 항아리&상자 보상
+    reward_promise_pot_and_box: int = 552 # 서약 획득 (항아리&상자)
+    reward_promise_card: int = 557 # 서약 획득 (레이드 카드)
     reward_clear_raid_card: int = 507 # 레이드 클리어 카드 보상
     upgrade_stone: int = 511 # 융합석 업글레이드
+    item_scroll: int = 514 # 아이템 획득(제작서, 교환권)
     reward_clear_dungeon_card: int = 513 # 던전 카드 보상
 
 

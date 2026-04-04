@@ -464,6 +464,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         get_epic_count: int = 0
         get_epic_up_count: int = 0 # 융합석 장비 업그레이드 횟수
         get_primeval_count: int = 0
+        clear_raid_diregie_flag: bool = False
         clear_raid_twilight_flag: bool = False
         clear_raid_nabel_flag: bool = False
         clear_raid_mu_flag: bool = False
@@ -477,62 +478,86 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
             timeline_data: dict[str, Any] = row.get("data")
 
             # 아이템 획득
-            if 600 > timeline_code >= 500:
+            if 500 <= timeline_code < 600:
                 item_id: str = timeline_data.get("itemId", "몰라양")
                 item_setid: str = await get_set_item_id(item_id)
                 item_name: str = timeline_data.get("itemName", "몰라양")
                 item_rare: str = timeline_data.get("itemRarity", "몰라양")
 
                 # 태초 아이템 획득 시 하이라이트 메시지 생성
-                if (item_rare == "태초") or (item_setid == character_set_item_id and item_rare == "에픽"):
+                tl_cond: bool = (item_rare == "태초") or (item_setid == character_set_item_id and item_rare == "에픽")
+                if tl_cond and timeline_code != dnf_timeline_codes.upgrade_stone:
 
                     # 던전 카드 보상에서 태초 아이템 획득 시 or 세트 아이템 에픽 획득 시
                     if timeline_code == dnf_timeline_codes.reward_clear_dungeon_card:
                         dungeon_name: str = timeline_data.get("dungeonName", "몰라양")
 
                         timeline_highlight += (
-                            f"던전 {dungeon_name}에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                            f"아이템 획득: {dnf_convert_grade_text(item_rare)}{item_name}"
+                            f" ({dungeon_name} 카드보상, {timeline_date})\n"
                         )
 
                     # 레이드 카드 보상에서 태초 아이템 획득 시
                     elif timeline_code == dnf_timeline_codes.reward_clear_raid_card:
                         timeline_highlight += (
-                            f"레이드에서 카드 보상으로 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                            f"아이템 획득: {dnf_convert_grade_text(item_rare)}{item_name}"
+                            f" (레이드 카드 보상, {timeline_date})\n"
+                        )
+
+                    elif timeline_code == dnf_timeline_codes.reward_promise_card:
+                        timeline_highlight += (
+                            f"아이템 획득: {dnf_convert_grade_text(item_rare)}{item_name}"
+                            f" (레이드 카드 보상, {timeline_date})\n"
                         )
 
                     # 항아리&상자 보상에서 태초 아이템 획득 시
                     elif timeline_code == dnf_timeline_codes.reward_pot_and_box:
                         timeline_highlight += (
-                            f"항아리&상자를 개봉해서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                            f"아이템 획득: {dnf_convert_grade_text(item_rare)}{item_name}"
+                            f" (항아리&상자 개봉, {timeline_date})\n"
                         )
 
-                    # 기타 종말의 숭배자 등에서 태초 아이템 획득 시
+                    elif timeline_code == dnf_timeline_codes.reward_promise_pot_and_box:
+                        timeline_highlight += (
+                            f"서약 획득: {dnf_convert_grade_text(item_rare)}{item_name}"
+                            f" (항아리&상자 개봉, {timeline_date})\n"
+                        )
+
+                    elif timeline_code == dnf_timeline_codes.item_scroll:
+                        timeline_highlight += (
+                            f"아이템 교환: {dnf_convert_grade_text(item_rare)}{item_name} ({timeline_date})\n"
+                        )
+
+                    # 기타 종말의 숭배자 등에서 아이템 획득
                     else:
                         channel_name = timeline_data.get("channelName", "알수없음")
                         channel_no = timeline_data.get("channelNo", "알수없음")
                         timeline_highlight += (
-                            f"{channel_name} {channel_no}채널에서 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                            f"아이템 획득: {dnf_convert_grade_text(item_rare)}{item_name} @{channel_name} {channel_no}채널"
+                            f" ({timeline_date})\n"
                         )
                     
-
-                # 융합석 업그레이드 획득 시 (에픽 획득 집계 미포함)
-                if timeline_code == dnf_timeline_codes.upgrade_stone and item_rare == "에픽":
+                no_count_conditions: bool = (
+                    timeline_code in (dnf_timeline_codes.item_scroll, dnf_timeline_codes.upgrade_stone)
+                )
+                # 장비 업그레이드 (에픽 획득 집계 미포함)
+                if timeline_code == dnf_timeline_codes.upgrade_stone:
                     get_epic_up_count += 1
                     timeline_highlight += (
-                        f"융합석 업글레이드를 통해 {dnf_convert_grade_text(item_rare)}{item_name} 아이템을 획득했어양! ({timeline_date})\n"
+                        f"장비 업글: {dnf_convert_grade_text(item_rare)}{item_name} ({timeline_date})\n"
                     )
                 
                 # 태초 아이템 획득
                 if item_rare == "태초":
-                    get_primeval_count += 1
+                    get_primeval_count += 0 if no_count_conditions else 1
 
                 # 에픽 아이템 획득
                 if item_rare == "에픽":
-                    get_epic_count += 1
+                    get_epic_count += 0 if no_count_conditions else 1
 
                 # 레전더리 아이템 획득
                 if item_rare == "레전더리":
-                    get_legendary_count += 1
+                    get_legendary_count += 0 if no_count_conditions else 1
 
             if timeline_code == dnf_timeline_codes.clear_region:
                 # 레기온 클리어
@@ -553,6 +578,9 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                 if raid_name == "아스라한":
                     clear_raid_mu_flag = True
                     clear_raid_mu_date = timeline_date
+                if raid_name == "디레지에 레이드":
+                    clear_raid_diregie_flag = True
+                    clear_raid_diregie_date = timeline_date
 
             # 아이템 증폭
             if timeline_code == dnf_timeline_codes.item_upgrade:
@@ -598,6 +626,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         else:
             timeline_highlight_str: str = ""
 
+        clear_raid_diregie = dnf_get_clear_flag(clear_raid_diregie_flag, locals().get('clear_raid_diregie_date'))
         clear_raid_twilight = dnf_get_clear_flag(clear_raid_twilight_flag, locals().get('clear_raid_twilight_date'))
         clear_raid_nabel = dnf_get_clear_flag(clear_raid_nabel_flag, locals().get('clear_raid_nabel_date'))
         clear_raid_mu = dnf_get_clear_flag(clear_raid_mu_flag, locals().get('clear_raid_mu_date'))
@@ -610,17 +639,18 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
             f"명성: {fame:,}\n\n"
             f"**\-\-\- 이번주 장비 획득 \-\-\-**\n"
             f"🟢 태초 획득: {get_primeval_count}개\n"
-            f"🟡 에픽 획득: {get_epic_count}개 (융합석 업글 {get_epic_up_count}회)\n"
+            f"🟡 에픽 획득: {get_epic_count}개 (장비 업글 {get_epic_up_count}회)\n"
             f"🟠 레전 획득: {get_legendary_count}개\n\n"
             f"**\-\-\- 레이드 및 레기온 클리어 현황 \-\-\-**\n"
+            f"디레지에 레이드 클리어: {clear_raid_diregie}\n"
             f"이내 황혼전 클리어: {clear_raid_twilight}\n"
             f"만들어진 신 나벨 클리어: {clear_raid_nabel}\n"
-            f"아스라한 클리어: {clear_raid_mu}\n"
             f"베누스 레기온 클리어: {clear_raid_region}\n"
             f"\n{timeline_highlight_str}"
         )
 
         timeline_footer: str = (
+            f"패치 시즌: 천해천 (2026.03.26)\n"
             f"목요일 오전 6시 이후 집계\n"
             f"융합석 업그레이드는 에픽 획득에 포함되지 않아양\n"
             f"powered by Neople API"
