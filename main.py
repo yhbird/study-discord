@@ -260,7 +260,10 @@ async def on_ready():
 @bot.event
 async def on_disconnect():
     if bot.db:
-        await bot.db.close()
+        try:
+            await bot.db.close()
+        except Exception as e:
+            logger.warning(f"DB Already closed on disconnect ignored: {e}")
 
 
 @bot.event
@@ -269,8 +272,10 @@ async def on_close():
     if KAFKA_ACTIVE:
         await close_kafka_producer()
     if bot.db:
-        await bot.db.close()
-        await super().close()
+        try:
+            await bot.db.close()
+        except Exception as e:
+            logger.warning(f"DB Already closed on close ignored: {e}")
 
     logger.info("Bot has been shut down.")
 

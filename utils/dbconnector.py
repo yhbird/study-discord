@@ -2,22 +2,24 @@ import asyncpg
 
 
 class AsyncDBConnector:
-    def __init__(self, dsn):
+    def __init__(self, dsn: str):
         self.dsn = dsn
-        self.pool = None
-
+        self._connection = None
+        self._is_connected = False  # 상태 플래그 추가
 
     async def connect(self):
-        if not self.pool:
-            self.pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=10)
-            print(f"[Bot] Database Connection Pool Created {self.dsn}")
+        if self._is_connected:
+            return
+        self.pool = await asyncpg.create_pool(dsn=self.dsn)
+        self._is_connected = True
 
-
-    async def disconnect(self):
-        if self.pool:
+    async def close(self):
+        if not self._is_connected:
+            return  # 이미 닫혀있으면 무시
+        try:
             await self.pool.close()
-            print("[Bot] Database Connection Pool Closed")
-
+        finally:
+            self._is_connected = False
 
     async def get_emoji_convert_server(self, guild_id: int) -> asyncpg.Record | None:
         """
