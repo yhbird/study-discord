@@ -66,7 +66,7 @@ async def update_bot_presence(bot: commands.Bot):
     random_game = random.choice(games)
     await bot.change_presence(
         status=discord.Status.online,
-        activity=discord.Game(name=f"뭄 명령어 | {random_game}")
+        activity=discord.Game(name=f"븜 명령어 | {random_game}")
     )
 
 
