@@ -233,37 +233,37 @@ async def on_ready():
 
     if KAFKA_ACTIVE and DB_USE and BOT_TOKEN_RUN=="prd":
         await init_kafka_producer()
-
         if not getattr(bot, "kafka_consumer_started", False):
             bot.loop.create_task(consume_kafka_logs())
             bot.kafka_consumer_started = True
             logger.info("Apache-Kafka Active: Kafka consumer task started.")
 
     if bot.db:
-        await bot.db.connect()
-        logger.info("AsyncDBConnector connected to PostgreSQL database.")
-
+        try:
+            await bot.db.connect()  # pool 상태 체크 후 필요시만 재생성
+            logger.info("AsyncDBConnector connected to PostgreSQL database.")
+        except Exception as e:
+            logger.error(f"DB connection failed: {e}")
     else:
-        logger.info("Skipped Kafka-init: dev environment start")
+        logger.info("Skipped DB-init: db not configured")
 
     await bot.change_presence(
         status=discord.Status.online,
         activity=discord.Game(name="븜 명령어 | 메이플스토리")
     )
     
-    # init_bot_stats()
-    auto_clear_memory.start()
-    update_bot_presence.start(bot)
+    # 재연결 시 이미 실행중이면 start() 호출하지 않음
+    if not auto_clear_memory.is_running():
+        auto_clear_memory.start()
+    if not update_bot_presence.is_running():
+        update_bot_presence.start(bot)
+
     logger.info(f'Logged in as... {bot.user}!!')
 
 
 @bot.event
 async def on_disconnect():
-    if bot.db:
-        try:
-            await bot.db.close()
-        except Exception as e:
-            logger.warning(f"DB Already closed on disconnect ignored: {e}")
+    logger.warning("Bot has been disconnected from Discord!")
 
 
 @bot.event

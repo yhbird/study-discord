@@ -4,22 +4,51 @@ import asyncpg
 class AsyncDBConnector:
     def __init__(self, dsn: str):
         self.dsn = dsn
-        self._connection = None
+        self.pool: asyncpg.Pool | None = None
         self._is_connected = False  # 상태 플래그 추가
 
     async def connect(self):
-        if self._is_connected:
+        """pool이 유효한 경우 재생성하지 않음"""
+        if self.pool is not None and not self.pool._closed:
+            self._is_connected = True
             return
-        self.pool = await asyncpg.create_pool(dsn=self.dsn)
-        self._is_connected = True
+        try:
+            self.pool = await asyncpg.create_pool(
+                dsn=self.dsn,
+                min_size=1,
+                max_size=5,
+                max_inactive_connection_lifetime=300.0,
+                command_timeout=30.0,
+            )
+            self._is_connected = True
+            print("AsyncDBConnector: pool created.")
+        except Exception as e:
+            self._is_connected = False
+            self.pool = None
+            print(f"AsyncDBConnector: pool creation failed. {e}")
+            raise e
 
     async def close(self):
-        if not self._is_connected:
-            return  # 이미 닫혀있으면 무시
+        """pool이 열려있을 때만 닫기"""
+        if self.pool is None or self.pool._closed:
+            self._is_connected = False
+            return
         try:
             await self.pool.close()
+            print("AsyncDBConnector: pool closed.")
+        except Exception as e:
+            print(f"AsyncDBConnector: pool close failed. {e}")
         finally:
             self._is_connected = False
+            self.pool = None
+
+    def is_available(self) -> bool:
+        """pool이 실제로 사용 가능한 상태인지 확인"""
+        return (
+            self._is_connected
+            and self.pool is not None
+            and not self.pool._closed
+        )
 
     async def get_emoji_convert_server(self, guild_id: int) -> asyncpg.Record | None:
         """
