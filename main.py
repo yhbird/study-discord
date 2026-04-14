@@ -21,7 +21,7 @@ from config import KAFKA_ACTIVE, DB_USE, BOT_TOKEN_RUN, POSTGRES_DSN_ASYNC
 from typing import Literal
 
 # Matplotlib 한글 폰트 설정
-from utils.plot import set_up_matplotlib_korean
+from common.plot import set_up_matplotlib_korean
 applied = set_up_matplotlib_korean("assets/font/NanumGothic.ttf")
 
 # 디스코드 메세지 관련 명령어
@@ -45,7 +45,7 @@ bot = commands.Bot(command_prefix=bot_command_prefix, intents=intents, help_comm
 admin_commands = SECRET_ADMIN_COMMAND
 
 # 비동기 DB Connector 설정
-from utils.dbconnector import AsyncDBConnector
+from common.dbconnector import AsyncDBConnector
 bot.db = AsyncDBConnector(POSTGRES_DSN_ASYNC) if DB_USE or BOT_TOKEN_RUN == "dev" else None
 
 # 디버그용 명령어 등록 from service.debug_command as deb_command

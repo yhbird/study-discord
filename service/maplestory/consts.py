@@ -1,7 +1,7 @@
 from typing import Tuple, Dict
 
 from exceptions.base import BotBaseException
-from utils.image import ImageBaseConfig
+from common.image import ImageBaseConfig
 
 class MapleCodiHistoryConfig(ImageBaseConfig):
     """코디 히스토리 이미지 처리에 필요한 설정 클래스"""

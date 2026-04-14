@@ -112,7 +112,7 @@ project-root/
 │  │     ├─ models.py
 │  │     └─ mappers.py
 │  │
-│  ├─ utils/                    # 범용 유틸(순수 함수, 공통 콜백)
+│  ├─ common/                    # 범용 유틸(순수 함수, 공통 콜백)
 │  │  ├─ __init__.py
 │  │  ├─ time.py                # 날짜/시간, 타임존 계산
 │  │  ├─ text.py                # 텍스트 포맷팅 (임베드, 표, 단위변환)

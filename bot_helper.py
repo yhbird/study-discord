@@ -20,8 +20,8 @@ from typing import List, Literal
     
 # Emoji 메시지 처리 함수
 from exceptions.client_exceptions import WebhookETCError, WebhookNoPermissionError
-from utils.image import async_convert_image_url_into_bytes, async_upscale_emoji_image
-from utils.webhook import send_msg_as_pretend_user
+from common.image import async_convert_image_url_into_bytes, async_upscale_emoji_image
+from common.webhook import send_msg_as_pretend_user
 
 CUSTOM_EMOJI_PATTERN = re.compile(r'^<(a?):(\w+):(\d+)>$')
 

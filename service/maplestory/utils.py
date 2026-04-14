@@ -23,9 +23,9 @@ from config import NEXON_API_RPS_LIMIT, NEXON_CHARACTER_IMAGE_URL # Nexon Open A
 from data.json.fortune_message_table import fortune_message_table_raw
 
 from exceptions.client_exceptions import *
-from utils.image import ImageTools, ImageBaseConfig
-from utils.time import parse_iso_string
-from utils.image import convert_image_url_into_bytes
+from common.image import ImageTools, ImageBaseConfig
+from common.time import parse_iso_string
+from common.image import convert_image_url_into_bytes
 
 from typing import Literal, Optional, Dict, List, Tuple, Any
 

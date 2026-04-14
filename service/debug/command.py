@@ -10,11 +10,11 @@ from discord.ext import commands
 from datetime import datetime, timedelta
 
 from service.debug.utils import *
-from utils.text import rank_to_emoji
+from common.text import rank_to_emoji
 from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import logger, log_command, with_timeout
-from utils.time import kst_format_now
+from common.time import kst_format_now
 import config as config
 import bot_logger as bl
 

@@ -15,7 +15,7 @@ from ddgs import DDGS
 from service.basic_utils import ImageViewer
 from service.basic_utils import check_ban, parse_user_list, parse_version_info
 from service.basic_utils import rcon_client, rcon_command_retry, rcon_command
-from utils.text import strip_ansi_escape, parse_tps
+from common.text import strip_ansi_escape, parse_tps
 from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX, MINECRAFT_RCON_PASSWORD, MINECRAFT_PUBLIC_DOMAIN
 from bot_logger import log_command, with_timeout
 

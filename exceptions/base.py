@@ -23,7 +23,7 @@ class BotWarning(Exception):
 
 # client 단계 예외 클래스
 class ClientBaseException(Exception):
-    """Client 기본 예외 클래스 utils.py에서 사용됨"""
+    """Client 기본 예외 클래스 common.py에서 사용됨"""
 
 # mapping 단계 예외 클래스
 class CommandBaseException(Exception):

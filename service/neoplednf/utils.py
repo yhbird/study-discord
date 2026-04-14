@@ -4,7 +4,6 @@ import io
 import asyncio
 import time
 import json
-import httpx
 
 from urllib.parse import quote
 from collections import deque
@@ -16,7 +15,7 @@ from PIL import Image, ImageDraw, ImageOps
 from typing import Optional, Dict, List, Any, Literal, Tuple
 from config import NEOPLE_API_HOME, NEOPLE_API_KEY
 from config import NEOPLE_API_RPS_LIMIT
-from utils.image import convert_image_url_into_bytes
+# from common.image import convert_image_url_into_bytes
 from exceptions.client_exceptions import *
 
 
@@ -41,6 +40,8 @@ class dnf_timeline_codes:
     reward_promise_card: int = 557 # 서약 획득 (레이드 카드)
     reward_clear_raid_card: int = 507 # 레이드 클리어 카드 보상
     upgrade_stone: int = 511 # 융합석 업글레이드
+    item_transcend: int = 516 # 아이템 초월
+    item_make: int = 520 # 아이템 제작(장비제작)
     item_scroll: int = 514 # 아이템 획득(제작서, 교환권)
     reward_clear_dungeon_card: int = 513 # 던전 카드 보상
 
@@ -315,7 +316,7 @@ async def get_dnf_weekly_timeline(sid: str, cid: str) -> Dict[str, Any]:
 
     # 타임라인 조회 (API 호출)
     service_url = neople_service_url.dnf_timeline.format(serverId=sid, characterId=cid)
-    request_url = f"{NEOPLE_API_HOME}{service_url}?limit=100{timeline_date_query}&apikey={NEOPLE_API_KEY}"
+    request_url = f"{NEOPLE_API_HOME}{service_url}?limit=300{timeline_date_query}&apikey={NEOPLE_API_KEY}"
     response_data: dict = await general_request_handler_neople(request_url)
 
     # 타임라인 데이터 반환
@@ -522,7 +523,7 @@ def check_setpoint_bonus(setpoint: int) -> str:
     return f"{setpoint}pt"
 
 
-async def get_dnf_character_set_equipment_info(sid: str, cid: str) -> Dict[str, Any]:
+async def get_dnf_character_set_equipment_info(sid: str, cid: str) -> Dict[str, Any] | None:
     """던전앤파이터 캐릭터의 세트장비 정보 조회
     
     Args:
@@ -546,7 +547,7 @@ async def get_dnf_character_set_equipment_info(sid: str, cid: str) -> Dict[str, 
 
     # 세트아이템 정보 수집
     set_item_info_raw: List[Dict[str, Any]] = response_data.get("setItemInfo", [])
-    set_item_info = set_item_info_raw[0]
+    set_item_info = set_item_info_raw[0] if set_item_info_raw else None
 
     return set_item_info
 
@@ -732,7 +733,7 @@ async def get_set_item_id(item_id: str) -> Optional[str]:
     request_url = f"{NEOPLE_API_HOME}{service_url}?apikey={NEOPLE_API_KEY}"
     response_data: dict = await general_request_handler_neople(request_url)
 
-    return response_data
+    return response_data.get("setItemId")
 
 
 def get_item_icon_url(item_id: str) -> str:

@@ -12,7 +12,7 @@ from functools import wraps
 import inspect
 
 import config as config 
-from utils.time import KstFormatter
+from common.time import KstFormatter
 from exceptions.base import BotWarning
 
 from kafka.helper import build_and_send

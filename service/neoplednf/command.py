@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import discord
 from discord.ext import commands
 
@@ -5,7 +7,7 @@ from service.neoplednf.utils import *
 from exceptions.command_exceptions import CommandFailure
 
 from bot_logger import log_command, with_timeout
-from utils.time import kst_format_now
+from common.time import kst_format_now
 from config import COMMAND_TIMEOUT
 
 
@@ -397,7 +399,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
             await get_dnf_server_id(server_name),
             await get_dnf_character_id(server_name, character_name)
         )
-        set_item_info: Dict[str, Any] = await get_dnf_character_set_equipment_info(server_id, character_id)
+        set_item_info: Dict[str, Any] | None = await get_dnf_character_set_equipment_info(server_id, character_id)
         timeline_data: dict = await get_dnf_weekly_timeline(server_id, character_id)
     except NeopleAPIInvalidId as e:
         await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
@@ -442,7 +444,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
     
     character_timeline: dict = timeline_data.get("timeline")
     timeline_rows: List[Dict[str, Any]] = character_timeline.get("rows")
-    character_set_item_id: str = set_item_info.get("set_item_id") # 세트 아이템 ID
+    character_set_item_id: str = set_item_info.get("setItemId") if set_item_info else None # 세트 아이템 ID
     if len(timeline_rows) == 0:
         await ctx.send(f"이번주에 레전더리 이상 등급의 득템 기록이나, 레이드/레기온 클리어 기록이 없어양!")
         return
@@ -462,7 +464,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         timeline_highlight: str = ""
         get_legendary_count: int = 0
         get_epic_count: int = 0
-        get_epic_up_count: int = 0 # 융합석 장비 업그레이드 횟수
+        get_epic_up_count: int = 0 # 장비 업그레이드 횟수
         get_primeval_count: int = 0
         clear_raid_diregie_flag: bool = False
         clear_raid_twilight_flag: bool = False
@@ -526,6 +528,16 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
                     elif timeline_code == dnf_timeline_codes.item_scroll:
                         timeline_highlight += (
                             f"아이템 교환: {dnf_convert_grade_text(item_rare)}{item_name} ({timeline_date})\n"
+                        )
+
+                    elif timeline_code == dnf_timeline_codes.item_make:
+                        timeline_highlight += (
+                            f"아이템 제작: {dnf_convert_grade_text(item_rare)}{item_name} ({timeline_date})\n"
+                        )
+
+                    elif timeline_code == dnf_timeline_codes.item_transcend:
+                        timeline_highlight += (
+                            f"아이템 초월: {dnf_convert_grade_text(item_rare)}{item_name} ({timeline_date})\n"
                         )
 
                     # 기타 종말의 숭배자 등에서 아이템 획득
@@ -652,7 +664,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         timeline_footer: str = (
             f"패치 시즌: 천해천 (2026.03.26)\n"
             f"목요일 오전 6시 이후 집계\n"
-            f"융합석 업그레이드는 에픽 획득에 포함되지 않아양\n"
+            f"잠식 업그레이드는 에픽 획득에 포함되지 않아양\n"
             f"powered by Neople API"
         )
 
@@ -665,3 +677,21 @@ async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, chara
         embed.colour = discord.Colour.from_rgb(128, 0, 128)  # purple
         await ctx.send(embed=embed)
         return
+
+
+async def test():
+    server_id, character_id = (
+        await get_dnf_server_id("카인"),
+        await get_dnf_character_id("카인", "냥수빈")
+    )
+    character_info = await get_dnf_character_info(server_id, character_id)
+    equipment_info = await get_dnf_character_equipment(server_id, character_id)
+    set_item_info: Dict[str, Any] | None = await get_dnf_character_set_equipment_info(server_id, character_id)
+    character_set_item_id: str = set_item_info.get("setItemId") if set_item_info else None
+    item_set_id: str = await get_set_item_id("6dec30d4dbf75153cfad5af20cda006d")
+
+    print(character_set_item_id == item_set_id)
+
+
+if __name__ == "__main__":
+    asyncio.run(test())

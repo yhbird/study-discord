@@ -22,8 +22,8 @@ from datetime import datetime
 from pytz import timezone
 
 from bot_logger import log_command, with_timeout
-from utils.text import preprocess_int_with_korean, safe_float, safe_percent, preprocess_int_for_stocks
-from utils.plot import fp_maplestory_bold, fp_maplestory_light, set_up_matplotlib_korean
+from common.text import preprocess_int_with_korean, safe_float, safe_percent, preprocess_int_for_stocks
+from common.plot import fp_maplestory_bold, fp_maplestory_light, set_up_matplotlib_korean
 from config import COMMAND_TIMEOUT
 
 from typing import List, Literal

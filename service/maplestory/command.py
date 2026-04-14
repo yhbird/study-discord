@@ -11,10 +11,10 @@ from service.maplestory.utils import *
 from service.maplestory.resolver import AsyncCharacterOCIDResolver
 
 from bot_logger  import log_command, with_timeout
-from utils.image import convert_image_url_into_bytes
-from utils.text  import preprocess_int_with_korean
-from utils.time  import kst_format_now
-from utils.plot  import fp_maplestory_light, fp_maplestory_bold
+from common.image import convert_image_url_into_bytes
+from common.text  import preprocess_int_with_korean
+from common.time  import kst_format_now
+from common.plot  import fp_maplestory_light, fp_maplestory_bold
 from config import COMMAND_TIMEOUT, BOT_VERSION
 
 from exceptions.client_exceptions import *
