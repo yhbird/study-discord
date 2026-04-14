@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import discord
 from discord.ext import commands
+from bot import BumKkiBot
 
 from service.neoplednf.utils import *
 from exceptions.command_exceptions import CommandFailure
@@ -13,7 +14,7 @@ from config import COMMAND_TIMEOUT
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 던파정보")
-async def api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str) -> None:
+async def api_dnf_characters(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 정보 조회
 
     Args:
@@ -139,7 +140,7 @@ async def api_dnf_characters(ctx: commands.Context, server_name: str, character_
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 던파장비")
-async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_name: str) -> None:
+async def api_dnf_equipment(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 장비 정보 조회
 
     Args:
@@ -370,7 +371,7 @@ async def api_dnf_equipment(ctx: commands.Context, server_name: str, character_n
 
 
 @log_command(alt_func_name="븜 주간던파")
-async def api_dnf_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str) -> None:
+async def api_dnf_timeline_weekly(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str) -> None:
     """던전앤파이터 캐릭터 주간 타임라인 조회 (이번주 기준)
 
     Args:

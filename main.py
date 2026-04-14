@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from bot import BumKkiBot
 
 # bot logging 추가
 from bot_logger import logger
@@ -41,7 +42,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot_command_prefix = BOT_COMMAND_PREFIX
 
-bot = commands.Bot(command_prefix=bot_command_prefix, intents=intents, help_command=None)
+bot = BumKkiBot(command_prefix=bot_command_prefix, intents=intents, help_command=None)
 admin_commands = SECRET_ADMIN_COMMAND
 
 # 비동기 DB Connector 설정
@@ -50,7 +51,7 @@ bot.db = AsyncDBConnector(POSTGRES_DSN_ASYNC) if DB_USE or BOT_TOKEN_RUN == "dev
 
 # 디버그용 명령어 등록 from service.debug_command as deb_command
 @bot.command(name="디버그", usage="명령어", help="봇의 디버그용 명령어입니다. 관리자 권한이 필요합니다. 예: `븜 디버그 [명령어]`")
-async def bot_debug(ctx: commands.Context, arg: str = None):
+async def bot_debug(ctx: commands.Context[BumKkiBot], arg: str = None):
     # 사용자 권한 검사
     author_info: discord.Member = ctx.message.author
     if not author_info.guild_permissions.administrator and author_info.id != BOT_DEVELOPER_ID:  # 특정 사용자 예외
@@ -69,7 +70,7 @@ async def bot_debug(ctx: commands.Context, arg: str = None):
     return
 
 @bot.command(name="명령어통계", help="서버 내 명령어 사용 통계를 조회해양. 예: `븜 명령어통계` (DB가 연결되어 있어야 사용 가능)")
-async def run_deb_command_stats(ctx: commands.Context):
+async def run_deb_command_stats(ctx: commands.Context[BumKkiBot]):
     if DB_USE:
         await deb_command.deb_command_stats_v2(ctx)
         return
@@ -78,7 +79,7 @@ async def run_deb_command_stats(ctx: commands.Context):
         return
     
 @bot.command(name="사용자통계", help="서버 내 사용자별 명령어 사용 통계를 조회해양. 예: `븜 사용자통계` (DB가 연결되어 있어야 사용 가능)")
-async def run_deb_user_stats(ctx: commands.Context):
+async def run_deb_user_stats(ctx: commands.Context[BumKkiBot]):
     if DB_USE:
         await deb_command.deb_user_stats_v2(ctx)
         return
@@ -87,7 +88,7 @@ async def run_deb_user_stats(ctx: commands.Context):
         return
 
 @bot.command(name="이모지출력", help="이모지 메세지를 큰 이미지로 출력해줘양 (기본: OFF, 웹후크관리 권한 필요!) 예: `븜 이모지출력`")
-async def run_deb_emoji_output(ctx: commands.Context):
+async def run_deb_emoji_output(ctx: commands.Context[BumKkiBot]):
     if not ctx.message.author.guild_permissions.administrator and ctx.message.author.id != BOT_DEVELOPER_ID:
         await ctx.send(f"{ctx.message.author.mention}님은 관리자 권한이 없어양! "
                        "이 명령어는 관리자만 사용할 수 있어양!")
@@ -97,132 +98,132 @@ async def run_deb_emoji_output(ctx: commands.Context):
     
 # 븜 help, 븜 도움말 -> 븜 명령어 리다이렉트
 @bot.command(name="help")
-async def run_deb_help_redirection(ctx: commands.Context, category: str = None):
+async def run_deb_help_redirection(ctx: commands.Context[BumKkiBot], category: str = None):
     await deb_command.deb_help_redirection(ctx, category)
 
 @bot.command(name="도움말")
-async def run_deb_help_redirection(ctx: commands.Context, category: str = None):
+async def run_deb_help_redirection(ctx: commands.Context[BumKkiBot], category: str = None):
     await deb_command.deb_help_redirection(ctx, category)
 
 @bot.command(name="명령어")
-async def run_deb_help(ctx: commands.Context, category: str = None):
+async def run_deb_help(ctx: commands.Context[BumKkiBot], category: str = None):
     await deb_command.deb_help(ctx, category)
 
 
 # 명령어 등록 from service.msg_command
 @bot.command(name="블링크빵")
-async def run_msg_handle_blinkbang(ctx: commands.Context):
+async def run_msg_handle_blinkbang(ctx: commands.Context[BumKkiBot]):
     await basic_command.msg_handle_blinkbang(ctx)
 
 @bot.command(name="따라해", usage="메세지", help="사용자가 보낸 메세지를 그대로 따라해양. 예: `븜 따라해 안녕!`")
-async def run_msg_handle_repeat(ctx: commands.Context, *, repeat_text: str):
+async def run_msg_handle_repeat(ctx: commands.Context[BumKkiBot], *, repeat_text: str):
     await basic_command.msg_handle_repeat(ctx, repeat_text)
 
 @bot.command(name="이미지", usage="검색어", help="이미지를 검색해양. 예: `븜 이미지 븜미`")
-async def run_msg_handle_image(ctx: commands.Context, *, search_term: str):
+async def run_msg_handle_image(ctx: commands.Context[BumKkiBot], *, search_term: str):
     await basic_command.msg_handle_image(ctx, search_term)
 
 @bot.command(name="마크서버", help="마인크래프트 서버 상태를 조회해양. 예: `븜 마크서버`")
-async def run_msg_mcserver_info(ctx: commands.Context):
+async def run_msg_mcserver_info(ctx: commands.Context[BumKkiBot]):
     await basic_command.msg_mcserver_info(ctx)
 
 # 메이플스토리 명령어 등록 from service.maplestory_command as map_command
 @bot.command(name="기본정보", usage="캐릭터명", help="메이플스토리 캐릭터의 기본 정보를 조회해양. 예: `븜 기본정보 마법사악`")
-async def run_api_basic_info(ctx: commands.Context, character_name: str):
+async def run_api_basic_info(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_basic_info(ctx, character_name)
 
 @bot.command(name="상세정보", usage="캐릭터명", help="메이플스토리 캐릭터의 상세 정보를 조회해양. 예: `븜 상세정보 마법사악`")
-async def run_api_detail_info(ctx: commands.Context, character_name: str):
+async def run_api_detail_info(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_detail_info(ctx, character_name)
     
 @bot.command(name="피씨방", help="현재 진행중인 메이플스토리 PC방 공지사항을 조회해양. 예: `븜 피씨방`")
-async def run_api_pcbang_notice(ctx: commands.Context):
+async def run_api_pcbang_notice(ctx: commands.Context[BumKkiBot]):
     await map_command.maple_pcbang_notice(ctx)
 
 @bot.command(name="썬데이", help="메이플스토리 썬데이 공지사항을 조회해양. 예: `븜 썬데이`")
-async def run_api_sunday_notice(ctx: commands.Context):
+async def run_api_sunday_notice(ctx: commands.Context[BumKkiBot]):
     await map_command.maple_sunday_notice(ctx)
 
 @bot.command(name="어빌리티", usage="캐릭터명", help="메이플스토리 캐릭터의 어빌리티 정보를 조회해양. 예: `븜 어빌리티 마법사악`")
-async def run_api_ability_info(ctx: commands.Context, character_name: str):
+async def run_api_ability_info(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_ability_info(ctx, character_name)
 
 @bot.command(name="운세", usage="캐릭터명", help="메이플스토리 캐릭터의 오늘 운세를 조회해양. 예: `븜 운세 마법사악`")
-async def run_api_maple_fortune_today(ctx: commands.Context, character_name: str):
+async def run_api_maple_fortune_today(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_fortune_today(ctx, character_name)
 
 @bot.command(name="경험치", usage="캐릭터명", help="메이플스토리 캐릭터의 1주간 경험치 히스토리를 조회해양. 예: `븜 경험치 마법사악`")
-async def run_api_maple_xp_history(ctx: commands.Context, character_name: str):
+async def run_api_maple_xp_history(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_xp_history_v2(ctx, character_name)
 
 @bot.command(name="경험치v1", usage="캐릭터명", help="메이플스토리 캐릭터의 1주간 경험치 히스토리를 조회해양. (구버전) 예: `븜 경험치 마법사악`")
-async def run_api_maple_xp_history_v1(ctx: commands.Context, character_name: str):
+async def run_api_maple_xp_history_v1(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_xp_history(ctx, character_name)
 
 @bot.command(name="코디", usage="캐릭터명", help="메이플스토리 캐릭터의 현재 코디 이미지를 조회해양. 예: `븜 코디 마법사악`")
-async def run_api_maple_cash_equipment_info(ctx: commands.Context, character_name: str):
+async def run_api_maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_cash_equipment_info(ctx, character_name)
 
 @bot.command(name="컬렉션", usage="캐릭터명", help="메이플스토리 캐릭터의 코디 모음 이미지를 만들어줘양(최대 8개). 예: `븜 컬렉션 마법사악`")
-async def run_api_maple_cordinate_history(ctx: commands.Context, character_name: str):
+async def run_api_maple_cordinate_history(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_cordinate_history(ctx, character_name)
 
 @bot.command(name="분배금", usage="분배금액", help="메이플스토리 보스파티에서 얻은 분배금을 계산해줘양 (2~6인) 예시: `븜 분배금 10억 메소`")
-async def run_api_maple_party_reward(ctx: commands.Context, amount: str):
+async def run_api_maple_party_reward(ctx: commands.Context[BumKkiBot], amount: str):
     await map_command.maple_party_reward(ctx, amount)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")
-async def run_api_dnf_characters(ctx: commands.Context, server_name: str, character_name: str):
+async def run_api_dnf_characters(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str):
     await dnf_command.api_dnf_characters(ctx, server_name, character_name)
 
 @bot.command(name="주간던파", usage="서버명 캐릭터명", help="던전앤파이터 주간 던파 기록을 조회해양. 예: `븜 주간던파 카인 마법사악`")
-async def run_api_timeline_weekly(ctx: commands.Context, server_name: str, character_name: str):
+async def run_api_timeline_weekly(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str):
     await dnf_command.api_dnf_timeline_weekly(ctx, server_name, character_name)
 
 @bot.command(name="던파장비", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 장비 정보를 조회해양. 예: `븜 던파장비 카인 마법사악`")
-async def run_api_dnf_equipment(ctx: commands.Context, server_name: str, character_name: str):
+async def run_api_dnf_equipment(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str):
     await dnf_command.api_dnf_equipment(ctx, server_name, character_name)
 
 
 # 날씨 명령어 등록 from service.weather_command as wth_command
 @bot.command(name="날씨", usage="지역명", help="특정 지역의 날씨를 조회해양. 예: `븜 날씨 서울`")
-async def run_api_weather(ctx: commands.Context, location: str):
+async def run_api_weather(ctx: commands.Context[BumKkiBot], location: str):
     await wth_command.api_weather(ctx, location)
 
 # 주식 명령어 등록 from service.stock_command as stk_command
 @bot.command(name="미국주식", usage="티커(대문자)", help="미국 주식 시세를 티커를 통해 조회해양. 예: `븜 미국주식 AAPL`")
-async def run_stk_us_price(ctx: commands.Context, ticker: str):
+async def run_stk_us_price(ctx: commands.Context[BumKkiBot], ticker: str):
     await fin_command.stk_us_price(ctx, ticker)
 
 @bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", 
              help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
-async def run_stk_us_chart(ctx: commands.Context, ticker: str, 
+async def run_stk_us_chart(ctx: commands.Context[BumKkiBot], ticker: str, 
                            period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
     await fin_command.stk_us_chart(ctx, ticker, period)
 
 @bot.command(name="한국주식", usage="종목명 또는 종목코드", 
              help="한국 주식 시세를 종목명이나 종목코드를 통해 조회해양. 예: `븜 한국주식 삼성전자` 또는 `븜 한국주식 005930`")
-async def run_stk_kr_price(ctx: commands.Context, stock: str):
+async def run_stk_kr_price(ctx: commands.Context[BumKkiBot], stock: str):
     await fin_command.stk_kr_price(ctx, stock)
 
 @bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", 
              help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
-async def run_stk_kr_chart(ctx: commands.Context, stock: str, 
+async def run_stk_kr_chart(ctx: commands.Context[BumKkiBot], stock: str, 
                            period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
     await fin_command.stk_kr_chart(ctx, stock, period)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])
-async def run_hidden_command_1(ctx: commands.Context):
+async def run_hidden_command_1(ctx: commands.Context[BumKkiBot]):
     await hid_command.hidden_command_1(ctx)
 
 @bot.command(name=SECRET_COMMANDS[1])
-async def run_hidden_command_2(ctx: commands.Context):
+async def run_hidden_command_2(ctx: commands.Context[BumKkiBot]):
     await hid_command.hidden_command_2(ctx)
 
 @bot.command(name=SECRET_COMMANDS[2])
-async def run_hidden_command_3(ctx: commands.Context):
+async def run_hidden_command_3(ctx: commands.Context[BumKkiBot]):
     await hid_command.hidden_command_3(ctx)
 
 
@@ -302,7 +303,7 @@ async def on_message(message: discord.Message):
 
 
 @bot.event
-async def on_command_error(ctx: commands.Context, error: commands.CommandError):
+async def on_command_error(ctx: commands.Context[BumKkiBot], error: commands.CommandError):
     if hasattr(ctx.command, 'on_error'):
         return
     

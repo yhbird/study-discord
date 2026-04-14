@@ -4,6 +4,7 @@ import time
 import traceback
 
 from discord.ext import commands
+from bot import BumKkiBot
 from typing import Optional, Dict
 from dataclasses import dataclass, field
 
@@ -117,7 +118,7 @@ def init_bot_stats() -> DiscordBotStats:
     return bot_stats
 
 
-def get_discord_user_id(ctx: commands.Context) -> Optional[int]:
+def get_discord_user_id(ctx: commands.Context[BumKkiBot]) -> Optional[int]:
     if _is_discord_context(ctx):
         author_id = getattr(getattr(ctx, "author", None), "id", None) or getattr(getattr(ctx, "user", None), "id", None)
         return author_id
@@ -346,7 +347,7 @@ def with_timeout(timeout_seconds: int = config.COMMAND_TIMEOUT):
     """
     def decorator(func):
         @wraps(func)
-        async def wrapper(ctx: commands.Context, *args, **kwargs):
+        async def wrapper(ctx: commands.Context[BumKkiBot], *args, **kwargs):
             try:
                 return await asyncio.wait_for(func(ctx, *args, **kwargs), timeout=timeout_seconds)
             except asyncio.TimeoutError:

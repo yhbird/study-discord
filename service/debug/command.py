@@ -7,6 +7,7 @@
 """
 import discord
 from discord.ext import commands
+from bot import BumKkiBot
 from datetime import datetime, timedelta
 
 from service.debug.utils import *
@@ -28,7 +29,7 @@ bot_version: str = config.BOT_VERSION
 # 메모리 사용량 조회
 @with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="봇 메모리 사용량 조회")
-async def deb_memory_usage(ctx: commands.Context):
+async def deb_memory_usage(ctx: commands.Context[BumKkiBot]):
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
@@ -41,7 +42,7 @@ async def deb_memory_usage(ctx: commands.Context):
  # 봇 정보 조회
 @with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="봇 정보")
-async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
+async def deb_bot_info(ctx: commands.Context[BumKkiBot], bot_name: str = None):
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
@@ -79,7 +80,7 @@ async def deb_bot_info(ctx: commands.Context, bot_name: str = None):
 # 디버그 모드 ON/OFF
 @with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="븜 디버그 모드 전환")
-async def deb_switch(ctx: commands.Context):
+async def deb_switch(ctx: commands.Context[BumKkiBot]):
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
@@ -93,7 +94,7 @@ async def deb_switch(ctx: commands.Context):
 # "븜 명령어" 리다이렉트
 @with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="븜 명령어 리다이렉트")
-async def deb_help_redirection(ctx: commands.Context, category: str = None):
+async def deb_help_redirection(ctx: commands.Context[BumKkiBot], category: str = None):
     """사용자에게 도움말을 리다이렉트하는 기능
 
     Args:
@@ -120,7 +121,7 @@ async def deb_help_redirection(ctx: commands.Context, category: str = None):
 # 도움말 명령어
 @with_timeout(command_timeout)
 @log_command(alt_func_name="븜 명령어")
-async def deb_help(ctx: commands.Context, category: str = None):
+async def deb_help(ctx: commands.Context[BumKkiBot], category: str = None):
     """봇의 사용법을 안내하는 기능 (카테고리별)
 
     Args:
@@ -413,7 +414,7 @@ async def deb_help(ctx: commands.Context, category: str = None):
 # 서버(guild)내에서 가장 오래/빨리 실행된 명령어 조회
 @with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="븜 명령어 통계 조회")
-async def deb_command_stats_v2(ctx: commands.Context) -> None:
+async def deb_command_stats_v2(ctx: commands.Context[BumKkiBot]) -> None:
     """서버(guild) 내 가장 오래/빨리 실행된 명령어와 순위를 집계합니다.
 
     Args:
@@ -524,7 +525,7 @@ async def deb_command_stats_v2(ctx: commands.Context) -> None:
 
 @with_timeout(command_timeout)
 @log_command(stats=False, alt_func_name="봇 사용자 통계 조회")
-async def deb_user_stats_v2(ctx: commands.Context) -> None:
+async def deb_user_stats_v2(ctx: commands.Context[BumKkiBot]) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 
@@ -592,7 +593,7 @@ async def deb_user_stats_v2(ctx: commands.Context) -> None:
 
 # 통계 초기화 (메모리 사용량 감소 목적)
 @with_timeout(config.COMMAND_TIMEOUT)
-async def deb_reset_stats(ctx: commands.Context) -> None:
+async def deb_reset_stats(ctx: commands.Context[BumKkiBot]) -> None:
     # 채팅창에 명령어가 노출되지 않도록 삭제
     await ctx.message.delete()
 

@@ -7,6 +7,7 @@
 """
 import discord
 from discord.ext import commands
+from bot import BumKkiBot
 
 import random
 import time
@@ -28,7 +29,7 @@ from typing import Dict
 # 샴 따라해 기능 복원
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 따라해")
-async def msg_handle_repeat(ctx: commands.Context, repeat_text: str) -> None:
+async def msg_handle_repeat(ctx: commands.Context[BumKkiBot], repeat_text: str) -> None:
     """사용자가 보낸 메세지를 그대로 보내는 기능
 
     Args:
@@ -68,7 +69,7 @@ async def msg_handle_repeat(ctx: commands.Context, repeat_text: str) -> None:
 # 샴 이미지 기능 복원
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 이미지")
-async def msg_handle_image(ctx: commands.Context, search_term: str | None = None):
+async def msg_handle_image(ctx: commands.Context[BumKkiBot], search_term: str | None = None):
     """사용자가 요청한 이미지를 검색하여 최대 10개의 이미지를 보여주는 기능
 
     Args:
@@ -142,7 +143,7 @@ async def msg_handle_image(ctx: commands.Context, search_term: str | None = None
 # 명령어 "븜 블링크빵" 사용
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 블링크빵")
-async def msg_handle_blinkbang(ctx: commands.Context):
+async def msg_handle_blinkbang(ctx: commands.Context[BumKkiBot]):
     """랜덤 주사위 0~100 결과를 보여주는 기능
 
     Args:
@@ -172,12 +173,12 @@ async def msg_handle_blinkbang(ctx: commands.Context):
 # 마크 서버 명령어: 서버 정보 조회
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 마크서버")
-async def msg_mcserver_info(ctx: commands.Context) -> None:
+async def msg_mcserver_info(ctx: commands.Context[BumKkiBot]) -> None:
     """
     마인크래프트 서버 정보를 조회하는 기능
     
     :param ctx: discord 명령어 컨텍스트
-    :type ctx: commands.Context
+    :type ctx: commands.Context[BumKkiBot]
 
     :raises Exception: 네트워크 연결 오류, 마인크래프트 서버 offline 상태일 때 발생
     """
@@ -236,7 +237,7 @@ async def msg_mcserver_info(ctx: commands.Context) -> None:
 
 # 이모지출력 toggle 기능 (Admin 전용)
 @with_timeout(COMMAND_TIMEOUT)
-async def msg_toggle_emoji(ctx: commands.Context) -> None:
+async def msg_toggle_emoji(ctx: commands.Context[BumKkiBot]) -> None:
     """
     이모지 출력 토글 기능 (관리자 전용)
     
@@ -257,7 +258,7 @@ async def msg_toggle_emoji(ctx: commands.Context) -> None:
         return
     
     # DB 연결 확인
-    if not ctx.bot.db:
+    if not ctx.bot.db or not ctx.bot.db.is_available():
         await ctx.send("데이터베이스가 연결되어 있지 않아양!")
         raise CommandFailure("Database not connected")
     

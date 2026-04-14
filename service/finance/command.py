@@ -10,6 +10,7 @@ import re
 import discord
 import pandas as pd
 from discord.ext import commands
+from bot import BumKkiBot
 
 from yfinance import Ticker
 from matplotlib import pyplot as plt
@@ -32,7 +33,7 @@ from exceptions.client_exceptions import *
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 미국주식")
-async def stk_us_price(ctx: commands.Context, search_ticker: str) -> None:
+async def stk_us_price(ctx: commands.Context[BumKkiBot], search_ticker: str) -> None:
     """주식 티커에 해당하는 미국 주식의 현재 가격을 반환합니다.
 
     Args:
@@ -141,7 +142,7 @@ async def stk_us_price(ctx: commands.Context, search_ticker: str) -> None:
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 미국차트")
 async def stk_us_chart(
-    ctx: commands.Context, search_ticker: str,
+    ctx: commands.Context[BumKkiBot], search_ticker: str,
     period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주"
 ) -> None:
     """미국주식의 시세흐름을 차트로 표현합니다. (기본 1주일)
@@ -243,7 +244,7 @@ async def stk_us_chart(
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 한국주식")
-async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
+async def stk_kr_price(ctx: commands.Context[BumKkiBot], search_target: str) -> None:
     """한국주식 가격을 조회하는 함수
 
     Args:
@@ -352,7 +353,7 @@ async def stk_kr_price(ctx: commands.Context, search_target: str) -> None:
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 한국차트")
 async def stk_kr_chart(
-    ctx: commands.Context, search_target: str,
+    ctx: commands.Context[BumKkiBot], search_target: str,
     period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주"
 ) -> None:
     """한국주식의 시세흐름을 차트로 표현합니다. (기본 1주일)
@@ -470,7 +471,7 @@ async def stk_kr_chart(
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 환율")
-async def stk_concurrency(ctx: commands.Context, text: str) -> None:
+async def stk_concurrency(ctx: commands.Context[BumKkiBot], text: str) -> None:
     """
     입력한 가격과 외화 단위에 맞춰 KRW로 환산하여 표시합니다.
 

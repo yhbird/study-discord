@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from bot import BumKkiBot
 
 import pandas as pd
 import numpy as np
@@ -25,7 +26,7 @@ ocid_resolver = AsyncCharacterOCIDResolver(get_ocid, ttl_sec=3600, negative_ttl_
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 기본정보")
-async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_basic_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """메이플스토리 캐릭터의 기본 정보(basic_info) 를 가져오는 명령어
 
     Args:
@@ -179,7 +180,7 @@ async def maple_basic_info(ctx: commands.Context, character_name: str) -> None:
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 피씨방")
-async def maple_pcbang_notice(ctx: commands.Context) -> None:
+async def maple_pcbang_notice(ctx: commands.Context[BumKkiBot]) -> None:
     """메이플스토리 PC방 이벤트 공지사항을 가져오는 명령어
 
     Args:
@@ -272,7 +273,7 @@ async def maple_pcbang_notice(ctx: commands.Context) -> None:
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 썬데이")
-async def maple_sunday_notice(ctx: commands.Context) -> None:
+async def maple_sunday_notice(ctx: commands.Context[BumKkiBot]) -> None:
     """메이플스토리 썬데이 이벤트 공지사항을 가져오는 명령어
 
     Args:
@@ -367,7 +368,7 @@ async def maple_sunday_notice(ctx: commands.Context) -> None:
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 상세정보")
-async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_detail_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """메이플스토리 캐릭터의 상세 정보(detail_info)를 가져오는 명령어
 
     <수집 항목>
@@ -689,7 +690,7 @@ async def maple_detail_info(ctx: commands.Context, character_name: str) -> None:
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 어빌리티")
-async def maple_ability_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_ability_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """캐릭터의 어빌리티 정보 조회
 
     Args:
@@ -814,7 +815,7 @@ async def maple_ability_info(ctx: commands.Context, character_name: str) -> None
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 운세")
-async def maple_fortune_today(ctx: commands.Context, character_name: str) -> None:
+async def maple_fortune_today(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """MapleStory 오늘의 운세 기능
 
     Args:
@@ -915,7 +916,7 @@ async def maple_fortune_today(ctx: commands.Context, character_name: str) -> Non
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 경험치v1")
-async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
+async def maple_xp_history(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """MapleStory 캐릭터 경험치 히스토리 조회
 
     Args:
@@ -1073,7 +1074,7 @@ async def maple_xp_history(ctx: commands.Context, character_name: str) -> None:
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 코디")
-async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 조회
 
     Args:
@@ -1245,7 +1246,7 @@ async def maple_cash_equipment_info(ctx: commands.Context, character_name: str) 
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 경험치v2")
-async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> None:
+async def maple_xp_history_v2(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """MapleStory 캐릭터 경험치 히스토리 조회v2
 
     Args:
@@ -1415,7 +1416,7 @@ async def maple_xp_history_v2(ctx: commands.Context, character_name: str) -> Non
 
 @with_timeout(COMMAND_TIMEOUT*2)
 @log_command(alt_func_name="븜 컬렉션")
-async def maple_cordinate_history(ctx: commands.Context, character_name: str) -> None:
+async def maple_cordinate_history(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """메이플스토리 캐릭터 코디 컬렉션 조회
 
     Args:
@@ -1502,7 +1503,7 @@ async def maple_cordinate_history(ctx: commands.Context, character_name: str) ->
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 장비")
-async def maple_equipment_info(ctx: commands.Context, character_name: str) -> None:
+async def maple_equipment_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
     """메이플스토리 캐릭터 장착중인 장비 어빌리티 정보 조회
 
     Args:

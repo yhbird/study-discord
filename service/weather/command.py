@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from bot import BumKkiBot
 
 from config import COMMAND_TIMEOUT
 from service.weather.utils import *
@@ -11,7 +12,7 @@ from exceptions.client_exceptions import *
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 날씨")
-async def api_weather(ctx: commands.Context, location_name: str) -> None:
+async def api_weather(ctx: commands.Context[BumKkiBot], location_name: str) -> None:
     """현재 지역의 날씨 정보, 예보 정보를 가져오는 명령어
 
     Args:
