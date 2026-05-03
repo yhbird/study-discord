@@ -513,6 +513,12 @@ async def api_dnf_timeline_weekly(ctx: commands.Context[BumKkiBot], server_name:
                             f" (레이드 카드 보상, {timeline_date})\n"
                         )
 
+                    elif timeline_code == dnf_timeline_codes.reward_oath_card:
+                        timeline_highlight += (
+                            f"서약 획득: {dnf_convert_grade_text(item_rare)}{item_name}"
+                            f" (레이드 카드 보상, {timeline_date})\n"
+                        )
+
                     # 항아리&상자 보상에서 태초 아이템 획득 시
                     elif timeline_code == dnf_timeline_codes.reward_pot_and_box:
                         timeline_highlight += (
@@ -575,7 +581,7 @@ async def api_dnf_timeline_weekly(ctx: commands.Context[BumKkiBot], server_name:
             if timeline_code == dnf_timeline_codes.clear_region:
                 # 레기온 클리어
                 region_name: str = timeline_data.get("regionName", "몰라양")
-                if region_name == "베누스":
+                if region_name == "아포칼립스":
                     clear_raid_region_flag = True
                     clear_raid_region_date = timeline_date
 
@@ -658,12 +664,12 @@ async def api_dnf_timeline_weekly(ctx: commands.Context[BumKkiBot], server_name:
             f"디레지에 레이드 클리어: {clear_raid_diregie}\n"
             f"이내 황혼전 클리어: {clear_raid_twilight}\n"
             f"만들어진 신 나벨 클리어: {clear_raid_nabel}\n"
-            f"베누스 레기온 클리어: {clear_raid_region}\n"
+            f"아포칼립스 레기온 클리어: {clear_raid_region}\n"
             f"\n{timeline_highlight_str}"
         )
 
         timeline_footer: str = (
-            f"패치 시즌: 천해천 (2026.03.26)\n"
+            f"패치 시즌: 천해천 (2026.04.24)\n"
             f"목요일 오전 6시 이후 집계\n"
             f"잠식 업그레이드는 에픽 획득에 포함되지 않아양\n"
             f"powered by Neople API"
