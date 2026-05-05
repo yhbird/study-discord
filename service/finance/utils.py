@@ -1,4 +1,6 @@
 import asyncio
+import re
+
 import requests
 import pandas as pd
 
@@ -7,9 +9,139 @@ from xml.etree import ElementTree
 from yfinance import Ticker
 
 from config import STK_DATA_API_KEY, STK_API_HOME
+from service.finance.consts import FinanceConsts, FinanceCurrency
 from exceptions.client_exceptions import *
-from typing import Dict
+from typing import Dict, Literal
 
+
+class FinanceUtils:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def exchange_krw_rate(from_currency: str) -> float:
+        return exchange_krw_rate(from_currency)
+
+    @staticmethod
+    def exchange_currency_rate(from_currency: str, to_currency: str = FinanceConsts.SERVICE_CURRENCY) -> float:
+        f_currency = from_currency.strip().upper()
+        t_currency = to_currency.strip().upper()
+        if f_currency == t_currency:
+            return 1.0
+
+        search_currency = Ticker(f"{f_currency}{t_currency}=X")
+        currency_rate = search_currency.info.get("regularMarketPrice")
+        return float(currency_rate) or 1.0
+
+    @staticmethod
+    def parse_currency_code(text: str) -> tuple[float | int, str]:
+        """사용자가 입력한 현지 통화단위를 파싱하는 함수
+
+        Args:
+            text (str): 디스코드 메세지에 포함된 통화단위
+
+        Returns:
+            (amount, code): 파싱 함수가 인식한 최종 통화단위
+        """
+        input_text = text.strip().upper()
+
+        # 숫자만 남아 있으면 통화 단위를 알 수 없음 -> 에러 발생시키기
+        if input_text.isdigit():
+            raise YFI_CURRENCY_PARSE_ERROR("숫자만 입력해서 어떤 통화 단위인지 모르겠어양! 아래에 있는 예시처럼 입력해보세양!"
+                                           "예시) `븜 환율 100.23달러`, `븜 환율 200JPY`, `븜 환율 300.15 유럽`\n")
+
+        match = re.match(r"^([\d,\.]+)\s*(.+)$", input_text)
+        if not match:
+            raise YFI_CURRENCY_PARSE_ERROR("통화 단위를 확인 하는 도중에 에러가 발생했어양! 아래에 있는 예시처럼 입력해보세양!"
+                                           "예시) `븜 환율 100.23달러`, `븜 환율 200JPY`, `븜 환율 300.15 유럽`\n")
+
+        # 금액 확인
+        amount_str = match.group(1).replace(",","")
+        try:
+            amount = float(amount_str)
+            if amount.is_integer():
+                amount = int(amount)
+        except ValueError:
+            raise YFI_CURRENCY_PARSE_ERROR("금액 부분에 이상한 문자가 포함되어서 에러가 발생했어양!")
+
+        # 통화 단위 확인
+        currency_str = match.group(2).replace(" ","").strip().upper()
+        currency_code = FinanceCurrency.CURRENCY_CODE_MAP.get(currency_str)
+
+        if not currency_code:
+            raise YFI_CURRENCY_NOT_SUPPORT("{currency_code}은 아직 지원하지 않는 통화 단위나 없을수도 있어양...")
+
+        return amount, currency_code
+
+class YahooFinance:
+    def __init__(self, ticker: str):
+        self.ticker = ticker
+        self._stock_info: Dict[str, str | float | int | None] = {}
+        self._currency_rate: float = 1.0
+
+    def get_stock_info(self):
+        stock = Ticker(self.ticker)
+        info = stock.info
+
+        if not info or "regularMarketPrice" not in info:
+            raise YFI_NO_TICKER(f"티커 {self.ticker}에 대한 정보를 찾을 수 없어양!")
+
+        symbol: str = info.get("symbol") or self.ticker
+        timezone: str | Literal["America/New_York"] = info.get("exchangeTimezoneName") or "America/New_York"
+        timezone_short: str | Literal["EST"] = info.get("exchangeTimezoneShortName") or "EST"
+        currency: str | Literal["USD"] = info.get("currency") or "USD"
+        stock_info: Dict[str, str | float | int | None | Literal] = {
+            "short_name": info.get("shortName"),
+            "symbol": symbol,
+            "exchange": info.get("fullExchangeName"),
+            "timezone": timezone,
+            "timezone_short": timezone_short,
+            "industry": info.get("industry"),
+            "sector": info.get("sector"),
+            "currency": currency,
+            "previous_close": info.get("regularMarketPreviousClose"),
+            "today_close": info.get("regularMarketPrice"),
+            "high_52w": info.get("fiftyTwoWeekHigh"),
+            "high_52w_pct": info.get("fiftyTwoWeekHighChangePercent"),
+            "low_52w": info.get("fiftyTwoWeekLow"),
+            "low_52w_pct": info.get("fiftyTwoWeekLowChangePercent"),
+            "volume_regular": info.get("regularMarketVolume"),
+            "volume_average_10d": info.get("averageVolume10days"),
+            "market_cap": info.get("marketCap"),
+            "psr": info.get("priceToSalesTrailing12Months"),
+            "pbr": info.get("priceToBook"),
+            "per": info.get("trailingPE"),
+            "dividend_yield": info.get("dividendYield"),
+            "analyst_score": info.get("recommendationMean"),
+            "analyst_score_category": info.get("recommendationKey"),
+        }
+
+        self._stock_info = stock_info
+
+
+    def get_currency_rate(self, to_currency: str = FinanceConsts.SERVICE_CURRENCY):
+        from_currency = self._stock_info.get("currency") or "USD"
+        if not from_currency or from_currency == to_currency:
+            self._currency_rate = 1.0
+            return 1.0
+
+        currency = Ticker(f'{from_currency}{to_currency}=X')
+        currency_rate: float | None = currency.info.get("regularMarketPrice")
+
+        if currency_rate is None:
+            raise YFI_NO_RATE_WARNING("환율 정보를 가져오는데 실패했어양!")
+
+        self._currency_rate = currency_rate
+        return currency_rate
+
+
+    @property
+    def stock_info(self):
+        return self._stock_info
+
+    @property
+    def currency_rate(self):
+        return self._currency_rate
 
 def exchange_krw_rate(from_currency: str) -> float:
     """
@@ -43,7 +175,7 @@ def exchange_krw_rate(from_currency: str) -> float:
         raise YFI_NO_RATE_WARNING(f"환율 정보를 찾을 수 없어양: {from_currency}")
     else:
         # 환율 정보를 가져오는 데 실패한 경우
-        raise YFI_STOCK_FETCH_RATE(f"HTTP {response.status_code}: {response.reason}")
+        raise YFI_STOCK_FETCH_RATE(f"환율 정보 통신 중 에러 발생: HTTP {response.status_code}: {response.reason}")
 
 
 def get_stock_info(ticker: str) -> Dict[str, str | float | int | None]:
@@ -244,3 +376,14 @@ def get_krx_stock_info(stock_info: Dict[str, str]) -> Dict[str, str | float | in
     stock_info_result["symbol"] = stock_info["item_code"]
     stock_info_result["exchange"] = f"{stock_info['market_name']} ({stock_info['market_code']})"
     return stock_info_result
+
+
+def test():
+    test_ticker = "AAPL"
+    stock = Ticker(test_ticker)
+    stock_info = stock.info
+    print(stock_info)
+
+
+if __name__ == "__main__":
+    test()

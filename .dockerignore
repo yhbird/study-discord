@@ -17,3 +17,5 @@ README.md
 db/
 docker-compose.yml
 docker-compose.test.yml
+restart-bot
+restart-test

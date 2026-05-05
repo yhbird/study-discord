@@ -194,7 +194,7 @@ async def run_api_weather(ctx: commands.Context[BumKkiBot], location: str):
 # 주식 명령어 등록 from service.stock_command as stk_command
 @bot.command(name="미국주식", usage="티커(대문자)", help="미국 주식 시세를 티커를 통해 조회해양. 예: `븜 미국주식 AAPL`")
 async def run_stk_us_price(ctx: commands.Context[BumKkiBot], ticker: str):
-    await fin_command.stk_us_price(ctx, ticker)
+    await fin_command.stk_us_price_v2(ctx, ticker)
 
 @bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", 
              help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
@@ -212,6 +212,11 @@ async def run_stk_kr_price(ctx: commands.Context[BumKkiBot], stock: str):
 async def run_stk_kr_chart(ctx: commands.Context[BumKkiBot], stock: str, 
                            period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
     await fin_command.stk_kr_chart(ctx, stock, period)
+
+@bot.command(name="환율", usage="계산하고 싶은 통화 단위 혹은 빈값(계산 가능 통화 조회)",
+             help="환율을 조회 해양. 예시) `븜 환율 123.45USD`, `븜 환율 14990엔`, `븜 환율`")
+async def run_get_currency(ctx: commands.Context[BumKkiBot], currency_text: str = None):
+    await fin_command.get_concurrency(ctx, currency_text)
 
 # 히든 명령어 등록 from data/hidden/hidden_command as hid_command
 @bot.command(name=SECRET_COMMANDS[0])

@@ -378,6 +378,14 @@ class YFI_NO_TICKER(YFinanceAPIError):
     """티커 정보를 찾을 수 없는 예외"""
     pass
 
+class YFI_CURRENCY_PARSE_ERROR(YFinanceAPIError):
+    """현지 통화 단위를 파싱할 수 없는 예외"""
+    pass
+
+class YFI_CURRENCY_NOT_SUPPORT(YFinanceAPIError):
+    """지원하지 않는 현지통화 파싱시도"""
+    pass
+
 class STK_KRX_SEARCH_ERROR(STKException):
     """한국 주식 코드 검색 오류 예외"""
     pass
