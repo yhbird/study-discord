@@ -642,12 +642,13 @@ async def get_concurrency(ctx: commands.Context[BumKkiBot], text: str | None) ->
             source_ticker = f"({parsed_currency}/{service_currency}=X)"
             target_amount = parsed_amount * currency_rate
             # 매매기준 + 카드결제 예상 수수료 추가
-            transfer_amount = target_amount * (1 + FinanceCurrency.CURRENCY_TRANSFER_FEE)
+            transfer_rate = currency_rate * (1 + FinanceCurrency.CURRENCY_TRANSFER_FEE)
+            transfer_amount = parsed_amount * transfer_rate
             total_amount = transfer_amount * (1 + FinanceCurrency.CARD_FEE_MARGIN)
             tip_msg = "참고: `븜 환율`으로 입력하면 지원하는 화폐 단위의 환율을 모두 알려줘양!"
             embed_title = f"[환율] {parsed_amount} {parsed_currency} 환율 계산 결과에양!"
-            embed_text = (f"{parsed_amount} {parsed_currency} -> {safe_float(target_amount)} {service_currency}\n"
-                          f"환전 수수료 + 해외 결제 수수료 예상 총합: "
+            embed_text = (f"{parsed_amount} {parsed_currency} = {safe_float(target_amount)} {service_currency}\n"
+                          f"예상 최종 가격 (환전, 해외 결제 수수료): "
                           f"{safe_float(total_amount,2)} {service_currency}\n")
             embed = discord.Embed(
                 title=embed_title,
