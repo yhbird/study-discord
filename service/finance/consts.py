@@ -2,6 +2,17 @@ class FinanceConsts:
     SERVICE_CURRENCY = "KRW"
     SERVICE_TIMEZONE = "Asia/Seoul"
     SERVICE_TIMEZONE_SHORT = "KST"
+    HISTORY_PERIOD_MAPPING = {
+        "1주": "7d",
+        "1개월": "1mo",
+        "3개월": "3mo",
+        "6개월": "6mo",
+        "1년": "1y",
+        "5년": "5y",
+        "전체": "max"
+    }
+    HISTORY_PERIOD_SHORT = ["7d", "1mo"]
+    HISTORY_PERIOD_LONG = ["3mo", "6mo", "1y", "5y", "max"]
 
 class FinanceCurrency:
     SERVICE_CURRENCY = FinanceConsts.SERVICE_CURRENCY
@@ -30,7 +41,7 @@ class FinanceCurrency:
         # 영국 파운드 (GBP)
         "파운드": "GBP", "영국": "GBP", "GBP": "GBP", "£": "GBP",
         # 캐나다 달러 (CAD)
-        "캐나다": "CAD", "캐나다달러": "CAD"
+        "캐나다": "CAD", "캐나다달러": "CAD", "CAD": "CAD", "C$": "CAD"
     }
 
     CURRENCY_NAME_MAP = {

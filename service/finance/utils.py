@@ -5,13 +5,12 @@ import requests
 import pandas as pd
 
 from bs4 import BeautifulSoup
-from xml.etree import ElementTree
 from yfinance import Ticker
 
 from config import STK_DATA_API_KEY, STK_API_HOME
 from service.finance.consts import FinanceConsts, FinanceCurrency
-from exceptions.client_exceptions import *
-from typing import Dict, Literal
+from service.finance.exceptions import *
+from typing import Dict, List, Literal
 
 
 class FinanceUtils:
@@ -79,7 +78,7 @@ class YahooFinance:
         self._stock_info: Dict[str, str | float | int | None] = {}
         self._currency_rate: float = 1.0
 
-    def get_stock_info(self):
+    async def get_stock_info(self):
         stock = Ticker(self.ticker)
         info = stock.info
 
@@ -90,7 +89,7 @@ class YahooFinance:
         timezone: str | Literal["America/New_York"] = info.get("exchangeTimezoneName") or "America/New_York"
         timezone_short: str | Literal["EST"] = info.get("exchangeTimezoneShortName") or "EST"
         currency: str | Literal["USD"] = info.get("currency") or "USD"
-        stock_info: Dict[str, str | float | int | None | Literal] = {
+        stock_info: Dict[str, str | float | int | None ] = {
             "short_name": info.get("shortName"),
             "symbol": symbol,
             "exchange": info.get("fullExchangeName"),
@@ -118,8 +117,41 @@ class YahooFinance:
 
         self._stock_info = stock_info
 
+    async def get_stock_history(self, input_period: str) -> pd.DataFrame:
+        def _load_stock_history() -> pd.DataFrame:
+            return Ticker(self.ticker).history(
+                period=input_period, interval="1d", auto_adjust=False
+            )
+        hist: pd.DataFrame = await asyncio.to_thread(_load_stock_history)
 
-    def get_currency_rate(self, to_currency: str = FinanceConsts.SERVICE_CURRENCY):
+        if hist.empty:
+            raise YFI_NO_TICKER(f"티커 {self.ticker}에 대한 차트 데이터를 찾을 수 없어양!")
+        
+        if "Adj Close" in hist.columns:
+            price = hist["Adj Close"].copy()
+        else:
+            price = hist["Close"].copy()
+
+        return_df = pd.DataFrame({
+            "Date": hist["Date"] if "Date" in hist.columns else hist.index,
+            "Open": hist["Open"],
+            "High": hist["High"],
+            "Low": hist["Low"],
+            "Close": hist["Close"],
+            "Volume": hist["Volume"],
+            "price": price
+        })
+        return_df["MA5"] = return_df["price"].rolling(window=5).mean()
+        return_df["MA20"] = return_df["price"].rolling(window=20).mean()
+        return_df["MA60"] = return_df["price"].rolling(window=60).mean()
+        return_df["ChangePct"] = return_df["price"].pct_change() * 100
+        if not isinstance(return_df["Date"].iloc[0], pd.Timestamp):
+            return_df["Date"] = pd.to_datetime(return_df["Date"])
+        return_df.set_index("Date", inplace=True)
+        self._stock_hist = return_df.dropna(how="all")
+
+
+    async def get_currency_rate(self, to_currency: str = FinanceConsts.SERVICE_CURRENCY) -> float:
         from_currency = self._stock_info.get("currency") or "USD"
         if not from_currency or from_currency == to_currency:
             self._currency_rate = 1.0
@@ -142,6 +174,10 @@ class YahooFinance:
     @property
     def currency_rate(self):
         return self._currency_rate
+    
+    @property
+    def stock_hist(self):
+        return self._stock_hist
 
 def exchange_krw_rate(from_currency: str) -> float:
     """

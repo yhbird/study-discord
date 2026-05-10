@@ -30,9 +30,9 @@ from common.text import preprocess_int_with_korean, safe_float, safe_percent, pr
 from common.plot import fp_maplestory_bold, fp_maplestory_light, set_up_matplotlib_korean
 from config import COMMAND_TIMEOUT
 
-from typing import List, Literal
+from typing import Dict, List, Literal
+from service.finance.exceptions import *
 from exceptions.command_exceptions import CommandFailure
-from exceptions.client_exceptions import *
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -51,8 +51,7 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
     async with ctx.typing():
         stock = YahooFinance(search_ticker)
         try:
-            await asyncio.to_thread(stock.get_stock_info)
-
+            await stock.get_stock_info()
         except YFI_NO_TICKER as e:
             await ctx.send(str(e))
             raise CommandFailure(f"YFI_NO_TICKER : {search_ticker}")
@@ -79,9 +78,7 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
 
         if stock_currency != service_currency:
             try:
-                currency_rate: float | None = await asyncio.to_thread(
-                    stock.get_currency_rate, to_currency=service_currency
-                )
+                currency_rate: float | None = await stock.get_currency_rate(to_currency=service_currency)
                 pc_krw_value = pc_value * currency_rate
                 tc_krw_value = tc_value * currency_rate
                 h_52w_krw_value = high_52w * currency_rate
@@ -105,6 +102,7 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
                 f"주식 시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}\n"
                 f"\t({service_currency}: {preprocess_int_with_korean(int(market_cap * currency_rate))}원)"
             )
+
         embed_title = f"{stock_info.get('short_name') or '몰라양'} ({stock_info.get('symbol') or '몰라양'})"
         embed_desc = (
             f"거래소: {stock_info.get('exchange') or '몰라양'}\n"
@@ -148,225 +146,130 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
         return
 
 
-
-@with_timeout(COMMAND_TIMEOUT)
-@log_command(alt_func_name="븜 미국주식")
-async def stk_us_price(ctx: commands.Context[BumKkiBot], search_ticker: str) -> None:
-    """주식 티커에 해당하는 미국 주식의 현재 가격을 반환합니다.
-
-    Args:
-        ctx: 디스코드 명령어 Context
-        search_ticker (str): 주식 티커 심볼 (예: 'AAPL', 'GOOGL')
-
-    """
-    try:
-        stock_info: Dict[str, str | float | int | None] = get_stock_info(search_ticker)
-        stock_exchange: str | Literal["몰라양"] = stock_info.get("exchange") or "몰라양"
-        stock_sector: str | Literal["몰라양"] = stock_info.get("sector") or "몰라양"
-        stock_name: str | Literal["몰라양"] = stock_info.get("short_name") or "몰라양"
-        stock_ticker: str | Literal["몰라양"] = stock_info.get("symbol") or "몰라양"
-        regular_volume: int = stock_info.get("volume_regular") or 0
-        average_10d_volume: int = stock_info.get("volume_average_10d") or 0
-        dividend_yield: float = stock_info.get("dividend_yield") or 0.0
-        psr: float = stock_info.get("psr") or 0.0
-        stock_currency: str | Literal["USD"] = stock_info.get("currency") if stock_info.get("currency") else "USD"
-        previous_close: float = stock_info.get("previous_close") or 0.0
-        today_close: float = stock_info.get("today_close") or 0.0
-        high_52w: float = stock_info.get("high_52w") or 0.0
-        high_52w_change_pct: float = stock_info.get("high_52w_pct") or 0.0
-        low_52w: float = stock_info.get("low_52w") or 0.0
-        low_52w_change_pct: float = stock_info.get("low_52w_pct") or 0.0
-        stock_timezone: str | Literal["America/New_York"] = stock_info.get("timezone") if stock_info.get("timezone") else "America/New_York"
-        stock_timezone_short: str | Literal["EST"] = stock_info.get("timezone_short") if stock_info.get("timezone_short") else "EST"
-        market_cap: str | Literal["몰라양"] = stock_info.get("market_cap") or "몰라양"
-        analyst_rate_opinion: str | Literal["몰라양"] = stock_info.get("recommend_key") or "몰라양"
-        analyst_rate_score: float = stock_info.get("recommend_mean")
-
-        # KRW 환율 변환
-        try:
-            if stock_currency != 'KRW':
-                currency_rate: float = exchange_krw_rate(stock_currency)
-
-                pc_krw = previous_close * currency_rate
-                pc_krw_text = f"({pc_krw:,.2f} KRW)"
-                tc_krw = today_close * currency_rate
-                tc_krw_text = f"({tc_krw:,.2f} KRW)"
-                high_52w_krw = high_52w * currency_rate
-                high_52w_krw_text = f"({high_52w_krw:,.2f} KRW)"
-                low_52w_krw = low_52w * currency_rate
-                low_52w_krw_text = f"({low_52w_krw:,.2f} KRW)"
-                footer_text_extra = FinanceCurrency.CURRENCY_SOURCE_INFO.format(
-                    source=stock_currency, target=currency_rate
-                )
-            else:
-                pc_krw_text = ""
-                tc_krw_text = ""
-                high_52w_krw_text = ""
-                low_52w_krw_text = ""
-                footer_text_extra = ""
-
-        except YFI_NO_RATE_WARNING:  # 경고의 경우 no return
-            await ctx.send(f"(경고) {stock_currency} 환율 정보를 찾을 수 없어양!")
-            pc_krw_text = ""
-            tc_krw_text = ""
-            high_52w_krw_text = ""
-            low_52w_krw_text = ""
-            footer_text_extra = ""
-
-        except YFI_STOCK_FETCH_RATE:
-            await ctx.send(f"(경고) 환율 정보를 가져오는 데 실패했어양!")
-            pc_krw_text = ""
-            tc_krw_text = ""
-            high_52w_krw_text = ""
-            low_52w_krw_text = ""
-            footer_text_extra = ""
-
-    except YFI_NO_TICKER as e:
-        await ctx.send(str(e))
-        raise CommandFailure(f"YFI_NO_TICKER : {search_ticker}")
-
-    
-    finally:
-        # 가장 최근 거래일의 종가를 가져옵니다.
-        content_text: str = f"[미국주식] 현재 주식 시세를 알려 드려양!!"
-        stock_time = datetime.now(tz=timezone(stock_timezone)).strftime("%Y-%m-%d %H:%M:%S")
-        kst_time = datetime.now(tz=timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
-        change_pct: float = ((today_close - previous_close) / previous_close) * 100
-        market_cap_text: str = f"시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}" if market_cap != '몰라양' else "시가총액 정보 없음"
-        analyst_rate_opinion_text: str = (
-            f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})"
-            if analyst_rate_opinion != '몰라양' and analyst_rate_score is not None
-            else "의견이 없어양"
-        )
-        stk_us_info = (
-            f"거래소: {stock_exchange}\n섹터: {stock_sector}\n{market_cap_text}\n\n"
-            f"- **이전 종가:** {safe_float(previous_close)} {stock_currency} {pc_krw_text}\n"
-            f"- **현재 가격:** {safe_float(today_close)} {stock_currency} {tc_krw_text}\n"
-            f"- **변동률:** {change_pct:.2f} %\n\n"
-            f"- **52주 최고가:** {safe_float(high_52w)} {stock_currency}"
-            f"{high_52w_krw_text} ({safe_percent(high_52w_change_pct)})\n"
-            f"- **52주 최저가:** {safe_float(low_52w)} {stock_currency} {low_52w_krw_text} ({safe_percent(low_52w_change_pct)})\n\n"
-            f"- **거래량:** {preprocess_int_for_stocks(regular_volume)} (평균 10일 거래량: {preprocess_int_for_stocks(average_10d_volume)})\n"
-            f"- **애널리스트 의견:** {analyst_rate_opinion_text}\n"
-            f"- **배당수익률:** {safe_float(dividend_yield)}%\n"
-            f"- **PSR:** {safe_float(psr)}\n"
-        )
-        footer_text = (
-            f"{footer_text_extra}\n"
-            f"현지 시간: {stock_time} ({stock_timezone_short})\n"
-            f"한국 시간: {kst_time} (KST)\n"
-            f"정보 제공: yahoo finance API (최대 15분 지연)\n"
-        )
-        stock_embed = discord.Embed(
-            title=f"{stock_name} ({stock_ticker})",
-            description=stk_us_info,
-            color=discord.Color.green()
-        )
-        stock_embed.set_footer(text=footer_text)
-        await ctx.send(embed=stock_embed, content=content_text)
-
-
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 미국차트")
-async def stk_us_chart(
-    ctx: commands.Context[BumKkiBot], search_ticker: str,
-    period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주"
-) -> None:
-    """미국주식의 시세흐름을 차트로 표현합니다. (기본 1주일)
-
+async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str, 
+                          period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주") -> None:
+    """미국 주식의 시세 흐름을 차트로 표현합니다. (기본 1주일)
+    
     Args:
         ctx (commands.Context): 디스코드 명령어 컨텍스트
-        ticker (str): 주식 티커
+        search_ticker (str): 주식 티커
         period (Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"], optional): 차트 기간. Defaults to "1주".
     """
-    # 기간 매핑
-    period_mapping = {
-        "1주": "7d",
-        "1개월": "1mo",
-        "3개월": "3mo",
-        "6개월": "6mo",
-        "1년": "1y",
-        "5년": "5y",
-        "전체": "max"
-    }
+    service_timezone = FinanceConsts.SERVICE_TIMEZONE
+    service_timezone_short = FinanceConsts.SERVICE_TIMEZONE_SHORT
+    period_mapping: Dict[str, str] = FinanceConsts.HISTORY_PERIOD_MAPPING
+
+    # 유효한 기간을 입력했는지 확인
     valid_period: List[str] = list(period_mapping.keys())
-
-    # period 유효성 검사
     if period not in valid_period:
-        await ctx.send(
-            f"유효하지 않은 기간을 입력했어양!\n다음 중에서 선택해줘양: {', '.join(valid_period)}", reference=ctx.message
+        err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
+                    f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
+        raise CommandFailure(err_msg)
+    
+    async with ctx.typing():
+        stock = YahooFinance(search_ticker)
+        try:
+            validated_period = period_mapping[period]
+            await stock.get_stock_info()
+            await stock.get_stock_history(input_period=validated_period)
+        except YFI_NO_TICKER as e:
+            await ctx.send(str(e))
+            raise CommandFailure(f"YFI_NO_TICKER : {search_ticker}")
+        except KeyError as e:
+            err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
+                       f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
+            await ctx.send(err_msg)
+            raise CommandFailure(f"KeyError - Invalid period: {period}")
+        
+        stock_info = stock.stock_info
+        stock_hist = stock.stock_hist
+        stock_name: str = stock_info.get("short_name") or search_ticker
+        plot_title: str = f"{stock_name} ({stock_info.get('symbol') or '몰라양'}) - {period} 차트"
+        service_datetime_str: str = (
+            f"{datetime.now(tz=timezone(service_timezone)).strftime('%Y-%m-%d %H:%M:%S')}"
+            f" ({service_timezone_short})"
         )
-        return
-    else:
-        target_period: str = period_mapping[period]
-
-    # ticker 유효성 검사
-    try:
-        stock = Ticker(ticker=search_ticker)
-        stock_name: str = stock.info.get("shortName", search_ticker)
-        stock_info: pd.DataFrame = await get_stock_history(search_ticker, target_period)
-    except YFI_NO_TICKER as e:
-        await ctx.send(str(e))
-        return
-
-    # period가 짧은 경우, 캔들차트 생성
-    if target_period in ["7d", "1mo"]:
-        family = set_up_matplotlib_korean("assets/font/Maplestory_Bold.ttf")
-        rc = {'font.family': family, 'axes.unicode_minus': False}
-        style_kor = mpf.make_mpf_style(base_mpf_style='yahoo', rc=rc)
-        buffer = io.BytesIO()
-        mpf.plot(
-            stock_info,
-            type='candle',
-            mav=(5, 20),
-            volume=True,
-            style=style_kor,
-            figratio=(12, 5),
-            title=f"{stock_name} ({search_ticker}) - {period} 차트",
-            savefig=dict(fname=buffer, format="png", bbox_inches="tight"),
+        tc_value = stock_info.get("today_close")
+        stock_currency = stock_info.get("currency")
+        content_text: str = (
+            f"[미국주식] {stock_name}의 {period} 차트에양!\n"
+            f"- **현재 가격:** {safe_float(tc_value)} {stock_currency}\n"
+            f"- **PSR:** {safe_float(stock_info.get('psr'))}\n"
+            f"- **PBR:** {safe_float(stock_info.get('pbr'))}\n"
+            f"- **PER:** {safe_float(stock_info.get('per'))}\n"
+            f"정보 제공: Yahoo Finance API (종가 기준)\n"
+            f"현재 시간: {service_datetime_str}"
         )
-        buffer.seek(0)
-        now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
-        file = discord.File(buffer, filename=f"{search_ticker}_{now_kst}.png")
-        await ctx.send(content=f"[미국주식] {stock_name}의 {period} 차트에양!", file=file)
-        buffer.close()
-        return
+        if validated_period in FinanceConsts.HISTORY_PERIOD_SHORT:
+            family = set_up_matplotlib_korean("assets/font/Maplestory_Bold.ttf")
+            rc = {'font.family': family, 'axes.unicode_minus': False}
+            style_kor = mpf.make_mpf_style(base_mpf_style='yahoo', rc=rc)
+            buffer = io.BytesIO()
+            mpf.plot(
+                stock_hist,
+                type='candle',
+                mav=(5, 20),
+                volume=True,
+                style=style_kor,
+                figratio=(12, 5),
+                title=plot_title,
+                savefig=dict(fname=buffer, format="png", bbox_inches="tight"),
+            )
+            buffer.seek(0)
+            now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
+            file = discord.File(buffer, filename=f"{search_ticker}_{now_kst}.png")
+            await ctx.send(content=content_text, file=file)
+            buffer.close()
+            return
+        
+        # period가 긴 경우, 선차트 생성
+        elif validated_period in FinanceConsts.HISTORY_PERIOD_LONG:
+            # 디스코드 해상도에 맞게 차트 그리기
+            fig, ax = plt.subplots(figsize=(12, 5), dpi=180)
+            ax.plot(stock_hist.index, stock_hist["price"], 
+                    label="종가", color="#1f77b4", linewidth=2)
+            ax.plot(stock_hist.index, stock_hist["MA5"], 
+                    label="이동평균선 5일", color="#ff7f0e", linestyle='--', linewidth=1.2)
+            ax.plot(stock_hist.index, stock_hist["MA20"], 
+                    label="이동평균선 20일", color="#2ca02c", linestyle='--', linewidth=1.2)
+            ax.plot(stock_hist.index, stock_hist["MA60"],
+                    label="이동평균선 60일", color="#d62728", linestyle='--', linewidth=1.2)
 
-    # period가 긴 경우, 선차트 생성
-    else:
-        # 디스코드 해상도에 맞게 차트 그리기
-        fig, ax = plt.subplots(figsize=(12, 5), dpi=180)
-        ax.plot(stock_info.index, stock_info["price"], label="종가", color="#1f77b4", linewidth=2)
-        ax.plot(stock_info.index, stock_info["MA5"], label="이동평균선 5일", color="#ff7f0e", linestyle='--', linewidth=1.2)
-        ax.plot(stock_info.index, stock_info["MA20"], label="이동평균선 20일", color="#2ca02c", linestyle='--', linewidth=1.2)
+            # X축 날짜 포맷팅
+            locator = mdates.AutoDateLocator()
+            formatter = mdates.ConciseDateFormatter(locator)
+            ax.xaxis.set_major_locator(locator)
+            ax.xaxis.set_major_formatter(formatter)
 
-        # X축 날짜 포맷팅
-        locator = mdates.AutoDateLocator()
-        formatter = mdates.ConciseDateFormatter(locator)
-        ax.xaxis.set_major_locator(locator)
-        ax.xaxis.set_major_formatter(formatter)
+            # Y축 그리드선 설정
+            ax.grid(alpha=0.3)
+            ax.legend(loc='upper left')
 
-        # Y축 그리드선 설정
-        ax.grid(alpha=0.3)
-        ax.legend(loc='upper left')
+            # 차트 제목 및 레이블 설정
+            ax.set_title(plot_title, fontproperties=fp_maplestory_bold, fontsize=16)
+            ax.set_xlabel("날짜", fontproperties=fp_maplestory_light, fontsize=12)
+            ax.set_ylabel("가격 (USD)", fontproperties=fp_maplestory_light, fontsize=12)
 
-        # 차트 제목 및 레이블 설정
-        ax.set_title(f"{stock_name} ({search_ticker}) - {period} 차트", fontproperties=fp_maplestory_bold, fontsize=16)
-        ax.set_xlabel("날짜", fontproperties=fp_maplestory_light, fontsize=12)
-        ax.set_ylabel("가격 (USD)", fontproperties=fp_maplestory_light, fontsize=12)
+            # 이미지 버퍼에 저장
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format="png", bbox_inches="tight")
+            plt.close(fig)
+            buffer.seek(0)
 
-        # 이미지 버퍼에 저장
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format="png", bbox_inches="tight")
-        plt.close(fig)
-        buffer.seek(0)
-
-        # 디스코드에 이미지 전송
-        now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
-        file = discord.File(buffer, filename=f"{search_ticker}_{now_kst}.png")
-        await ctx.send(content=f"[미국주식] {stock_name}의 {period} 차트에양!", file=file)
-        buffer.close()
-        return
+            # 디스코드에 이미지 전송
+            now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
+            file = discord.File(buffer, filename=f"{search_ticker}_{now_kst}.png")
+            await ctx.send(content=content_text, file=file)
+            buffer.close()
+            return
+        
+        else:
+            err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
+                       f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
+            await ctx.send(err_msg)
+            raise CommandFailure(f"Invalid period: {period}")
     
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -431,7 +334,7 @@ async def stk_kr_price(ctx: commands.Context[BumKkiBot], search_target: str) -> 
     stock_timezone_short: str | Literal["EST"] = stock_info.get("timezone_short") or "EST"
     market_cap: str | Literal["몰라양"] = stock_info.get("market_cap") or "몰라양"
     analyst_rate_opinion: str | Literal["몰라양"] = stock_info.get("recommend_key") or "몰라양"
-    analyst_rate_score: float = stock_info.get("recommend_mean")
+    analyst_rate_score: float | None = stock_info.get("recommend_mean")
 
 
     # 가장 최근 거래일의 종가를 가져옵니다.
@@ -639,7 +542,7 @@ async def get_concurrency(ctx: commands.Context[BumKkiBot], text: str | None) ->
             parsed_amount, parsed_currency = FinanceUtils.parse_currency_code(text)
             currency_rate = FinanceUtils.exchange_currency_rate(parsed_currency, service_currency)
             base_amount: Literal[1, 100] = 100 if parsed_currency in ["JPY"] else 1
-            source_ticker = f"({parsed_currency}/{service_currency}=X)"
+            source_ticker = f"({parsed_currency}/{service_currency})"
             target_amount = parsed_amount * currency_rate
             # 매매기준 + 카드결제 예상 수수료 추가
             transfer_rate = currency_rate * (1 + FinanceCurrency.CURRENCY_TRANSFER_FEE)

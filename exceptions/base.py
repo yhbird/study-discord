@@ -21,10 +21,10 @@ class BotWarning(Exception):
     """작업을 중단하지 않고 경고 메시지를 표시할 때 사용"""
     pass
 
-# client 단계 예외 클래스
-class ClientBaseException(Exception):
-    """Client 기본 예외 클래스 common.py에서 사용됨"""
+# utils 단계 예외 클래스
+class UtilsBaseException(Exception):
+    """Utils 기본 예외 클래스 common.py에서 사용됨"""
 
-# mapping 단계 예외 클래스
+# command 단계 예외 클래스
 class CommandBaseException(Exception):
     """Command 기본 예외 클래스 command.py에서 사용됨"""

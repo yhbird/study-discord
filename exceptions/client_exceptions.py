@@ -11,9 +11,9 @@ from typing import Dict
 
 import httpx
 import requests
-from exceptions.base import ClientBaseException
+from exceptions.base import UtilsBaseException
 
-class NexonAPIError(ClientBaseException):
+class NexonAPIError(UtilsBaseException):
     """Nexon API 사용 중 발생하는 오류"""
 
 class NexonAPICharacterNotFound(NexonAPIError):
@@ -63,7 +63,7 @@ def nexon_api_error_handler(response: httpx.Response):
         raise NexonAPIError(f"{prefix}{msg or 'Unknown Error'}")
     
 
-class NeopleAPIError(ClientBaseException):
+class NeopleAPIError(UtilsBaseException):
     """Neople API 사용 중 발생하는 오류"""
     pass
 
@@ -226,7 +226,7 @@ def neople_api_error_handler(response: httpx.Response | requests.Response) -> No
         raise NeopleAPIError(f"{prefix}{msg or 'Unknown error.'}")
 
     
-class KakaoAPIError(ClientBaseException):
+class KakaoAPIError(UtilsBaseException):
     """Kakao API 사용 중 발생하는 오류"""
 
 class KakaoNoLocalInfo(KakaoAPIError):
@@ -235,7 +235,7 @@ class KakaoNoLocalInfo(KakaoAPIError):
 class KKO_LOCAL_API_ERROR(KakaoAPIError):
     """카카오 로컬 API 관련 오류"""
 
-class WeatherAPIError(ClientBaseException):
+class WeatherAPIError(UtilsBaseException):
     """날씨 API 사용 중 발생하는 오류"""
     pass
 
@@ -352,7 +352,7 @@ def weather_exception_handler(error_code: str, exception_msg: str) -> None:
     else:
         raise WeatherAPIError(f"Unknown error code: {error_code}, message: {exception_msg}")
     
-class YFinanceAPIError(ClientBaseException):
+class YFinanceAPIError(UtilsBaseException):
     """YFinance API 사용 중 발생하는 오류"""
     pass
 
@@ -394,23 +394,23 @@ class STK_KRX_SEARCH_NO_RESULT(STKException):
     """한국 주식 코드 검색 결과 없음 예외"""
     pass
 
-class DB_CONNECTION_ERROR(ClientBaseException):
+class DB_CONNECTION_ERROR(UtilsBaseException):
     """데이터베이스 연결 오류 예외"""
     pass
 
-class DB_QUERY_ERROR(ClientBaseException):
+class DB_QUERY_ERROR(UtilsBaseException):
     """데이터베이스 쿼리 오류 예외"""
     pass
 
-class DB_DATA_NOT_FOUND(ClientBaseException):
+class DB_DATA_NOT_FOUND(UtilsBaseException):
     """데이터베이스 데이터 없음 예외"""
     pass
 
-class RCON_CLIENT_ERROR(ClientBaseException):
+class RCON_CLIENT_ERROR(UtilsBaseException):
     """RCON 클라이언트 오류 예외"""
     pass
 
-class GeneralRequestError(ClientBaseException):
+class GeneralRequestError(UtilsBaseException):
     """일반 요청 예외"""
     pass
 
