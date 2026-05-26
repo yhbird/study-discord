@@ -5,23 +5,18 @@
 사용 라이브러리: yfinance, discord.py, bs4, requests
 
 """
-import asyncio
 import io
 import re
 import discord
-import pandas as pd
 from discord.ext import commands
 from bot import BumKkiBot
 
-from yfinance import Ticker
 from matplotlib import pyplot as plt
 from matplotlib import dates as mdates
 import mplfinance as mpf
 
 from service.finance.consts import FinanceCurrency, FinanceConsts
 from service.finance.utils import YahooFinance, FinanceUtils, DataGoAPI
-from service.finance.utils import get_stock_history
-from service.finance.utils import search_krx_stock_info, get_krx_stock_info
 from datetime import datetime
 from pytz import timezone
 
@@ -149,9 +144,8 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
 
 
 @with_timeout(COMMAND_TIMEOUT)
-@log_command(alt_func_name="븜 미국차트")
-async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str, 
-                          period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주") -> None:
+@log_command(alt_func_name="븜 미국차트v2")
+async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str, period: str = "1주") -> None:
     """미국 주식의 시세 흐름을 차트로 표현합니다. (기본 1주일)
     
     Args:
@@ -168,6 +162,7 @@ async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str,
     if period not in valid_period:
         err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
                     f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
+        await ctx.send(err_msg, reference=ctx.message)
         raise CommandFailure(err_msg)
     
     async with ctx.typing():
@@ -182,7 +177,7 @@ async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str,
         except KeyError as e:
             err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
                        f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
-            await ctx.send(err_msg)
+            await ctx.send(err_msg, reference=ctx.message)
             raise CommandFailure(f"KeyError - Invalid period: {period}")
         
         stock_info = stock.stock_info
@@ -270,12 +265,12 @@ async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str,
         else:
             err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
                        f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
-            await ctx.send(err_msg)
+            await ctx.send(err_msg, reference=ctx.message)
             raise CommandFailure(f"Invalid period: {period}")
     
 
 @with_timeout(COMMAND_TIMEOUT)
-@log_command(alt_func_name="븜 한국주식")
+@log_command(alt_func_name="븜 한국주식v2")
 async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) -> None:
     """한국주식 가격을 조회하는 함수v2
 
@@ -286,9 +281,9 @@ async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) 
     async with ctx.typing():
         # search_target이 종목 코드인지 이름인지 판단
         if re.fullmatch(r"\d{6}", search_target):
-            krx_search_method = "code"
+            krx_search_method: Literal["code"] = "code"
         else:
-            krx_search_method = "name"
+            krx_search_method: Literal["name"] = "name"
 
         data_go_api = DataGoAPI(search_text=search_target)
         try:
@@ -309,7 +304,7 @@ async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) 
         
         if not krx_symbol:
             err_msg = f"한국 주식({search_target}) 종목정보를 찾을 수 없어양!"
-            await ctx.send(err_msg)
+            await ctx.send(err_msg, reference=ctx.message)
             raise CommandFailure(err_msg)
         
         else:
@@ -357,13 +352,13 @@ async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) 
             f"산업: {stock_info.get('industry') or '몰라양'}\n"
             f"섹터: {stock_info.get('sector') or '몰라양'}\n"
             f"{market_cap_text}\n\n"
-            f"- **이전 종가:** {str(pc_value)} {stock_currency} {pc_krw_text}\n"
-            f"- **현재 가격:** {str(tc_value)} {stock_currency} {tc_krw_text}\n"
+            f"- **이전 종가:** {int(pc_value):,} {stock_currency} {pc_krw_text}\n"
+            f"- **현재 가격:** {int(tc_value):,} {stock_currency} {tc_krw_text}\n"
             f"- **변동률(%):** {change_pct:.2f} %\n\n"
             
-            f"- **52주 최고가:** {str(high_52w)} {stock_currency}"
+            f"- **52주 최고가:** {int(high_52w):,} {stock_currency}"
             f" {h_52w_krw_text} ({safe_percent(high_52w_pct)})\n"
-            f"- **52주 최저가:** {str(low_52w)} {stock_currency}"
+            f"- **52주 최저가:** {int(low_52w):,} {stock_currency}"
             f" {l_52w_krw_text} ({safe_percent(low_52w_pct)})\n\n"
             
             f"- **애널리스트 의견:** {analyst_text}\n"
@@ -390,14 +385,11 @@ async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) 
         context_text: str = f"[한국주식] 현재 {krx_name} 주식의 시세 현황을 알려 드려양!"
         await ctx.send(embed=stock_embed, content=context_text)
         return
-    
+
 
 @with_timeout(COMMAND_TIMEOUT)
-@log_command(alt_func_name="븜 한국차트")
-async def stk_kr_chart(
-    ctx: commands.Context[BumKkiBot], search_target: str,
-    period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주"
-) -> None:
+@log_command(alt_func_name="븜 한국차트v2")
+async def stk_kr_chart_v2(ctx: commands.Context[BumKkiBot], search_target: str, period: str = "1주") -> None:
     """한국주식의 시세흐름을 차트로 표현합니다. (기본 1주일)
 
     Args:
@@ -406,122 +398,141 @@ async def stk_kr_chart(
         period (Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"]): 기간. Defaults to "1주".
     """
     # 기간 매핑
-    period_mapping = {
-        "1주": "7d",
-        "1개월": "1mo",
-        "3개월": "3mo",
-        "6개월": "6mo",
-        "1년": "1y",
-        "5년": "5y",
-        "전체": "max"
-    }
+    period_mapping: Dict[str, str] = FinanceConsts.HISTORY_PERIOD_MAPPING
     valid_period: List[str] = list(period_mapping.keys())
-
-    # period 유효성 검사
     if period not in valid_period:
-        await ctx.send(
-            f"유효하지 않은 기간을 입력했어양!\n다음 중에서 선택해줘양: {', '.join(valid_period)}", reference=ctx.message
-        )
-        return
+        err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
+                   f"다음 중에서 기간을 선택해주세양!: {', '.join(valid_period)}")
+        await ctx.send(err_msg, reference=ctx.message)
+        raise CommandFailure(err_msg)
     else:
-        target_period: str = period_mapping[period]
+        validated_period = period_mapping[period]
 
-    # search_target이 종목 코드인지 이름인지 판단
-    if re.fullmatch(r"\d{6}", search_target):
-        krx_search_method = "code"
-    else:
-        krx_search_method = "name"
+    async with ctx.typing():
+        # 한국주식 기능과 동일하게 KRX 종목 코드 조회
+        if re.fullmatch(r"\d{6}", search_target):
+            krx_search_method: Literal["code"] = "code"
+        else:
+            krx_search_method: Literal["name"] = "name"
 
-    try:
-        krx_stock_info: Dict[str, str] = search_krx_stock_info(search_target, krx_search_method)
-    except YFI_KRX_SEARCH_ERROR as e:
-        await ctx.send(f"한국 주식({search_target}) 종목정보를 불러오는데 실패했어양!")
-        return
-    
-    # ticker 유효성 검사
-    krx_search_ticker: str = krx_stock_info["item_code"]
-    try:
-        stock = Ticker(ticker=krx_search_ticker)
-        stock_concurrency: str | Literal["USD"] = stock.info.get("currency") or "USD"
-        stock_name: str = krx_stock_info["corp_name"]
-        stock_info: pd.DataFrame = await get_stock_history(krx_search_ticker, target_period)
-        search_ticker: str = krx_stock_info["item_code"]
-    except YFI_NO_TICKER as e:
-        await ctx.send(f"Yahoo finance에 해당하는 한국주식 {search_target} 정보가 없어양!")
-        return
+        data_go_api = DataGoAPI(search_text=search_target)
+        try:
+            krx_stock_info: Dict = await data_go_api.search_stock_ticker(krx_search_method)
+            krx_symbol: str = krx_stock_info.get("item_code") or None
+            krx_name: str = krx_stock_info.get("corp_name") or None
+            krx_corp_name: str = krx_stock_info.get("corp_name") or search_target
+            krx_market_code: str = krx_stock_info.get("market_code") or "N/A"
+            krx_market_name: str = krx_stock_info.get("market_name") or "N/A"
 
-    # period가 짧은 경우, 캔들차트 생성
-    if target_period in ["7d", "1mo"]:
-        family = set_up_matplotlib_korean("assets/font/Maplestory_Bold.ttf")
-        rc = {'font.family': family, 'axes.unicode_minus': False}
-        style_kor = mpf.make_mpf_style(base_mpf_style='yahoo', rc=rc)
-        buffer = io.BytesIO()
-        mpf.plot(
-            stock_info,
-            type='candle',
-            mav=(5, 20),
-            volume=True,
-            style=style_kor,
-            figratio=(12, 5),
-            title=f"{stock_name} ({search_ticker}) - {period} 차트",
-            savefig=dict(fname=buffer, format="png", bbox_inches="tight"),
-        )
-        buffer.seek(0)
-        now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
-        file = discord.File(buffer, filename=f"{search_ticker}_{now_kst}.png")
-        await ctx.send(content=f"[한국주식] {stock_name}의 {period} 차트에양!", file=file)
-        buffer.close()
-        return
+        except STK_KRX_SEARCH_NO_RESULT as e:
+            err_msg = f"한국 주식 '{search_target}'의 종목 정보를 찾을 수 없어양!"
+            await ctx.send(err_msg, reference=ctx.message)
+            raise CommandFailure(f"{str(e)}: {search_target}")
 
-    # period가 긴 경우, 선차트 생성
-    else:
-        # 디스코드 해상도에 맞게 차트 그리기
-        fig, ax = plt.subplots(figsize=(12, 5), dpi=180)
-        ax.plot(stock_info.index, stock_info["price"], label="종가", color="#1f77b4", linewidth=2)
-        ax.plot(stock_info.index, stock_info["MA5"], label="이동평균선 5일", color="#ff7f0e", linestyle='--', linewidth=1.2)
-        ax.plot(stock_info.index, stock_info["MA20"], label="이동평균선 20일", color="#2ca02c", linestyle='--', linewidth=1.2)
+        except YFI_KRX_SEARCH_ERROR as e:
+            err_msg = f"한국 주식 조회 API 실행 중에 오류가 발생했어양!"
+            await ctx.send(err_msg, reference=ctx.message)
+            raise CommandFailure(f"{str(e)}: {search_target}")
 
-        # X축 날짜 포맷팅
-        locator = mdates.AutoDateLocator()
-        formatter = mdates.ConciseDateFormatter(locator)
-        ax.xaxis.set_major_locator(locator)
-        ax.xaxis.set_major_formatter(formatter)
+        if not krx_symbol:
+            err_msg = f"한국 주식의 검색 티커(symbol)를 찾을 수 없어양!"
+            await ctx.send(err_msg, reference=ctx.message)
+            raise CommandFailure(err_msg)
 
-        # Y축 그리드선 설정
-        ax.grid(alpha=0.3)
-        ax.legend(loc='upper left')
+        else:
+            stock = YahooFinance(ticker=krx_symbol)
+            await stock.get_stock_info()
+            await stock.get_stock_history(input_period=validated_period)
+            stock_info = stock.stock_info
+            stock_hist = stock.stock_hist
+            stock_name: str = krx_name or stock_info.get("short_name") or search_target
+            plot_title: str = (
+                    f"{krx_corp_name or stock_name} ({krx_symbol or stock_info.get('symbol')}) - {period} 차트"
+            )
+            tc_value: float = stock_info.get("today_close") or 0.0
+            service_datetime_str: str = (
+                f"{datetime.now(tz=timezone(FinanceConsts.SERVICE_TIMEZONE)).strftime('%Y-%m-%d %H:%M:%S')}"
+                f" ({FinanceConsts.SERVICE_TIMEZONE_SHORT})"
+            )
+            content_text: str = (
+                f"[한국주식] {stock_name}의 {period} 차트를 보여드릴게양!\n"
+                f"- **현재 가격:** {int(tc_value):,} KRW\n"
+                f"- **PSR:** {safe_float(stock_info.get('psr'))}\n"
+                f"- **PBR:** {safe_float(stock_info.get('pbr'))}\n"
+                f"- **PER:** {safe_float(stock_info.get('per'))}\n"
+                f"정보 제공: Yahoo Finance API (종가 기준)\n"
+                f"현재 시간: {service_datetime_str}"
+            )
 
-        # 차트 제목 및 레이블 설정
-        ax.set_title(f"{stock_name} ({search_ticker}) - {period} 차트",
-                     fontproperties=fp_maplestory_bold, fontsize=16)
-        ax.set_xlabel("날짜", fontproperties=fp_maplestory_light, fontsize=12)
-        ax.set_ylabel(f"가격 ({stock_concurrency})", fontproperties=fp_maplestory_light, fontsize=12)
+            # 짧은 기간의 차트 생성 요청 -> 버블차트 생성
+            if validated_period in FinanceConsts.HISTORY_PERIOD_SHORT:
+                fam = set_up_matplotlib_korean("assets/font/Maplestory_Bold.ttf")
+                rc = {'font.family': fam, 'axes.unicode_minus': False}
+                style_kor = mpf.make_mpf_style(base_mpf_style='yahoo', rc=rc)
+                buffer = io.BytesIO()
+                mpf.plot(
+                    stock_hist,
+                    type='candle',
+                    mav=(5, 20),
+                    volume=True,
+                    style=style_kor,
+                    figratio=(12, 5),
+                    title=plot_title,
+                    savefig=dict(fname=buffer, format="png", bbox_inches="tight"),
+                )
+                buffer.seek(0)
+                now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
+                file = discord.File(buffer, filename=f"{krx_symbol}_{now_kst}.png")
+                await ctx.send(content=content_text, file=file)
+                buffer.close()
+                return
+            # 긴 기간의 차트 생성 요청 -> 선차트 생성
+            elif validated_period in FinanceConsts.HISTORY_PERIOD_LONG:
+                # 디스코드 해상도에 맞게 차트 그리기
+                fig, ax = plt.subplots(figsize=(12, 5), dpi=180)
+                ax.plot(stock_hist.index, stock_hist["price"],
+                        label="종가", color="#1f77b4", linewidth=2)
+                ax.plot(stock_hist.index, stock_hist["MA5"],
+                        label="이동평균선 5일", color="#ff7f0e", linestyle='--', linewidth=1.2)
+                ax.plot(stock_hist.index, stock_hist["MA20"],
+                        label="이동평균선 20일", color="#2ca02c", linestyle='--', linewidth=1.2)
+                ax.plot(stock_hist.index, stock_hist["MA60"],
+                        label="이동평균선 60일", color="#d62728", linestyle='--', linewidth=1.2)
 
-        # 이미지 버퍼에 저장
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format="png", bbox_inches="tight")
-        plt.close(fig)
-        buffer.seek(0)
+                # X축 날짜 포맷팅
+                locator = mdates.AutoDateLocator()
+                formatter = mdates.ConciseDateFormatter(locator)
+                ax.xaxis.set_major_locator(locator)
+                ax.xaxis.set_major_formatter(formatter)
 
-        # 디스코드에 이미지 전송
-        now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
-        file = discord.File(buffer, filename=f"krx_{krx_search_ticker}_{now_kst}.png")
-        await ctx.send(content=f"[한국주식] {stock_name}의 {period} 차트에양!", file=file)
-        buffer.close()
-        return
+                # Y축 그리드선 설정
+                ax.grid(alpha=0.3)
+                ax.legend(loc='upper left')
 
+                # 차트 제목 및 레이블 설정
+                ax.set_title(plot_title, fontproperties=fp_maplestory_bold, fontsize=16)
+                ax.set_xlabel("날짜", fontproperties=fp_maplestory_light, fontsize=12)
+                ax.set_ylabel("가격 (USD)", fontproperties=fp_maplestory_light, fontsize=12)
 
-@with_timeout(COMMAND_TIMEOUT)
-@log_command(alt_func_name="븜 한국차트")
-async def stk_kr_chart_v2(ctx: commands.Context[BumKkiBot], search_target: str,
-                          period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주") -> None:
-    """한국주식의 시세흐름을 차트로 표현합니다. (기본 1주일)
+                # 이미지 버퍼에 저장
+                buffer = io.BytesIO()
+                plt.savefig(buffer, format="png", bbox_inches="tight")
+                plt.close(fig)
+                buffer.seek(0)
 
-    Args:
-        ctx (commands.Context): 디스코드 명령어 컨텍스트
-        search_target (str): 검색 대상 (예: 주식 종목 코드 또는 이름)
-        period (Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"]): 기간. Defaults to "1주".
-    """
+                # 디스코드에 이미지 전송
+                now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
+                file = discord.File(buffer, filename=f"{search_target}_{now_kst}.png")
+                await ctx.send(content=content_text, file=file)
+                buffer.close()
+                return
+
+            else:
+                err_msg = (f"유효하지 않은 기간을 입력했어양!\n"
+                           f"다음 중에서 선택해줘양: {', '.join(valid_period)}")
+                await ctx.send(err_msg, reference=ctx.message)
+                raise CommandFailure(f"Invalid period: {period}")
+
 
 
 @with_timeout(COMMAND_TIMEOUT)

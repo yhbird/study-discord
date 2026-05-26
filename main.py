@@ -198,8 +198,7 @@ async def run_stk_us_price(ctx: commands.Context[BumKkiBot], ticker: str):
 
 @bot.command(name="미국차트", usage="티커(대문자) 기간(1주/1개월/3개월/1년/5년/전체)", 
              help="미국 주식 차트를 티커와 기간을 통해 조회해양. 예: `븜 미국차트 AAPL 1년`")
-async def run_stk_us_chart(ctx: commands.Context[BumKkiBot], ticker: str, 
-                           period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
+async def run_stk_us_chart(ctx: commands.Context[BumKkiBot], ticker: str, period: str):
     await fin_command.stk_us_chart_v2(ctx, ticker, period)
 
 @bot.command(name="한국주식", usage="종목명 또는 종목코드", 
@@ -209,9 +208,8 @@ async def run_stk_kr_price(ctx: commands.Context[BumKkiBot], stock: str):
 
 @bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", 
              help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
-async def run_stk_kr_chart(ctx: commands.Context[BumKkiBot], stock: str, 
-                           period: Literal["1주", "1개월", "3개월", "1년", "5년", "전체"]):
-    await fin_command.stk_kr_chart(ctx, stock, period)
+async def run_stk_kr_chart(ctx: commands.Context[BumKkiBot], stock: str, period: str):
+    await fin_command.stk_kr_chart_v2(ctx, stock, period)
 
 @bot.command(name="환율", usage="계산하고 싶은 통화 단위 혹은 빈값(계산 가능 통화 조회)",
              help="환율을 조회 해양. 예시) `븜 환율 123.45USD`, `븜 환율 14990엔`, `븜 환율`")

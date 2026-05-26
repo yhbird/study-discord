@@ -199,7 +199,7 @@ class DataGoAPI:
             raise YFI_KRX_SEARCH_ERROR(f"HTTP {response.status_code}: {response.reason}")
         
 
-    async def search_stock_ticker(self, search_method: Literal['name', 'code']) -> str:
+    async def search_stock_ticker(self, search_method: Literal['name', 'code']) -> Dict[str, Optional[str]]:
         """
         한국주식 종목명을 검색해서 yahoo finance에서 사용할 수 있는 티커 심볼로 변환
 
@@ -247,11 +247,15 @@ class DataGoAPI:
         items = xml_data.find_all("item")
         found = None
 
+        mrkt_code: Optional[str] = None
+        item_name: Optional[str] = None
+        corp_name: Optional[str] = None
+        item_code: Optional[str] = None
         for item in items:
-            item_name: str = str(item.find("itmsNm").text).strip()
-            item_code: str = str(item.find("srtnCd").text).replace("A", "")
-            corp_name: str = str(item.find("corpNm").text).strip()
-            mrkt_code: str = str(item.find("mrktCtg").text).strip()
+            item_name = str(item.find("itmsNm").text).strip()
+            item_code = str(item.find("srtnCd").text).replace("A", "")
+            corp_name = str(item.find("corpNm").text).strip()
+            mrkt_code = str(item.find("mrktCtg").text).strip()
 
             if "홀딩스" in item_name and "홀딩스" not in self.search_text:
                 continue
@@ -268,7 +272,7 @@ class DataGoAPI:
         else:
             market_code = "KQ"
 
-        return_data: Dict[str, str] = {
+        return_data = {
             "item_name": item_name,
             "corp_name": corp_name,
             "item_code": f"{item_code}.{market_code}",
