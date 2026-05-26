@@ -392,24 +392,39 @@ def get_wind_direction(wind_degree: float) -> str:
     return wind_directions[idx]
 
 
-def get_sky_icon(sky_code: str) -> str:
+def get_sky_icon(sky_code: str, pty_code: str) -> str:
     """기상청 API로부터 얻은 하늘 상태 코드에 따른 이모티콘 반환
 
     Args:
-        sky_code (str): 하늘 상태 코드 (0~5: 맑음, 6~8: 구름많음, 9~10: 흐림)
-
+        sky_code (str): 하늘 상태 코드 (1: 맑음, 2: 구름많음, 3: 구름많음, 4: 흐림)
+        pty_code (str): 강수 형태 코드 (없음(0), 비(1), 비/눈(2), 눈(3), 빗방울(5), 빗방울눈날림(6), 눈날림(7))
+    
     Returns:
         str: 하늘 상태에 따른 이모티콘
     """
     if not isinstance(sky_code, int):
         sky_code: int = int(sky_code)
+    if not isinstance(pty_code, int):
+        pty_code: int = int(pty_code)
 
-    if 0 <= sky_code <= 5:
+    if sky_code == 1 and pty_code == 0:
         return "맑음 ☀️"  # 맑음
-    elif 6 <= sky_code <= 8:
+    elif 2 <= sky_code <= 3 and pty_code == 0:
         return "구름많음 ⛅"  # 구름많음
-    elif 9 <= sky_code <= 10:
+    elif 4 <= sky_code and pty_code == 0:
         return "흐림 ☁️"  # 흐림
+    elif pty_code == 1:
+        return "비 🌧️"  # 비
+    elif pty_code == 2:
+        return "진눈깨비 🌨️"  # 비/눈
+    elif pty_code == 3:
+        return "눈 ❄️"  # 눈
+    elif pty_code == 5:
+        return "빗방울 🌦️"  # 빗방울
+    elif pty_code == 6:
+        return "빗눈방울 🌧️❄️"  # 빗방울눈날림
+    elif pty_code == 7:
+        return "눈날림 ❄️"  # 눈날림
     else:
         return f"알수없음 ❓ ({sky_code})"  # 알수없음
 

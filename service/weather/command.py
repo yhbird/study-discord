@@ -202,20 +202,23 @@ async def api_weather(ctx: commands.Context[BumKkiBot], location_name: str) -> N
     after_t2_time_str: str = after_t2_time.strftime("%Y%m%d-%H%M")
 
     # "SKY" : 하늘상태 (0~5: 맑음, 6~8: 구름많음, 9~10: 흐림)
+    fcst_pty: list[dict] = fcst_info.get("PTY", [])
     fcst_sky: list[dict] = fcst_info.get("SKY", [])
     if fcst_sky:
         fcst_sky_text_t1: str = ""
         fcst_sky_text_t2: str = ""
-        for sky in fcst_sky:
+        for sky, pty in zip(fcst_sky, fcst_pty):
             fcst_datetime_str: str = sky.get("fcst_datetime_str")
             # t1/t2 시간 후 예보만 추출
             if fcst_datetime_str == after_t1_time_str:
                 val_sky_t1: str = sky.get("value", "몰라양")
-                imo_sky_t1: str = get_sky_icon(val_sky_t1)
+                val_pty_t1: str = pty.get("value", "몰라양")
+                imo_sky_t1: str = get_sky_icon(val_sky_t1, val_pty_t1)
                 fcst_sky_text_t1: str = f"**하늘 상태**: {imo_sky_t1}\n"
             elif fcst_datetime_str == after_t2_time_str:
                 val_sky_t2: str = sky.get("value", "몰라양")
-                imo_sky_t2: str = get_sky_icon(val_sky_t2)
+                val_pty_t2: str = pty.get("value", "몰라양")
+                imo_sky_t2: str = get_sky_icon(val_sky_t2, val_pty_t2)
                 fcst_sky_text_t2: str = f"**하늘 상태**: {imo_sky_t2}\n"
     else:
         fcst_sky_text_t1: str = ""

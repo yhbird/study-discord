@@ -205,7 +205,7 @@ async def run_stk_us_chart(ctx: commands.Context[BumKkiBot], ticker: str,
 @bot.command(name="한국주식", usage="종목명 또는 종목코드", 
              help="한국 주식 시세를 종목명이나 종목코드를 통해 조회해양. 예: `븜 한국주식 삼성전자` 또는 `븜 한국주식 005930`")
 async def run_stk_kr_price(ctx: commands.Context[BumKkiBot], stock: str):
-    await fin_command.stk_kr_price(ctx, stock)
+    await fin_command.stk_kr_price_v2(ctx, stock)
 
 @bot.command(name="한국차트", usage="종목명 또는 종목코드 기간(1주/1개월/3개월/1년/5년/전체)", 
              help="한국 주식 차트를 종목명이나 종목코드와 기간을 통해 조회해양. 예: `븜 한국차트 삼성전자 1년` 또는 `븜 한국차트 005930 1년`")
