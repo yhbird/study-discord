@@ -47,8 +47,12 @@ class YFI_CURRENCY_NOT_SUPPORT(CurrencyException):
     """지원하지 않는 현지통화 파싱시도"""
     pass
 
-class STK_KRX_SEARCH_ERROR(DataGoAPIError):
+class YFI_INVALID_SYMBOL_SEARCH(DataGoAPIError):
     """한국 주식 코드 검색 오류 예외"""
+    pass
+
+class YFI_KRX_SEARCH_ERROR(DataGoAPIError):
+    """한국 주식 코드 검색 중 API 오류 예외"""
     pass
 
 class STK_KRX_SEARCH_NO_RESULT(DataGoAPIError):

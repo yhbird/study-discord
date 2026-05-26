@@ -10,16 +10,12 @@ from yfinance import Ticker
 from config import STK_DATA_API_KEY, STK_API_HOME
 from service.finance.consts import FinanceConsts, FinanceCurrency
 from service.finance.exceptions import *
-from typing import Dict, List, Literal
+from typing import Dict, Literal, Optional
 
 
 class FinanceUtils:
     def __init__(self):
         pass
-
-    @staticmethod
-    def exchange_krw_rate(from_currency: str) -> float:
-        return exchange_krw_rate(from_currency)
 
     @staticmethod
     def exchange_currency_rate(from_currency: str, to_currency: str = FinanceConsts.SERVICE_CURRENCY) -> float:
@@ -76,6 +72,7 @@ class YahooFinance:
     def __init__(self, ticker: str):
         self.ticker = ticker
         self._stock_info: Dict[str, str | float | int | None] = {}
+        self._stock_hist: pd.DataFrame = pd.DataFrame()
         self._currency_rate: float = 1.0
 
     async def get_stock_info(self):
@@ -132,7 +129,7 @@ class YahooFinance:
         else:
             price = hist["Close"].copy()
 
-        return_df = pd.DataFrame({
+        history_df = pd.DataFrame({
             "Date": hist["Date"] if "Date" in hist.columns else hist.index,
             "Open": hist["Open"],
             "High": hist["High"],
@@ -141,14 +138,16 @@ class YahooFinance:
             "Volume": hist["Volume"],
             "price": price
         })
-        return_df["MA5"] = return_df["price"].rolling(window=5).mean()
-        return_df["MA20"] = return_df["price"].rolling(window=20).mean()
-        return_df["MA60"] = return_df["price"].rolling(window=60).mean()
-        return_df["ChangePct"] = return_df["price"].pct_change() * 100
-        if not isinstance(return_df["Date"].iloc[0], pd.Timestamp):
-            return_df["Date"] = pd.to_datetime(return_df["Date"])
-        return_df.set_index("Date", inplace=True)
-        self._stock_hist = return_df.dropna(how="all")
+        history_df["MA5"] = history_df["price"].rolling(window=5).mean()
+        history_df["MA20"] = history_df["price"].rolling(window=20).mean()
+        history_df["MA60"] = history_df["price"].rolling(window=60).mean()
+        history_df["ChangePct"] = history_df["price"].pct_change() * 100
+        if not isinstance(history_df["Date"].iloc[0], pd.Timestamp):
+            history_df["Date"] = pd.to_datetime(history_df["Date"])
+        history_df.set_index("Date", inplace=True)
+        stock_hist = history_df.dropna(how="all")
+
+        self._stock_hist = stock_hist
 
 
     async def get_currency_rate(self, to_currency: str = FinanceConsts.SERVICE_CURRENCY) -> float:
@@ -179,39 +178,106 @@ class YahooFinance:
     def stock_hist(self):
         return self._stock_hist
 
-def exchange_krw_rate(from_currency: str) -> float:
-    """
-    환율을 검색해서 (KRW)로 변환하는데 도움을 줍니다.
 
-    Args:
-        from_currency (str): 변환할 통화의 코드 (예: 'USD', 'EUR')
-        amount (float): 변환할 금액
+class DataGoAPI:
+    def __init__(self, search_text: str):
+        self.api_key = STK_DATA_API_KEY
+        self.api_home = STK_API_HOME
+        self.search_text = search_text.strip()
+        self.search_ticker: str | None = None
 
-    Returns:
-        float: 변환된 금액 (원화)
 
-    Raises:
-        Exception: 환율 정보를 가져오는 중 오류가 발생한 경우
-    """
-    from_currency = from_currency.strip().upper()
-    if from_currency == 'KRW':
-        return 1
-    else:
-        url = f"https://finance.naver.com/marketindex/exchangeDetail.naver?marketindexCd=FX_{from_currency}KRW"
-        response = requests.get(url)
-        html = BeautifulSoup(response.text, 'html.parser')
+    def data_go_request_handler(self, request_url: str, request_params: Optional[Dict] = None) -> requests.Response:
+        if request_params is None:
+            response = requests.get(request_url)
+        else:
+            response = requests.get(request_url, params=request_params)
 
-    if response.status_code == 200:
-        # 환율 정보를 가져오는 데 성공한 경우
-        options = html.select("select.selectbox-source option")
-        for opt in options:
-            if from_currency in opt.text:
-                rate: float = float(opt.get("value"))
-                return rate
-        raise YFI_NO_RATE_WARNING(f"환율 정보를 찾을 수 없어양: {from_currency}")
-    else:
-        # 환율 정보를 가져오는 데 실패한 경우
-        raise YFI_STOCK_FETCH_RATE(f"환율 정보 통신 중 에러 발생: HTTP {response.status_code}: {response.reason}")
+        if response.status_code == 200:
+            return response
+        else:
+            raise YFI_KRX_SEARCH_ERROR(f"HTTP {response.status_code}: {response.reason}")
+        
+
+    async def search_stock_ticker(self, search_method: Literal['name', 'code']) -> str:
+        """
+        한국주식 종목명을 검색해서 yahoo finance에서 사용할 수 있는 티커 심볼로 변환
+
+        Returns:
+            str: 검색된 티커 심볼 (예: "005930.KS")
+
+        Note:
+            검색 방식은 종목명과 종목코드 두 가지 방식이 있음
+            종목명 검색: search_method='name', search_text='삼성전자'
+            종목코드 검색: search_method='code', search_text='005930'
+            KS = KOSPI, KQ = KOSDAQ
+        """
+
+        # 종목명 검색
+        if search_method == "name":
+            request_url: str = f"{self.api_home}/getItemInfo"
+            request_params: Dict[str, str | int] = {
+                "ServiceKey" : self.api_key,
+                "likeCorpNm" : self.search_text,
+                "numOfRows" : 10,
+            }
+
+        # 종목코드 검색
+        elif search_method == "code":
+            request_url: str = f"{self.api_home}/getItemInfo"
+            request_params: Dict[str, str | int] = {
+                "ServiceKey" : self.api_key,
+                "likeSrtnCd" : self.search_text,
+                "numOfRows" : 10,
+            }
+
+        else:
+            raise YFI_INVALID_SYMBOL_SEARCH("search_method는 'name' 또는 'code'여야 합니다.")
+        
+        try:
+            response_data: requests.Response = await asyncio.to_thread(
+                self.data_go_request_handler, request_url=request_url, request_params=request_params
+            )
+        
+        except YFI_KRX_SEARCH_ERROR as e:
+            raise e
+        
+        # XML Parsing
+        xml_data = BeautifulSoup(response_data.text, 'xml')
+        items = xml_data.find_all("item")
+        found = None
+
+        for item in items:
+            item_name: str = str(item.find("itmsNm").text).strip()
+            item_code: str = str(item.find("srtnCd").text).replace("A", "")
+            corp_name: str = str(item.find("corpNm").text).strip()
+            mrkt_code: str = str(item.find("mrktCtg").text).strip()
+
+            if "홀딩스" in item_name and "홀딩스" not in self.search_text:
+                continue
+
+            found = item
+            break
+
+        # 종목명, 종목코드, 법인명, 거래소 조회
+        if found is None:
+            raise STK_KRX_SEARCH_NO_RESULT(f"검색어 '{self.search_text}'에 대한 결과가 없습니다.")
+
+        if mrkt_code == "KOSPI":
+            market_code = "KS"
+        else:
+            market_code = "KQ"
+
+        return_data: Dict[str, str] = {
+            "item_name": item_name,
+            "corp_name": corp_name,
+            "item_code": f"{item_code}.{market_code}",
+            "market_name": mrkt_code,
+            "market_code": market_code
+        }
+
+        return return_data
+
 
 
 def get_stock_info(ticker: str) -> Dict[str, str | float | int | None]:
@@ -320,11 +386,12 @@ async def get_stock_history(ticker: str, period: str) -> pd.DataFrame:
     return return_df.dropna(how="all")
 
 
-def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, str]:
+def search_krx_stock_info(search_target: str, search_method: Literal['name', 'code']) -> Dict[str, str]:
     """한국 주식 코드를 검색하는 함수
 
     Args:
         search_target (str): 검색할 종목 이름
+        search_method (str): 종목 검색 방식 지정
 
     Returns:
         Dict[str, str]: 검색된 종목 정보 (종목명, 종목코드, 법인명, 거래소 코드)
@@ -334,7 +401,7 @@ def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, s
     """
 
     # 종목명, 종목코드로 검색
-    if serach_method == "name":
+    if search_method == "name":
         request_url = f"{STK_API_HOME}/getItemInfo"
         request_params = {
             "ServiceKey" : STK_DATA_API_KEY,
@@ -342,7 +409,7 @@ def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, s
             "numOfRows" : 10,
         }
 
-    elif serach_method == "code":
+    elif search_method == "code":
         request_url = f"{STK_API_HOME}/getItemInfo"
         request_params = {
             "ServiceKey" : STK_DATA_API_KEY,
@@ -351,7 +418,7 @@ def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, s
         }
 
     else:
-        raise STK_KRX_SEARCH_ERROR("serach_method는 'name' 또는 'code'여야 합니다.")
+        raise YFI_INVALID_SYMBOL_SEARCH("search_method는 'name' 또는 'code'여야 합니다.")
     
     response = requests.get(request_url, params=request_params)
 
@@ -391,7 +458,7 @@ def search_krx_stock_info(search_target: str, serach_method: str) -> Dict[str, s
         }
         return return_data
     else:
-        raise STK_KRX_SEARCH_ERROR(f"HTTP {response.status_code}: {response.reason}")
+        raise YFI_KRX_SEARCH_ERROR(f"HTTP {response.status_code}: {response.reason}")
 
 
 def get_krx_stock_info(stock_info: Dict[str, str]) -> Dict[str, str | float | int | None]:

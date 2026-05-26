@@ -19,8 +19,8 @@ from matplotlib import dates as mdates
 import mplfinance as mpf
 
 from service.finance.consts import FinanceCurrency, FinanceConsts
-from service.finance.utils import YahooFinance, FinanceUtils
-from service.finance.utils import exchange_krw_rate, get_stock_info, get_stock_history
+from service.finance.utils import YahooFinance, FinanceUtils, DataGoAPI
+from service.finance.utils import get_stock_history
 from service.finance.utils import search_krx_stock_info, get_krx_stock_info
 from datetime import datetime
 from pytz import timezone
@@ -60,6 +60,7 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
         stock_currency = stock_info.get("currency")
         volume = stock_info.get("volume_regular")
         volume_avg10d = stock_info.get("volume_average_10d")
+        dividend_yield = stock_info.get("dividend_yield")
         tc_value = stock_info.get("today_close")
         pc_value = stock_info.get("previous_close")
         high_52w = stock_info.get("high_52w")
@@ -117,14 +118,15 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
             f"- **52주 최고가:** {safe_float(high_52w)} {stock_currency}"
             f" {h_52w_krw_text} ({safe_percent(high_52w_pct)})\n"
             f"- **52주 최저가:** {safe_float(low_52w)} {stock_currency}"
-            f" {l_52w_krw_text} ({safe_percent(low_52w_pct)}\n\n"
+            f" {l_52w_krw_text} ({safe_percent(low_52w_pct)})\n\n"
             
             f"- **애널리스트 의견:** {analyst_text}\n"
             f"- **거래량:** {preprocess_int_for_stocks(volume) if volume else '몰라양'} "
-            f"(평균 10일 거래량: {preprocess_int_for_stocks(volume_avg10d) if volume_avg10d else '몰라양'}\n"
+            f"(평균 10일 거래량: {preprocess_int_for_stocks(volume_avg10d) if volume_avg10d else '몰라양'})\n"
             f"- **PSR:** {safe_float(stock_info.get('psr'))}\n"
             f"- **PBR:** {safe_float(stock_info.get('pbr'))}\n"
             f"- **PER:** {safe_float(stock_info.get('per'))}\n"
+            f"- **배당 수익률:** {safe_float(dividend_yield)}\n"
         )
 
         exchange_now = datetime.now(tz=timezone(stock_info.get("timezone"))).strftime("%Y-%m-%d %H:%M:%S")
@@ -274,111 +276,121 @@ async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str,
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 한국주식")
-async def stk_kr_price(ctx: commands.Context[BumKkiBot], search_target: str) -> None:
-    """한국주식 가격을 조회하는 함수
+async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) -> None:
+    """한국주식 가격을 조회하는 함수v2
 
     Args:
         ctx (commands.Context): 디스코드 명령어 컨텍스트
         search_target (str): 검색 대상 (예: 주식 종목 코드 또는 이름)
     """
+    async with ctx.typing():
+        # search_target이 종목 코드인지 이름인지 판단
+        if re.fullmatch(r"\d{6}", search_target):
+            krx_search_method = "code"
+        else:
+            krx_search_method = "name"
 
-    # search_target이 종목 코드인지 이름인지 판단
-    if re.fullmatch(r"\d{6}", search_target):
-        krx_search_method = "code"
-    else:
-        krx_search_method = "name"
+        data_go_api = DataGoAPI(search_text=search_target)
+        try:
+            krx_stock_info: Dict = await data_go_api.search_stock_ticker(krx_search_method)
+            krx_symbol: str = krx_stock_info.get("item_code") or None
+            krx_name: str = krx_stock_info.get("item_name") or search_target
+            krx_corp_name: str = krx_stock_info.get("corp_name") or search_target
+            krx_market_code: str = krx_stock_info.get("market_code") or "N/A"
+            krx_market_name: str = krx_stock_info.get("market_name") or "N/A"
 
-    try:
-        krx_stock_info: Dict[str, str] = search_krx_stock_info(search_target, krx_search_method)
-    except STK_KRX_SEARCH_ERROR as e:
-        await ctx.send(f"한국 주식({search_target}) 종목정보 확인에 실패했어양!")
+        except STK_KRX_SEARCH_NO_RESULT as e:
+            await ctx.send(f"한국 주식({search_target}) 종목정보를 찾을 수 없어양!")
+            raise CommandFailure(str(e))
+        
+        except YFI_KRX_SEARCH_ERROR as e:
+            await ctx.send(f"한국 주식({search_target}) 종목정보 확인에 실패했어양!")
+            raise CommandFailure(str(e))
+        
+        if not krx_symbol:
+            err_msg = f"한국 주식({search_target}) 종목정보를 찾을 수 없어양!"
+            await ctx.send(err_msg)
+            raise CommandFailure(err_msg)
+        
+        else:
+            stock = YahooFinance(krx_symbol)
+
+        try:
+            await stock.get_stock_info()
+
+        except YFI_NO_TICKER as e:
+            await ctx.send(str(e))
+            raise CommandFailure(f"YFI_NO_TICKER : {search_target}")
+
+        stock_info = stock.stock_info
+        stock_currency = stock_info.get("currency")
+        volume = stock_info.get("volume_regular")
+        volume_avg10d = stock_info.get("volume_average_10d")
+        dividend_yield = stock_info.get("dividend_yield")
+        tc_value = stock_info.get("today_close")
+        pc_value = stock_info.get("previous_close")
+        high_52w = stock_info.get("high_52w")
+        high_52w_pct = stock_info.get("high_52w_pct")
+        low_52w = stock_info.get("low_52w")
+        low_52w_pct = stock_info.get("low_52w_pct")
+        analyst_score = stock_info.get("analyst_score") or "몰라양"
+        analyst_score_category = stock_info.get("analyst_score_category") or "의견이 없어양"
+        analyst_text = f"{analyst_score_category.replace('_', ' ').upper()} ({analyst_score})"
+
+        pc_krw_text = ""
+        tc_krw_text = ""
+        h_52w_krw_text = ""
+        l_52w_krw_text = ""
+        exchange_info_text = ""
+
+        change_pct: float = ((tc_value - pc_value) / pc_value) * 100
+        market_cap: int | None = stock_info.get("market_cap")
+        market_cap_text: str = "시가총액 정보가 없어양"
+        if market_cap:
+            market_cap_text: str = (
+                f"주식 시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}"
+            )
+
+        embed_title = f"{krx_corp_name or '몰라양'} ({krx_symbol or '몰라양'})"
+        embed_desc = (
+            f"거래소: {krx_market_name}\n"
+            f"산업: {stock_info.get('industry') or '몰라양'}\n"
+            f"섹터: {stock_info.get('sector') or '몰라양'}\n"
+            f"{market_cap_text}\n\n"
+            f"- **이전 종가:** {str(pc_value)} {stock_currency} {pc_krw_text}\n"
+            f"- **현재 가격:** {str(tc_value)} {stock_currency} {tc_krw_text}\n"
+            f"- **변동률(%):** {change_pct:.2f} %\n\n"
+            
+            f"- **52주 최고가:** {str(high_52w)} {stock_currency}"
+            f" {h_52w_krw_text} ({safe_percent(high_52w_pct)})\n"
+            f"- **52주 최저가:** {str(low_52w)} {stock_currency}"
+            f" {l_52w_krw_text} ({safe_percent(low_52w_pct)})\n\n"
+            
+            f"- **애널리스트 의견:** {analyst_text}\n"
+            f"- **거래량:** {preprocess_int_for_stocks(volume) if volume else '몰라양'} "
+            f"(평균 10일 거래량: {preprocess_int_for_stocks(volume_avg10d) if volume_avg10d else '몰라양'})\n"
+            f"- **PSR:** {safe_float(stock_info.get('psr'))}\n"
+            f"- **PBR:** {safe_float(stock_info.get('pbr'))}\n"
+            f"- **PER:** {safe_float(stock_info.get('per'))}\n"
+            f"- **배당 수익률:** {safe_float(dividend_yield)}\n"
+        )
+
+        exchange_now = datetime.now(tz=timezone(stock_info.get("timezone"))).strftime("%Y-%m-%d %H:%M:%S")
+        footer_text = (
+            f"{exchange_info_text}\n"
+            f"현재 시간: {exchange_now} ({stock_info.get('timezone_short')})\n"
+            "정보 제공: Yahoo Finance API (최대 15분 지연 발생 가능)\n"
+        )
+        stock_embed = discord.Embed(
+            title=embed_title,
+            description=embed_desc,
+            color=discord.Color.green()
+        )
+        stock_embed.set_footer(text=footer_text)
+        context_text: str = f"[한국주식] 현재 {krx_name} 주식의 시세 현황을 알려 드려양!"
+        await ctx.send(embed=stock_embed, content=context_text)
         return
     
-    except STK_KRX_SEARCH_NO_RESULT as e:
-        await ctx.send(f"한국 주식({search_target}) 종목정보를 찾을 수 없어양!")
-        return
-    
-    except Exception as e:
-        await ctx.send(f"알 수 없는 오류로 인해 한국 주식({search_target}) 종목정보를 확인하는데 실패했어양!")
-        return
-    
-    # 종목 코드로 주식 정보 조회
-    try:
-        stock_info: Dict[str, str | float | int | None] = get_krx_stock_info(krx_stock_info)
-    
-    except YFI_NO_TICKER:
-        await ctx.send(f"Yahoo finance에 해당하는 한국주식 정보가 없어양!")
-        return
-    
-    except Exception as e:
-        await ctx.send(f"알 수 없는 오류로 인해 한국 주식({search_target}) 정보를 생성하는데 실패했어양!")
-        return
-    
-    # 응답 메시지 생성
-    stock_exchange: str | Literal["몰라양"] = stock_info.get("exchange") or "몰라양"
-    stock_sector: str | Literal["몰라양"] = stock_info.get("sector") or "몰라양"
-    stock_name: str | Literal["몰라양"] = stock_info.get("short_name") or "몰라양"
-    stock_ticker: str | Literal["몰라양"] = stock_info.get("symbol") or "몰라양"
-    regular_volume: int = stock_info.get("volume_regular") or 0
-    average_10d_volume: int = stock_info.get("volume_average_10d") or 0
-    dividend_yield: float = stock_info.get("dividend_yield") or 0.0
-    psr: float = stock_info.get("psr") or 0.0
-    stock_currency: str | Literal["USD"] = stock_info.get("currency") or "USD"
-    previous_close: float = stock_info.get("previous_close") or 0.0
-    today_close: float = stock_info.get("today_close") or 0.0
-    high_52w: float = stock_info.get("high_52w") or 0.0
-    high_52w_change_pct: float = stock_info.get("high_52w_pct") or 0.0
-    low_52w: float = stock_info.get("low_52w") or 0.0
-    low_52w_change_pct: float = stock_info.get("low_52w_pct") or 0.0
-    stock_timezone: str | Literal["America/New_York"] = stock_info.get("timezone") or "America/New_York"
-    stock_timezone_short: str | Literal["EST"] = stock_info.get("timezone_short") or "EST"
-    market_cap: str | Literal["몰라양"] = stock_info.get("market_cap") or "몰라양"
-    analyst_rate_opinion: str | Literal["몰라양"] = stock_info.get("recommend_key") or "몰라양"
-    analyst_rate_score: float | None = stock_info.get("recommend_mean")
-
-
-    # 가장 최근 거래일의 종가를 가져옵니다.
-    content_text: str = f"[한국주식] 현재 주식 시세를 알려 드려양!!"
-    stock_time = datetime.now(tz=timezone(stock_timezone)).strftime("%Y-%m-%d %H:%M:%S")
-    change_pct: float = ((today_close - previous_close) / previous_close) * 100
-    market_cap_text: str = f"시가총액: {preprocess_int_with_korean(market_cap)} {stock_currency}" if market_cap != '몰라양' else "시가총액 정보 없음"
-    analyst_rate_opinion_text: str = (
-        f"{analyst_rate_opinion.replace('_', ' ').upper()} ({analyst_rate_score})"
-        if analyst_rate_opinion != '몰라양' and analyst_rate_score is not None
-        else "의견이 없어양"
-    )
-
-    # KRW의 소수점을 없애기
-    previous_close = int(previous_close)
-    today_close = int(today_close)
-    high_52w = int(high_52w)
-    low_52w = int(low_52w)
-    stk_us_info = (
-        f"거래소: {stock_exchange}\n섹터: {stock_sector}\n{market_cap_text}\n\n"
-        f"- **이전 종가:** {str(previous_close)} {stock_currency} \n"
-        f"- **현재 가격:** {str(today_close)} {stock_currency} \n"
-        f"- **변동률:** {change_pct:.2f} %\n\n"
-        f"- **52주 최고가:** {str(high_52w)} {stock_currency} ({safe_percent(high_52w_change_pct)})\n"
-        f"- **52주 최저가:** {str(low_52w)} {stock_currency} ({safe_percent(low_52w_change_pct)})\n\n"
-        f"- **거래량:** {preprocess_int_for_stocks(regular_volume)} (평균 10일 거래량: {preprocess_int_for_stocks(average_10d_volume)})\n"
-        f"- **애널리스트 의견:** {analyst_rate_opinion_text}\n"
-        f"- **배당수익률:** {safe_float(dividend_yield)}%\n"
-        f"- **PSR:** {safe_float(psr)}\n"
-    )
-    footer_text = (
-        f"\n"
-        f"현지 시간: {stock_time} ({stock_timezone_short})\n"
-        f"정보 제공: yahoo finance API (최대 15분 지연)\n"
-    )
-    stock_embed = discord.Embed(
-        title=f"{stock_name} ({stock_ticker})",
-        description=stk_us_info,
-        color=discord.Color.green()
-    )
-    stock_embed.set_footer(text=footer_text)
-    await ctx.send(embed=stock_embed, content=content_text)
-    return
-
 
 @with_timeout(COMMAND_TIMEOUT)
 @log_command(alt_func_name="븜 한국차트")
@@ -422,7 +434,7 @@ async def stk_kr_chart(
 
     try:
         krx_stock_info: Dict[str, str] = search_krx_stock_info(search_target, krx_search_method)
-    except STK_KRX_SEARCH_ERROR as e:
+    except YFI_KRX_SEARCH_ERROR as e:
         await ctx.send(f"한국 주식({search_target}) 종목정보를 불러오는데 실패했어양!")
         return
     
@@ -457,7 +469,7 @@ async def stk_kr_chart(
         buffer.seek(0)
         now_kst: str = datetime.now(timezone('Asia/Seoul')).strftime("%Y%m%d_%H%M%S")
         file = discord.File(buffer, filename=f"{search_ticker}_{now_kst}.png")
-        await ctx.send(content=f"[미국주식] {stock_name}의 {period} 차트에양!", file=file)
+        await ctx.send(content=f"[한국주식] {stock_name}의 {period} 차트에양!", file=file)
         buffer.close()
         return
 
@@ -497,6 +509,19 @@ async def stk_kr_chart(
         await ctx.send(content=f"[한국주식] {stock_name}의 {period} 차트에양!", file=file)
         buffer.close()
         return
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 한국차트")
+async def stk_kr_chart_v2(ctx: commands.Context[BumKkiBot], search_target: str,
+                          period: Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"] = "1주") -> None:
+    """한국주식의 시세흐름을 차트로 표현합니다. (기본 1주일)
+
+    Args:
+        ctx (commands.Context): 디스코드 명령어 컨텍스트
+        search_target (str): 검색 대상 (예: 주식 종목 코드 또는 이름)
+        period (Literal["1주", "1개월", "3개월", "6개월", "1년", "5년", "전체"]): 기간. Defaults to "1주".
+    """
 
 
 @with_timeout(COMMAND_TIMEOUT)
