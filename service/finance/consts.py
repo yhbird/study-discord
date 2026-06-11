@@ -1,5 +1,6 @@
 class FinanceConsts:
     SERVICE_CURRENCY = "KRW"
+    SERVICE_CURRENCY_KO = "원"
     SERVICE_TIMEZONE = "Asia/Seoul"
     SERVICE_TIMEZONE_SHORT = "KST"
     HISTORY_PERIOD_MAPPING = {
@@ -13,7 +14,11 @@ class FinanceConsts:
     }
     HISTORY_PERIOD_SHORT = ["7d", "1mo"]
     HISTORY_PERIOD_LONG = ["3mo", "6mo", "1y", "5y", "max"]
-
+    # 면책사항 및 주의사항 footer
+    BASIC_FOOTER_TEXT = (
+        "정보 제공: Yahoo Finance (최대 15분 지연 발생 가능)\n"
+        "해당 모든 주식 정보는 참고용이며 투자 판단의 근거가 아닙니다."
+    )
 class FinanceCurrency:
     SERVICE_CURRENCY = FinanceConsts.SERVICE_CURRENCY
 
@@ -41,8 +46,15 @@ class FinanceCurrency:
         # 영국 파운드 (GBP)
         "파운드": "GBP", "영국": "GBP", "GBP": "GBP", "£": "GBP",
         # 캐나다 달러 (CAD)
-        "캐나다": "CAD", "캐나다달러": "CAD", "CAD": "CAD", "C$": "CAD"
+        "캐나다": "CAD", "캐나다달러": "CAD", "CAD": "CAD", "C$": "CAD",
+        # 홍콩 달러
+        "홍콩": "HKD", "홍콩달러": "HKD", "HKD": "HKD",
+        # 인도 루피 (INR)
+        "인도": "INR", "인도루피": "INR", "INR": "INR",
     }
+
+    # 100단위로 표시해도 되는 통화 목록 100JPY = 945KRW
+    CURRENCY_AMOUNT_100 = ["JPY", "INR"]
 
     CURRENCY_NAME_MAP = {
         "USD": "미국 달러",
@@ -50,7 +62,9 @@ class FinanceCurrency:
         "GBP": "영국 파운드화",
         "JPY": "일본 엔화",
         "CNY": "중국 위안화",
-        "CAD": "캐나다 달러"
+        "CAD": "캐나다 달러",
+        "HKD": "홍콩 달러",
+        "INR": "인도 루피",
     }
 
     CURRENCY_SOURCE_INFO = (
@@ -71,13 +85,15 @@ class FinanceCurrency:
         "\n--- 환율안내 ---\n"
         "환율 정보 제공: Yahoo Finance {ticker}\n"
         "기준 환율: {base_amount} {source} -> {target:.2f} {service}\n"
-        "매매기준 금액에 환전 수수료 1%, 해외 카드 결제 수수료 2.3% 기준 예상금액이며\n"
-        "세금, 관세, 카드사 결제 수수료 및 혜택에 따라 최종 가격이 다를 수 있어양."
+        "기준 수수료: 환전 수수료 1%, 해외카드 결제 수수료 2.3%\n"
+        "세금, 관세, 카드사 수수료 혜택에 따라 가격이 다를 수 있어양."
+        "\n모든 환율 정보는 참고용이며 투자 판단의 근거가 아닙니다."
     )
 
     CURRENCY_NOTICE_ALT = (
         "\n--- 환율안내 ---\n"
-        "환율 정보 제공: Yahoo Finance \n"
+        "환율 정보 제공: Yahoo Finance (최대 15분 지연 가능)\n"
         "제시된 환율은 매매기준 기준 예상금액이며\n"
         "세금, 거래 은행 우대 환율에 따라서 가격이 다를 수 있어양."
+        "\n모든 환율 정보는 참고용이며 투자 판단의 근거가 아닙니다."
     )

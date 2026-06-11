@@ -130,7 +130,7 @@ async def stk_us_price_v2(ctx: commands.Context[BumKkiBot], search_ticker: str) 
             f"{exchange_info_text}\n"
             f"현지 시간: {exchange_now} ({stock_info.get('timezone_short')})\n"
             f"현재 시간: {kst_now} ({service_timezone_short})\n"
-            "정보 제공: Yahoo Finance API (최대 15분 지연 발생 가능)\n"
+            f"{FinanceConsts.BASIC_FOOTER_TEXT}"
         )
         stock_embed = discord.Embed(
             title=embed_title,
@@ -191,13 +191,13 @@ async def stk_us_chart_v2(ctx: commands.Context[BumKkiBot], search_ticker: str, 
         tc_value = stock_info.get("today_close")
         stock_currency = stock_info.get("currency")
         content_text: str = (
-            f"[미국주식] {stock_name}의 {period} 차트에양!\n"
+            f"[미국주식] {stock_name}의 {period} 차트에양! (가격: 종가 기준)\n"
             f"- **현재 가격:** {safe_float(tc_value)} {stock_currency}\n"
             f"- **PSR:** {safe_float(stock_info.get('psr'))}\n"
             f"- **PBR:** {safe_float(stock_info.get('pbr'))}\n"
             f"- **PER:** {safe_float(stock_info.get('per'))}\n"
-            f"정보 제공: Yahoo Finance API (종가 기준)\n"
-            f"현재 시간: {service_datetime_str}"
+            f"현재 시간: {service_datetime_str}\n"
+            f"{FinanceConsts.BASIC_FOOTER_TEXT}"
         )
         if validated_period in FinanceConsts.HISTORY_PERIOD_SHORT:
             family = set_up_matplotlib_korean("assets/font/Maplestory_Bold.ttf")
@@ -374,7 +374,7 @@ async def stk_kr_price_v2(ctx: commands.Context[BumKkiBot], search_target: str) 
         footer_text = (
             f"{exchange_info_text}\n"
             f"현재 시간: {exchange_now} ({stock_info.get('timezone_short')})\n"
-            "정보 제공: Yahoo Finance API (최대 15분 지연 발생 가능)\n"
+            f"{FinanceConsts.BASIC_FOOTER_TEXT}"
         )
         stock_embed = discord.Embed(
             title=embed_title,
@@ -456,12 +456,12 @@ async def stk_kr_chart_v2(ctx: commands.Context[BumKkiBot], search_target: str, 
             )
             content_text: str = (
                 f"[한국주식] {stock_name}의 {period} 차트를 보여드릴게양!\n"
-                f"- **현재 가격:** {int(tc_value):,} KRW\n"
+                f"- **현재 가격:** {int(tc_value):,} KRW (종가 기준)\n"
                 f"- **PSR:** {safe_float(stock_info.get('psr'))}\n"
                 f"- **PBR:** {safe_float(stock_info.get('pbr'))}\n"
                 f"- **PER:** {safe_float(stock_info.get('per'))}\n"
-                f"정보 제공: Yahoo Finance API (종가 기준)\n"
-                f"현재 시간: {service_datetime_str}"
+                f"현재 시간: {service_datetime_str}\n"
+                f"{FinanceConsts.BASIC_FOOTER_TEXT}"
             )
 
             # 짧은 기간의 차트 생성 요청 -> 버블차트 생성
@@ -551,16 +551,19 @@ async def get_concurrency(ctx: commands.Context[BumKkiBot], text: str | None) ->
         text: KRW으로 환산하기 위한 현지 통화 입력 (미입력시 CURRENCY_CODE_MAP에 모든 환율 출력)
     """
     service_currency = FinanceConsts.SERVICE_CURRENCY
+    service_currency_name = FinanceConsts.SERVICE_CURRENCY_KO
     async with ctx.typing():
+        #사용자가 "븜 환율" 명령어를 입력한 경우
         if text is None:
             currency_map = FinanceCurrency.CURRENCY_NAME_MAP
-            tip_msg = "참고: `븜 환율 100달러` 으로 입력하면 총 얼마인지 알려줘양!"
+            tip_msg = "참고: `븜 환율 100달러` 으로 입력하면 예상 금액을 알려줘양!"
             currency_list = currency_map.keys()
-            embed_title = "[환율] 현재 환율 상황을 알려드려양!"
+            embed_title = "[환율] 현재 환율 가격을 알려드려양!"
             currency_text = []
             for currency_code in currency_list:
                 currency_rate = FinanceUtils.exchange_currency_rate(currency_code, service_currency)
-                base_amount = 100 if currency_code in ["JPY"] else 1
+                flag_100: bool = (currency_code in FinanceCurrency.CURRENCY_AMOUNT_100) or (currency_rate <= 15)
+                base_amount: Literal[1, 100] = 100 if flag_100 else 1
                 text = (f"{currency_map.get(currency_code)}: {base_amount} {currency_code} "
                         f"-> {safe_float(base_amount * currency_rate)} {service_currency}\n")
                 currency_text.append(text)
@@ -572,23 +575,27 @@ async def get_concurrency(ctx: commands.Context[BumKkiBot], text: str | None) ->
             )
             footer_text = FinanceCurrency.CURRENCY_NOTICE_ALT
             currency_embed.set_footer(text=footer_text)
-            await ctx.send(embed=currency_embed, content=tip_msg)
+            await ctx.send(embed=currency_embed, content=tip_msg, reference=ctx.message)
             return
+        #사용자가 "븜 환율 NNN{화폐단위}" 명령어를 입력한 경우
         else:
             parsed_amount, parsed_currency = FinanceUtils.parse_currency_code(text)
             currency_rate = FinanceUtils.exchange_currency_rate(parsed_currency, service_currency)
-            base_amount: Literal[1, 100] = 100 if parsed_currency in ["JPY"] else 1
+            flag_100: bool = (parsed_currency in FinanceCurrency.CURRENCY_AMOUNT_100) or (currency_rate <= 15)
+            base_amount: Literal[1, 100] = 100 if flag_100 else 1
             source_ticker = f"({parsed_currency}/{service_currency})"
             target_amount = parsed_amount * currency_rate
             # 매매기준 + 카드결제 예상 수수료 추가
             transfer_rate = currency_rate * (1 + FinanceCurrency.CURRENCY_TRANSFER_FEE)
             transfer_amount = parsed_amount * transfer_rate
             total_amount = transfer_amount * (1 + FinanceCurrency.CARD_FEE_MARGIN)
-            tip_msg = "참고: `븜 환율`으로 입력하면 지원하는 화폐 단위의 환율을 모두 알려줘양!"
+            tip_msg = "참고: `븜 환율`으로 입력하면 현재 븜미가 알려줄 수 있는 환율들을 모두 알려줘양!"
             embed_title = f"[환율] {parsed_amount} {parsed_currency} 환율 계산 결과에양!"
             embed_text = (f"{parsed_amount} {parsed_currency} = {safe_float(target_amount)} {service_currency}\n"
-                          f"예상 최종 가격 (환전, 해외 결제 수수료): "
-                          f"{safe_float(total_amount,2)} {service_currency}\n")
+                          f"({preprocess_int_with_korean(int(target_amount))} {service_currency_name})\n\n"
+                          f"수수료를 고려한 예상 가격\n"
+                          f"{safe_float(total_amount,2)} {service_currency}\n"
+                          f"({preprocess_int_with_korean(int(total_amount))} {service_currency_name})")
             embed = discord.Embed(
                 title=embed_title,
                 description=embed_text,
@@ -602,7 +609,7 @@ async def get_concurrency(ctx: commands.Context[BumKkiBot], text: str | None) ->
                 service=service_currency
             )
             embed.set_footer(text=footer_text)
-            await ctx.send(embed=embed, content=tip_msg)
+            await ctx.send(embed=embed, content=tip_msg, reference=ctx.message)
             return
 
 # 테스트 코드
