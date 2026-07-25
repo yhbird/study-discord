@@ -17,12 +17,17 @@ from discord.ui import View, Button
 from pytz import timezone
 from PIL import Image, ImageDraw, ImageFont, ImageOps, UnidentifiedImageError
 
-from service.maplestory.consts import MapleEquipmentViewerConfig, MapleCodiHistoryConfig
+from service.maplestory.consts import (
+    MapleEquipmentViewerConfig, MapleCodiHistoryConfig, NEXON_API_RPS_LIMIT,
+    MapleStoryVars, MaplestoryUrls)
+
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
-from config import NEXON_API_RPS_LIMIT, NEXON_CHARACTER_IMAGE_URL # Nexon Open API Rate Limit 방지용 시간 간격
+
 from data.json.fortune_message_table import fortune_message_table_raw
 
-from exceptions.client_exceptions import *
+# exception
+from common_exceptions.client_exceptions import *
+from service.maplestory.exceptions import (MapleSchedulerNotRegistered)
 from common.image import ImageTools, ImageBaseConfig
 from common.time import parse_iso_string
 from common.image import convert_image_url_into_bytes
@@ -30,20 +35,6 @@ from common.image import convert_image_url_into_bytes
 from typing import Literal, Optional, Dict, List, Tuple, Any
 
 API_MAX_DATE_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
-
-
-class MaplestoryUrls:
-    OCID = "/maplestory/v1/id"
-    POP = "/maplestory/v1/character/popularity"
-    ABILITY = "/maplestory/v1/character/ability"
-    NOTICE = "/maplestory/v1/notice-event"
-    NOTICE_DETAIL = "/maplestory/v1/notice-event/detail"
-    BASIC_INFO = "/maplestory/v1/character/basic"
-    STAT_INFO = "/maplestory/v1/character/stat"
-    ITEM_EQUIPMENT = "/maplestory/v1/character/item-equipment"
-    CASH_EQUIPMENT = "/maplestory/v1/character/cashitem-equipment"
-    BEAUTY_EQUIPMENT = "/maplestory/v1/character/beauty-equipment"
-    CHARACTER_IMAGE_URL = NEXON_CHARACTER_IMAGE_URL
 
 
 class CordinateVars:
@@ -980,8 +971,8 @@ async def get_basic_info(ocid: str, date_param: Optional[str] = None) -> Optiona
 
         # basic info 10. 캐릭터 최근 7일 이내 접속 여부 (flag)
         character_access_flag: bool | Literal["알수없음"]  = (
-            str(response_data.get('character_access_flag')).strip()
-            if response_data.get('character_access_flag') is not None
+            str(response_data.get('access_flag')).strip()
+            if response_data.get('access_flag') is not None
             else "알수없음"
         )
 
@@ -1869,15 +1860,91 @@ def parse_distribution_meso(reward: str) -> int:
 
         party_reward = total_reward
         return party_reward
+    
+
+async def get_maple_scheduler_info(character_ocid: str) -> Dict[str, Any]:
+    """
+    메이플스토리 캐릭터의 스케줄러 정보 조회
+
+    Args:
+        character_ocid (str): 캐릭터 OCID
+
+    Returns:
+        Dict[str, Any]: 캐릭터 스케줄러 정보
+    """
+
+    def _parse_scheduler_info(contents: List[Dict[str, str | int | None]] | None) -> Dict[str, Any] | None:
+        """
+        일일, 주간, 보스 컨텐츠에서 등록된 컨텐츠만 적재하는 함수
+
+        Args:
+            contents: 전처리를 하기 위한 컨텐츠 종류 (일일, 주간, 보스 컨텐츠)
+
+        Returns:
+            Dict: 등록한 메이플 스케줄 컨텐츠 완료상황
+        """
+        if not contents:
+            return None
+
+        parsed_contents: Dict[str, Any] = {}
+        for content in contents:
+            registration_flag = str(content.get("registration_flag")).strip().lower()
+            if registration_flag == "true":
+                content_name = content.get("content_name")
+                if content_type := content.get("type"):
+                    parsed_contents[str(content_name).strip()] = {
+                        "type": content_type,
+                        "count": content.get("now_count"),
+                        "limit": content.get("max_count"),
+                        "quest_state": content.get("quest_state"),
+                    }
+                else:
+                    # boss content
+                    boss_difficulty = MapleStoryVars.DIFFICULT_MAP.get(
+                        str(content.get("difficulty")).strip().lower(),""
+                    )
+                    boss_content_name = f'{boss_difficulty} {content_name}'.strip()
+                    parsed_contents[boss_content_name] = {
+                        "list_order_no": content.get("list_order_no"),
+                        "cycle": content.get("cycle"),
+                        "complete_flag": content.get("complete_flag"),
+                    }
+            else:
+                continue
+        return parsed_contents
+
+    service_url = MaplestoryUrls.MAPLE_SCHEDULER
+    request_url = f"{NEXON_API_HOME}{service_url}?ocid={character_ocid}"
+    response_data: dict = await general_request_handler_nexon(request_url)
+
+    daily_schedule: List[Dict[str, str | int | None]] = response_data.get("daily_contents", [])
+    weekly_schedule: List[Dict[str, str | int | None]] = response_data.get("weekly_contents", [])
+    boss_schedule: List[Dict[str, str | int | None]] = response_data.get("boss_contents", [])
+
+    if not (daily_schedule or weekly_schedule or boss_schedule):
+        raise MapleSchedulerNotRegistered(f"No Schedule registered for character (OCID: {character_ocid})")
+
+    schedule_info: Dict[str, Any] = {
+        "character_name": response_data.get("character_name"),
+        "character_world": response_data.get("world_name"),
+        "character_level": response_data.get("character_level"),
+        "character_class": response_data.get("character_class"),
+        "weekly_boss_clear_count": response_data.get("weekly_boss_clear_count"),
+        "weekly_boss_clear_limit": response_data.get("weekly_boss_clear_limit_count"),
+        "daily_contents": _parse_scheduler_info(daily_schedule),
+        "weekly_contents": _parse_scheduler_info(weekly_schedule),
+        "boss_contents": _parse_scheduler_info(boss_schedule),
+    }
+    return schedule_info
 
 
 # 테스트 코드 실행
 def main():
     import os
-    test_api_key: str = os.environ.get("NEXON_API_TOKEN_TEST")
+    test_api_key: str = os.environ.get("NEXON_API_TOKEN_LIVE")
     test_ocid: str = os.environ.get("NEXON_API_DEBUG_OCID")
 
-    test_item_equipment_info = asyncio.run(get_item_equipment_info(test_ocid))
+    scheduler = get_maple_scheduler_info(test_ocid)
     print(test_api_key, test_ocid)
 
 if __name__ == "__main__":

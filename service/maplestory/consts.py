@@ -1,6 +1,50 @@
 from typing import Tuple, Dict
 
 from common.image import ImageBaseConfig
+from config import NEXON_CHARACTER_IMAGE_URL # Nexon Open API Rate Limit 방지용 시간 간격
+
+NEXON_API_RPS_LIMIT = 5
+
+class MapleStoryVars:
+    DIFFICULT_MAP = {
+        "easy"   : "이지",
+        "normal" : "노말",
+        "hard"   : "하드",
+        "chaos"  : "카오스",
+        "extreme": "익스트림",
+    }
+    QUEST_STATE_MAP = {
+        "0" : "미진행",
+        "1" : "퀘스트 진행중",
+        "2" : "퀘스트 완료",
+    }
+    CONTENT_COUNT_UNIT = {
+        "tower"  : "층",
+        "score"  : "점",
+        "point" : "pt",
+        "stage" : "스테이지"
+    }
+    CONTENT_CYCLE_MAP = {
+        "bossDaily"  : "[일일]",
+        "bossWeekly" : "[주간]",
+        "bossMonthly": "[월간]",
+
+    }
+
+class MaplestoryUrls:
+    OCID = "/maplestory/v1/id"
+    POP = "/maplestory/v1/character/popularity"
+    ABILITY = "/maplestory/v1/character/ability"
+    NOTICE = "/maplestory/v1/notice-event"
+    NOTICE_DETAIL = "/maplestory/v1/notice-event/detail"
+    BASIC_INFO = "/maplestory/v1/character/basic"
+    STAT_INFO = "/maplestory/v1/character/stat"
+    ITEM_EQUIPMENT = "/maplestory/v1/character/item-equipment"
+    CASH_EQUIPMENT = "/maplestory/v1/character/cashitem-equipment"
+    BEAUTY_EQUIPMENT = "/maplestory/v1/character/beauty-equipment"
+    MAPLE_SCHEDULER = "/maplestory/v1/scheduler/character-state"
+    CHARACTER_IMAGE_URL = NEXON_CHARACTER_IMAGE_URL
+
 
 class MapleCodiHistoryConfig(ImageBaseConfig):
     """코디 히스토리 이미지 처리에 필요한 설정 클래스"""

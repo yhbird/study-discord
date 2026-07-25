@@ -172,6 +172,10 @@ async def run_api_maple_cordinate_history(ctx: commands.Context[BumKkiBot], char
 async def run_api_maple_party_reward(ctx: commands.Context[BumKkiBot], amount: str):
     await map_command.maple_party_reward(ctx, amount)
 
+@bot.command(name="메할일", usage="캐릭터명", help="메이플스토리 캐릭터의 등록된 스케줄을 조회해양 (주의:일일퀘스트는 게임에 한번 접속해야 보여양")
+async def run_api_maple_scheduler(ctx: commands.Context[BumKkiBot], character_name: str):
+    await map_command.maple_scheduler(ctx, character_name)
+
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")
 async def run_api_dnf_characters(ctx: commands.Context[BumKkiBot], server_name: str, character_name: str):

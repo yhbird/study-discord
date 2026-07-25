@@ -1,5 +1,5 @@
 """
-exceptions/client_exceptions.py
+common_exceptions/client_exceptions.py
 
 API 관련 예외 처리 모듈
 

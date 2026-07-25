@@ -719,8 +719,8 @@ async def maple_ability_info(ctx: commands.Context[BumKkiBot], character_name: s
 
         character_name: str = basic_info.get('character_name', character_name)
         character_world: str = (
-            str(basic_info.get('world_name')).strip()
-            if basic_info.get('world_name') is not None else '모르는'
+            str(basic_info.get('character_world')).strip()
+            if basic_info.get('character_world') is not None else '모르는'
         )
 
     except NexonAPICharacterNotFound:
@@ -1487,19 +1487,19 @@ async def maple_cordinate_history(ctx: commands.Context[BumKkiBot], character_na
         search_end = character_date_create
     )
     if not cordinate_collections or len(cordinate_collections) == 0:
-        await ctx.send(f"캐릭터 '{character_name}'의 코디 컬렉션 정보를 찾을 수 없어양!")
+        await ctx.reply(f"캐릭터 '{character_name}'의 코디 컬렉션 정보를 찾을 수 없어양!")
         return
     
     collection_title: str = f"{character_world}월드 '{character_name}' 용사님의 코디 컬렉션"
     cordinate_collections_image: io.BytesIO = await generate_cordinate_collection_image(cordinate_collections, collection_title)
 
     if cordinate_collections_image is None:
-        await ctx.send(f"캐릭터 '{character_name}'의 코디 컬렉션 이미지 생성에 실패했어양!")
+        await ctx.reply(f"캐릭터 '{character_name}'의 코디 컬렉션 이미지 생성에 실패했어양!")
         return
     else:
         now_kst: str = datetime.now(tz=timezone("Asia/Seoul")).strftime("%Y%m%d")
         file = discord.File(cordinate_collections_image, filename=f"{character_ocid}_cordinate_{now_kst}.png")
-        await ctx.send(content=f"캐릭터 생성일: {content_create_date}", file=file)
+        await ctx.reply(content=f"캐릭터 생성일: {content_create_date}", file=file)
         cordinate_collections_image.close()
 
 
@@ -1681,3 +1681,157 @@ async def maple_party_reward(ctx:commands.Context, reward:str) -> None:
 
     dist_view = DistributeView(distribution_data=dist_map)
     await ctx.send(embed=embed, view=dist_view)
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 메할일")
+async def maple_scheduler(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
+    """
+    메이플스토리 캐릭터의 메이플 할 일(메할일) 조회 기능
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 메이플스토리 캐릭터 이름
+    """
+    if ctx.message.author.bot:
+        return
+
+    async with ctx.typing():
+        # 캐릭터 OCID 조회
+        try:
+            character_ocid: str = await ocid_resolver.resolve(character_name)
+        except NexonAPICharacterNotFound:
+            await ctx.send(f"캐릭터 '{character_name}'가 존재하지 않거나 찾을 수 없어양!")
+            raise CommandFailure("Character not found")
+        except NexonAPIBadRequest:
+            await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
+            raise CommandFailure(f"Character '{character_name}' not found")
+        except NexonAPIForbidden:
+            await ctx.send("Nexon Open API 접근 권한이 없어양!")
+            raise CommandFailure("Forbidden access to API")
+        except NexonAPITooManyRequests:
+            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
+            raise CommandFailure("Too many requests to API")
+        except NexonAPIServiceUnavailable:
+            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
+            raise CommandFailure("Nexon Open API Service unavailable")
+        except NexonAPIOCIDNotFound:
+            await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
+            raise CommandFailure(f"OCID not found for character: {character_name}")
+
+        # 캐릭터 Scheduler 조회
+        try:
+            maple_schedule: Dict[str, Any] = await get_maple_scheduler_info(character_ocid)
+        except MapleSchedulerNotRegistered:
+            await ctx.reply(f"캐릭터 '{character_name}'의 등록된 스케줄이 하나도 없어양!")
+            raise CommandFailure(f"Character '{character_name}' Schedule not registered")
+        except NexonAPIBadRequest:
+            await ctx.reply(f"캐릭터 '{character_name}'의 스케줄 조회에 실패했어양!\n지금 일부 캐릭터가 조회가 안되는 버그가 있어양 ㅠ")
+            raise CommandFailure(f"Character '{character_name}' Schedule not found")
+
+        embed_title: str = (f"{maple_schedule.get('character_world')} 월드 "
+                            f"{maple_schedule.get('character_name')} 용사님의 메할일")
+        embed_description: str = (f"레벨: {maple_schedule.get('character_level')} | "
+                                  f"직업: {maple_schedule.get('character_class')}\n"
+                                  f"주의사항: 오늘 접속하지 않은 캐릭터는 일일퀘스트, 일일보스가 보이지 않아양.\n"
+                                  f"(참고로, 스케줄러에 등록한 컨텐츠만 보여줘양!)")
+        embed_msg = discord.Embed(
+            title=embed_title,
+            description=embed_description
+        )
+
+        # 일일퀘스트 필드
+        daily_schedule: Dict[str, dict] = maple_schedule.get('daily_contents')
+        daily_schedule_msg: str = ""
+        for content_name, content_info in daily_schedule.items():
+            # 몬스터파크
+            if content_info.get('type') == 'contents':
+                content_limit: int = int(content_info.get('limit'))
+                content_limit_msg: str = f" / {content_limit}" if content_limit else ""
+                daily_schedule_msg += (
+                    f"**• {content_name}**: {int(content_info.get('count'))}{content_limit_msg}\n"
+                )
+            # 일일 퀘스트
+            else:
+                quest_state: int = int(content_info.get('quest_state'))
+                if quest_state == 0:
+                    quest_state_text = "퀘스트 미진행"
+                elif quest_state == 1:
+                    quest_state_text = f"퀘스트 진행중 {content_info.get('count')} / {content_info.get('limit')}"
+                elif quest_state == 2:
+                    quest_state_text = "퀘스트 완료"
+                else:
+                    quest_state_text = "몰라양"
+                daily_schedule_msg += f"**• {content_name}**: {quest_state_text}\n"
+        embed_msg.add_field(
+            name="🍁 일일 퀘스트 및 컨텐츠 현황",
+            value=daily_schedule_msg,
+            inline=False
+        )
+
+        # 주간컨텐츠 필드
+        weekly_schedule: Dict[str, dict] = maple_schedule.get('weekly_contents')
+        weekly_schedule_msg: str = ""
+        for content_name, content_info in weekly_schedule.items():
+            # 무릉도장
+            if content_name == "무릉도장":
+                count_unit: str = MapleStoryVars.CONTENT_COUNT_UNIT.get("tower", "")
+            # 주간 길드 컨텐츠
+            elif content_name ==  "[길드] 주간 미션 포인트":
+                count_unit: str = MapleStoryVars.CONTENT_COUNT_UNIT.get("point", "")
+            elif content_name in ["[길드] 지하 수로", "[길드] 플래그 레이스"]:
+                count_unit: str = MapleStoryVars.CONTENT_COUNT_UNIT.get("score", "")
+            elif "에픽 던전" in content_name:
+                count_unit: str = MapleStoryVars.CONTENT_COUNT_UNIT.get("stage", "")
+            else:
+                count_unit = ""
+            if content_info.get('type') == 'contents':
+                content_limit: int = int(content_info.get('limit'))
+                content_limit_msg: str = f" / {content_limit}{count_unit}" if content_limit else ""
+                weekly_schedule_msg += (f"**• {content_name}**: {int(content_info.get('count'))}{count_unit}"
+                                        f"{content_limit_msg}\n")
+
+            # 주간 퀘스트
+            else:
+                weekly_schedule_msg += (
+                    f"**• {content_name}**: "
+                    f"{MapleStoryVars.QUEST_STATE_MAP.get(content_info.get('quest_state')) or '몰라양'}\n")
+        if weekly_schedule_msg != "":
+            embed_msg.add_field(
+                name="🍁 주간 퀘스트 및 컨텐츠 현황",
+                value=weekly_schedule_msg,
+                inline=False
+            )
+
+        # 주간보스 현황
+        boss_schedule: Dict[str, dict] = maple_schedule.get('boss_contents')
+        boos_schedule_msg: str = ""
+        for boss_name, content_info in boss_schedule.items():
+            boss_cycle: str = MapleStoryVars.CONTENT_CYCLE_MAP.get(content_info.get('cycle'))
+            boss_complete_text: str = (
+                "처치완료" if content_info.get('complete_flag') == "true" else "미처치"
+            )
+            if boss_complete_text != "미처치":
+                continue
+            else:
+                boos_schedule_msg += (
+                    f"**{boss_cycle}** {boss_name}: {boss_complete_text}\n"
+                )
+        if boos_schedule_msg != "":
+            weekly_boss_count = maple_schedule.get('weekly_boss_clear_count')
+            weekly_boss_limit = maple_schedule.get('weekly_boss_clear_limit')
+            embed_msg.add_field(
+                name=f"🍁 주간 보스 미처치 현황 (주간 제한: {weekly_boss_count}/{weekly_boss_limit})",
+                value=boos_schedule_msg,
+                inline=False
+            )
+
+        embed_msg.colour = discord.Colour.from_rgb(239, 111, 148)
+        embed_msg.set_footer(text=(
+            f"현재 날짜: {datetime.now(tz=timezone('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"버전: {BOT_VERSION}\n"
+            f"주의! 자신의 넥슨 API키를 통해서 자신의 캐릭터만 조회할 수 있어양!"
+        ))
+
+        await ctx.reply(embed=embed_msg)
+        return
