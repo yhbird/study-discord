@@ -14,12 +14,13 @@ from common_exceptions.client_exceptions import RCON_CLIENT_ERROR
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):
-    def __init__(self, images: list[dict], search_keyword: str, requester: discord.User, timeout: int = 600):
+    def __init__(self, images: list[dict], search_keyword: str, requester: discord.User, nsfw: bool, timeout: int = 600):
         super().__init__(timeout=timeout)
         self.images = images
         self.image_search_keyword = search_keyword
         self.current_index = 0
         self.view_owner: discord.User = requester
+        self.nsfw = nsfw
         self.message = None
 
         # 버튼 추가
@@ -99,10 +100,14 @@ class ImageViewer(View):
 
     async def update_msg(self, interaction: discord.Interaction):
         index = f"{self.current_index + 1}/{len(self.images)}"
-        embed = discord.Embed(title=f"'{self.image_search_keyword}' 이미지 검색 결과 에양 ({index})")
+        nsfw_note: str = "[NSFW] " if self.nsfw else ""
+        nsfw_info: str = "\nNSFW 채널에서는 세이프서치가 off로 설정되어 있으니 주의하세양!" if self.nsfw else ""
+        embed_color = discord.Color.red() if self.nsfw else discord.Color.green()
+        embed = discord.Embed(title=f"{nsfw_note}'{self.image_search_keyword}' 이미지 검색 결과 에양 ({index})", 
+                              color=embed_color)
         embed.set_image(url=self.images[self.current_index]["image"])
         embed.description = f"[🔗 원본 보기]({self.images[self.current_index]['url']})"
-        embed.set_footer(text="문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!")
+        embed.set_footer(text=f"문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!{nsfw_info}")
 
         if interaction.response.is_done():
             await interaction.followup.edit_message(message_id=self.message.id, embed=embed, view=self)

@@ -83,11 +83,13 @@ async def msg_handle_image(ctx: commands.Context[BumKkiBot], search_term: str | 
     
     Note:
         검색 지역 일본(ja-jp)으로 변경 (2025.09.01)
+        NSFW 여부에 따라 검색 옵션 변경 (2026.07.15)
     """
 
     if ctx.message.author.bot:
         return
 
+    nsfw_channel: bool = ctx.message.channel.is_nsfw()
     if search_term is None:
         await ctx.message.channel.send("검색어를 입력하세양!!", reference=ctx.message)
         raise InvalidCommandFormat("검색어가 입력되지 않음")
@@ -95,12 +97,21 @@ async def msg_handle_image(ctx: commands.Context[BumKkiBot], search_term: str | 
         image_search_keyword: str = search_term.strip()
 
 
-    if check_ban(image_search_keyword):
+    if check_ban(image_search_keyword) and not nsfw_channel:
         ban_img: str = "data/img/dnf_4.gif"
         with open(ban_img, "rb") as ban_img_file:
             dnf_file = discord.File(ban_img_file)
             await ctx.send(file=dnf_file, reference=ctx.message)
         return
+    
+    if nsfw_channel:
+        embed_color = discord.Color.red()
+        safe_search_option = "off"
+        search_region = "ja-jp"
+    else:
+        embed_color = discord.Color.green()
+        safe_search_option = "on"
+        search_region = "kr-kr"
 
     results: list[dict] | None = None
     with DDGS() as ddgs:
@@ -108,34 +119,39 @@ async def msg_handle_image(ctx: commands.Context[BumKkiBot], search_term: str | 
             time.sleep(2) # API rate limit 
             results = ddgs.images(
                 query=image_search_keyword,
-                safesearch="off",
-                region="ja-jp",
+                safesearch=safe_search_option,
+                region=search_region,
                 num_results=20,
             )
         except DDGSException as e:
-            await ctx.message.channel.send(f"이미지 검색 사이트에 오류가 발생했어양...")
+            await ctx.reply(f"이미지 검색 사이트에 오류가 발생했어양...")
             raise CommandFailure(f"DDGS API error: {str(e)}")
         except Exception as e:
-            await ctx.message.channel.send(f"검색 중에 오류가 발생했어양...")
+            await ctx.reply(f"검색 중에 오류가 발생했어양...")
             raise CommandFailure(f"Unknown error: {str(e)}")
     
     if not results:
-        await ctx.message.channel.send("이미지를 찾을 수 없어양!!")
+        await ctx.reply("이미지를 찾을 수 없어양!!")
         return
     else:
         images = [r for r in results if "image" in r and "url" in r]
 
     image_results = images[0:10]  # 최대 10개 이미지
     view_owner: discord.User = ctx.message.author
-    view = ImageViewer(images=image_results, search_keyword=image_search_keyword, requester=view_owner)
+    view = ImageViewer(images=image_results, search_keyword=image_search_keyword, requester=view_owner, 
+                       nsfw=nsfw_channel, timeout=600)
     index_indicator: str = f"{view.current_index + 1}/{len(view.images)}"
+    nsfw_note: str = "[NSFW] " if nsfw_channel else ""
+    nsfw_info: str = "\nNSFW 채널에서는 세이프서치가 off로 설정되어 있으니 주의하세양!" if nsfw_channel else ""
 
-    embed = discord.Embed(title=f"'{image_search_keyword}' 이미지 검색 결과 에양 ({index_indicator})")
+    embed = discord.Embed(
+        title=f"{nsfw_note}'{image_search_keyword}' 이미지 검색 결과 에양 ({index_indicator})", 
+        color=embed_color)
     embed.set_image(url=view.images[view.current_index]["image"])
     embed.description = f"[🔗 원본 보기]({view.images[view.current_index]['url']})"
-    embed.set_footer(text="문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!")
+    embed.set_footer(text=f"문제가 있는 이미지면 관리자 권한으로 삭제할 수 있어양!{nsfw_info}")
 
-    sent_message = await ctx.message.channel.send(embed=embed, view=view)
+    sent_message = await ctx.reply(embed=embed, view=view)
     view.message = sent_message
 
 
