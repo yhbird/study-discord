@@ -1,5 +1,5 @@
 import discord
-from exceptions.client_exceptions import WebhookETCError, WebhookNoPermissionError
+from common_exceptions.client_exceptions import WebhookETCError, WebhookNoPermissionError
 
 async def send_msg_as_pretend_user(channel: discord.TextChannel, user: discord.Member, 
                                    content: str | None = None, 

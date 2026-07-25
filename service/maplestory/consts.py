@@ -1,6 +1,5 @@
 from typing import Tuple, Dict
 
-from exceptions.base import BotBaseException
 from common.image import ImageBaseConfig
 
 class MapleCodiHistoryConfig(ImageBaseConfig):

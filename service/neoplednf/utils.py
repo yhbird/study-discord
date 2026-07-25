@@ -16,7 +16,7 @@ from typing import Optional, Dict, List, Any, Literal, Tuple
 from config import NEOPLE_API_HOME, NEOPLE_API_KEY
 from config import NEOPLE_API_RPS_LIMIT
 # from common.image import convert_image_url_into_bytes
-from exceptions.client_exceptions import *
+from common_exceptions.client_exceptions import *
 
 
 class neople_service_url:

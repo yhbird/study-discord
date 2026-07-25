@@ -1,5 +1,5 @@
 from __future__ import annotations
-from exceptions.base import UtilsBaseException
+from common_exceptions.base import UtilsBaseException
 
 class YFinanceAPIError(UtilsBaseException):
     """YFinance API 사용 중 발생하는 오류"""

@@ -21,8 +21,8 @@ from config import COMMAND_TIMEOUT, BOT_COMMAND_PREFIX, MINECRAFT_RCON_PASSWORD,
 from bot_logger import log_command, with_timeout
 
 from ddgs.exceptions import DDGSException
-from exceptions.client_exceptions import RCON_CLIENT_ERROR
-from exceptions.command_exceptions import InvalidCommandFormat, CommandFailure
+from common_exceptions.client_exceptions import RCON_CLIENT_ERROR
+from common_exceptions.command_exceptions import InvalidCommandFormat, CommandFailure
 
 from typing import Dict
 

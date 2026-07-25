@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup
 
 from service.maplestory.utils import *
+from service.maplestory.consts import MapleStoryVars
 from service.maplestory.resolver import AsyncCharacterOCIDResolver
 
 from bot_logger  import log_command, with_timeout
@@ -18,8 +19,9 @@ from common.time  import kst_format_now
 from common.plot  import fp_maplestory_light, fp_maplestory_bold
 from config import COMMAND_TIMEOUT, BOT_VERSION
 
-from exceptions.client_exceptions import *
-from exceptions.command_exceptions import *
+from common_exceptions.client_exceptions import *
+from common_exceptions.command_exceptions import *
+from service.maplestory.exceptions import MapleSchedulerNotRegistered
 
 ocid_resolver = AsyncCharacterOCIDResolver(get_ocid, ttl_sec=3600, negative_ttl_sec=60)
 

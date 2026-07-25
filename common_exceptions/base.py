@@ -1,5 +1,5 @@
 """
-exceptions/base.py
+common_exceptions/base.py
 
 공통 예외 처리 모듈
 

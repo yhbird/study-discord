@@ -9,7 +9,7 @@ from datetime import datetime
 from pytz import timezone
 from sqlalchemy import text
 
-from exceptions.base import BotConfigFailed, BotInitializationError
+from common_exceptions.base import BotConfigFailed, BotInitializationError
 
 
 # Project Home

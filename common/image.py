@@ -3,8 +3,6 @@ import requests
 import io
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance, UnidentifiedImageError
-from exceptions.base import BotBaseException
-from exceptions.client_exceptions import GeneralRequestError
 
 
 def convert_image_url_into_bytes(image_url: str) -> io.BytesIO:
@@ -25,7 +23,7 @@ def convert_image_url_into_bytes(image_url: str) -> io.BytesIO:
         # Error 메세지 출력후 예외 발생
         traceback = response.text
         print(f"Error fetching image from {image_url}: {response.status_code}\n{traceback}")
-        raise GeneralRequestError(f"Failed to fetch image from {image_url}")
+        raise RuntimeError(f"Failed to fetch image from {image_url}")
     else:
         image_bytes = io.BytesIO(response.content)
     

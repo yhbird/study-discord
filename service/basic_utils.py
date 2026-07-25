@@ -10,7 +10,7 @@ from mctools import RCONClient
 from contextlib import contextmanager
 from typing import Generator
 
-from exceptions.client_exceptions import RCON_CLIENT_ERROR
+from common_exceptions.client_exceptions import RCON_CLIENT_ERROR
 
 # 샴 이미지 이미지 뷰어 클래스 정의
 class ImageViewer(View):

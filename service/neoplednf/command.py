@@ -5,7 +5,7 @@ from discord.ext import commands
 from bot import BumKkiBot
 
 from service.neoplednf.utils import *
-from exceptions.command_exceptions import CommandFailure
+from common_exceptions.command_exceptions import CommandFailure
 
 from bot_logger import log_command, with_timeout
 from common.time import kst_format_now

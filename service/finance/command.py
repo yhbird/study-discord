@@ -27,7 +27,7 @@ from config import COMMAND_TIMEOUT
 
 from typing import Dict, List, Literal
 from service.finance.exceptions import *
-from exceptions.command_exceptions import CommandFailure
+from common_exceptions.command_exceptions import CommandFailure
 
 
 @with_timeout(COMMAND_TIMEOUT)

@@ -14,7 +14,7 @@ import inspect
 
 import config as config 
 from common.time import KstFormatter
-from exceptions.base import BotWarning
+from common_exceptions.base import BotWarning
 
 from kafka.helper import build_and_send
 

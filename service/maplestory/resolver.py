@@ -5,7 +5,7 @@ import threading
 from typing import Callable, Awaitable, Dict, Optional, Tuple
 
 from config import NEXON_API_CACHE_TTL, NEXON_API_CACHE_NEG_TTL
-from exceptions.client_exceptions import NexonAPICharacterNotFound
+from common_exceptions.client_exceptions import NexonAPICharacterNotFound
 
 class CharacterOCIDResolver:
     """get_ocid 함수의 결과를 캐싱, 단일 비행을 얹는 클래스"""

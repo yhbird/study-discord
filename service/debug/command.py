@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from service.debug.utils import *
 from common.text import rank_to_emoji
-from exceptions.command_exceptions import CommandFailure
+from common_exceptions.command_exceptions import CommandFailure
 
 from bot_logger import logger, log_command, with_timeout
 from common.time import kst_format_now

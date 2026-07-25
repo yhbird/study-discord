@@ -4,7 +4,7 @@ import psutil
 from sqlalchemy import create_engine, text
 
 from config import POSTGRES_DSN
-from exceptions.client_exceptions import DB_CONNECTION_ERROR, DB_DATA_NOT_FOUND
+from common_exceptions.client_exceptions import DB_CONNECTION_ERROR, DB_DATA_NOT_FOUND
 
 from sqlalchemy import Engine, TextClause, Sequence
 from typing import Dict, List, Any

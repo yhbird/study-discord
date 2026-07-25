@@ -72,7 +72,7 @@ services:
       - ./data:/app/data
       - ./db:/app/db
       - ./env:/app/env
-      - ./exceptions:/app/exceptions
+      - ./common_exceptions:/app/common_exceptions
       - ./kafka:/app/kafka
       - ./service:/app/service
       - ./bot_helper.py:/app/bot_helper.py

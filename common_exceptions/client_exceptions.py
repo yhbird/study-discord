@@ -11,7 +11,7 @@ from typing import Dict
 
 import httpx
 import requests
-from exceptions.base import UtilsBaseException
+from common_exceptions.base import UtilsBaseException
 
 class NexonAPIError(UtilsBaseException):
     """Nexon API 사용 중 발생하는 오류"""

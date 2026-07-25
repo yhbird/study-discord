@@ -11,7 +11,7 @@ from bot_helper import auto_clear_memory, update_bot_presence # 메모리 정리
 from bot_helper import CUSTOM_EMOJI_PATTERN, expand_custom_emoji # 이모지 메시지 패턴
 
 # Kafka 초기화
-from exceptions.client_exceptions import WebhookNoPermissionError
+from common_exceptions.client_exceptions import WebhookNoPermissionError
 from kafka.producer import init_kafka_producer, close_kafka_producer
 from kafka.consumer import consume_kafka_logs
 

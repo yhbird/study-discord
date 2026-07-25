@@ -1,5 +1,5 @@
 """
-exceptions/mapper_exceptions.py
+common_exceptions/mapper_exceptions.py
 
 Mapper 단계 예외 처리 모듈
 
@@ -9,7 +9,7 @@ Mapper 단계 예외 처리 모듈
 from __future__ import annotations
 
 from discord.ext import commands
-from exceptions.base import CommandBaseException
+from common_exceptions.base import CommandBaseException
 
 class InvalidCommandFormat(CommandBaseException):
     """명령어 형식이 올바르지 않을 때 발생하는 오류"""

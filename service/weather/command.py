@@ -7,7 +7,7 @@ from service.weather.utils import *
 
 from bot_logger import log_command, with_timeout
 
-from exceptions.client_exceptions import *
+from common_exceptions.client_exceptions import *
 
 
 @with_timeout(COMMAND_TIMEOUT)

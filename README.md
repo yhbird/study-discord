@@ -119,7 +119,7 @@ project-root/
 │  │  ├─ plot.py                # matplotlib 관련 처리
 │  │  └─ images.py              # 이미지 처리   (ByteIO 팁 등)
 │  │
-│  └─ exceptions/
+│  └─ common_exceptions/
 │     ├─ __init__.py
 │     ├─ base.py                # 공통 예외(Warning/RateLimit 등)
 │     ├─ client_exceptions.py   # API 호출 실패 및 관련 예외처리

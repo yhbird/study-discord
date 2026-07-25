@@ -9,7 +9,10 @@ from yfinance import Ticker
 
 from config import STK_DATA_API_KEY, STK_API_HOME
 from service.finance.consts import FinanceConsts, FinanceCurrency
-from service.finance.exceptions import *
+from service.finance.exceptions import (
+    YFI_CURRENCY_PARSE_ERROR, YFI_CURRENCY_NOT_SUPPORT, YFI_NO_TICKER, YFI_NO_RATE_WARNING, YFI_KRX_SEARCH_ERROR,
+    YFI_INVALID_SYMBOL_SEARCH, STK_KRX_SEARCH_NO_RESULT
+)
 from typing import Dict, Literal, Optional
 
 
