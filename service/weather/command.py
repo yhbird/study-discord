@@ -31,7 +31,7 @@ async def api_weather(ctx: commands.Context[BumKkiBot], location_name: str) -> N
     
     try:
         # 지역 정보 조회
-        location_data = get_local_info(local_name=location_name)
+        location_data = await get_local_info(local_name=location_name)
         local_type = location_data.get('address_type')
         if local_type == "REGION":
             local_address_name = location_data.get('address_name')
@@ -54,7 +54,7 @@ async def api_weather(ctx: commands.Context[BumKkiBot], location_name: str) -> N
     
     try:
         # 날씨 정보 조회
-        weather_info = get_weather_info(local_x, local_y)
+        weather_info = await get_weather_info(local_x, local_y)
     except WTH_API_INTERNAL_ERROR:
         await ctx.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
         raise WeatherAPIError("Internal server error")

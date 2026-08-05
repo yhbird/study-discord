@@ -1,3 +1,4 @@
+import asyncio
 import requests
 import math
 
@@ -8,6 +9,10 @@ from typing import List
 from config import WTH_API_HOME, WTH_DATA_API_KEY # Weather API
 from config import KKO_API_HOME, KKO_LOCAL_API_KEY # Kakao Local API
 from common_exceptions.client_exceptions import *
+
+# 외부 API 요청 타임아웃 (connect, read) - 초 단위
+HTTP_TIMEOUT = (3, 10)
+
 
 def convert_grid(lat: float, lon: float) -> tuple:
     """ 위도/경도를 기상청 기준 격자 좌표로 반환
@@ -64,7 +69,7 @@ def convert_grid(lat: float, lon: float) -> tuple:
     return con_x, con_y
 
 
-def get_local_info(local_name: str) -> dict:
+async def get_local_info(local_name: str) -> dict:
     """ KAKAO API를 통해 지역의 위치 정보 조회
 
     Args:
@@ -80,7 +85,8 @@ def get_local_info(local_name: str) -> dict:
     headers = {
         "Authorization": f"KakaoAK {KKO_LOCAL_API_KEY}"
     }
-    response = requests.get(url, headers=headers)
+    # requests는 동기(blocking) 호출이므로 별도 스레드에서 실행해 이벤트 루프를 막지 않음
+    response = await asyncio.to_thread(requests.get, url, headers=headers, timeout=HTTP_TIMEOUT)
     if response.status_code != 200:
         status_code: int = response.status_code
         error_info: dict = response.json()
@@ -245,7 +251,7 @@ def process_weather_fcst(raw: dict) -> dict:
     return fcst_data
 
 
-def get_weather_info(local_x: str, local_y: str) -> dict:
+async def get_weather_info(local_x: str, local_y: str) -> dict:
     """기상청 API를 통해 지역의 날씨 정보 조회
 
     Args:
@@ -284,7 +290,9 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
         'nx': nx,
         'ny': ny
     }
-    ncst_response = requests.get(ncst_request_url, params=ncst_request_params)
+    ncst_response = await asyncio.to_thread(
+        requests.get, ncst_request_url, params=ncst_request_params, timeout=HTTP_TIMEOUT
+    )
     # 에러가 발생한 경우 (기상청은 에러가 발생해도 200을 반환함)
     ncst_response_json: dict = ncst_response.json()
     ncst_response_content: dict = ncst_response_json.get('response')
@@ -330,7 +338,9 @@ def get_weather_info(local_x: str, local_y: str) -> dict:
         'nx': nx,
         'ny': ny
     }
-    fcst_response = requests.get(fcst_request_url, params=fcst_request_params)
+    fcst_response = await asyncio.to_thread(
+        requests.get, fcst_request_url, params=fcst_request_params, timeout=HTTP_TIMEOUT
+    )
     # 에러가 발생한 경우 (기상청은 에러가 발생해도 200을 반환함)
     fcst_response_json: dict = fcst_response.json()
     fcst_response_content: dict = fcst_response_json.get('response')
