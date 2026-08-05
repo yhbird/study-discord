@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageOps
 from typing import Optional, Dict, List, Any, Literal, Tuple
 from config import NEOPLE_API_HOME, NEOPLE_API_KEY
 from config import NEOPLE_API_RPS_LIMIT
-# from common.image import convert_image_url_into_bytes
+from common.image import convert_image_url_into_bytes
 from common_exceptions.client_exceptions import *
 
 
