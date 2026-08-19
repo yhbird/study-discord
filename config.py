@@ -95,6 +95,7 @@ if load_dotenv(Path(PROJECT_HOME / "env" / "secret.env")):
         "deb_memory_usage" : os.getenv('ADMIN_CMD_1'),
         "deb_bot_info" : os.getenv('ADMIN_CMD_2'),
         "deb_switch" : os.getenv('ADMIN_CMD_3'),
+        "deb_log" : os.getenv('ADMIN_CMD_4'),
     }
     VERSION_NAME: str = os.getenv('DISCORD_BOT_VERSION', 'UnKnownVersion')
     MINECRAFT_PUBLIC_DOMAIN: str = os.getenv('MINECRAFT_PUBLIC_DOMAIN', 'localhost')
@@ -110,6 +111,11 @@ else:
 """
 # 봇 명령어 접두사
 BOT_COMMAND_PREFIX: str = "븜 "
+
+# 봇 로그 파일 저장 경로 (docker volume으로 마운트된 data 디렉토리 하위)
+# 원격지(Discord)에서 `docker logs`를 대신 조회하기 위한 용도
+LOG_DIR: Path = PROJECT_HOME / "data" / "logs"
+LOG_FILE_PATH: Path = LOG_DIR / "bot.log"
 
 # 봇 명령어 timeout 설정 (초)
 COMMAND_TIMEOUT: int = 30  # seconds

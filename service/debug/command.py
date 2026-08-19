@@ -5,6 +5,7 @@
 성능 테스트 및 디버깅을 위한 명령어를 사용
 
 """
+import io
 import discord
 from discord.ext import commands
 from bot import BumKkiBot
@@ -88,6 +89,31 @@ async def deb_switch(ctx: commands.Context[BumKkiBot]):
     config.DEBUG_MODE = not config.DEBUG_MODE
     debug_status = "ON" if config.DEBUG_MODE else "OFF"
     await ctx.send(f"디버그 모드가 {debug_status}으로 설정되었어양!")
+    return
+
+
+# 봇 로그 조회 (원격지에서 docker logs 대신 확인용)
+@with_timeout(command_timeout)
+@log_command(stats=False, alt_func_name="봇 로그 조회")
+async def deb_log(ctx: commands.Context[BumKkiBot], n_lines: int = 30):
+    # 채팅창에 명령어가 노출되지 않도록 삭제
+    await ctx.message.delete()
+
+    lines: List[str] = tail_log_file(config.LOG_FILE_PATH, n_lines)
+    if not lines:
+        await ctx.send("아직 기록된 로그가 없어양...")
+        return
+
+    log_text: str = "".join(lines).rstrip("\n")
+    header: str = f"최근 로그 {len(lines)}줄이에양!"
+
+    # 코드블록 오버헤드 감안, Discord 메세지 2000자 제한을 넘으면 파일로 전송
+    if len(log_text) > 1900:
+        log_bytes = io.BytesIO(log_text.encode("utf-8"))
+        file_name = f"bot_log_{kst_format_now().strftime('%Y%m%d_%H%M%S')}.txt"
+        await ctx.send(f"{header} (내용이 길어서 파일로 보내드려양)", file=discord.File(log_bytes, filename=file_name))
+    else:
+        await ctx.send(f"{header}\n```\n{log_text}\n```")
     return
 
 
@@ -374,6 +400,11 @@ async def deb_help(ctx: commands.Context[BumKkiBot], category: str = None):
             dm_embed.add_field(
                 name="븜 디버그 resetstats",
                 value="봇의 사용자 및 명령어 통계 초기화\n *봇 재시작시 자동 초기화, 메모리 사용량이 높으면 사용*\n",
+                inline=False
+            )
+            dm_embed.add_field(
+                name="븜 디버그 log",
+                value="최근 로그 30줄 조회 (docker logs 대체용, 원격지에서 확인 가능)\n",
                 inline=False
             )
         else:

@@ -1,6 +1,9 @@
 import os
 import psutil
 
+from collections import deque
+from pathlib import Path
+
 from sqlalchemy import create_engine, text
 
 from config import POSTGRES_DSN
@@ -20,6 +23,24 @@ def get_memory_usage_mb() -> float:
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss / 1024**2
     return mem
+
+
+# 봇 로그 파일의 마지막 N줄을 반환 -> 디버그용 (docker logs 대체)
+def tail_log_file(log_path: Path, n_lines: int = 30) -> List[str]:
+    """로그 파일의 마지막 N줄을 반환
+
+    Args:
+        log_path (Path): 로그 파일 경로
+        n_lines (int): 조회할 줄 수. Defaults to 30.
+
+    Returns:
+        List[str]: 로그 파일의 마지막 N줄 (파일이 없으면 빈 리스트)
+    """
+    if not log_path.exists():
+        return []
+
+    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+        return list(deque(f, maxlen=n_lines))
 
 
 # 서버(guild)내에서 명령어 통계 정보를 반환
