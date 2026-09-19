@@ -3,6 +3,8 @@ import logging
 import time
 import traceback
 
+from logging.handlers import RotatingFileHandler
+
 from discord.ext import commands
 from bot import BumKkiBot
 from typing import Optional, Dict
@@ -108,6 +110,15 @@ formatter = KstFormatter('[%(asctime)s] %(levelname)s : %(message)s', datefmt='%
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+# 원격지(Discord)에서 `븜 디버그 log`로 최근 로그를 조회할 수 있도록
+# docker logs와 동일한 내용을 파일로도 남김 (docker.sock 접근 없이 조회하기 위함)
+config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+file_handler = RotatingFileHandler(
+    config.LOG_FILE_PATH, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 
 def init_bot_stats() -> DiscordBotStats:

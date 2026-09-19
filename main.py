@@ -63,6 +63,8 @@ async def bot_debug(ctx: commands.Context[BumKkiBot], arg: str = None):
             await deb_command.deb_bot_info(ctx, bot_name=bot.user.name)
         if arg == admin_commands.get("deb_switch"):
             await deb_command.deb_switch(ctx)
+        if arg == admin_commands.get("deb_log"):
+            await deb_command.deb_log(ctx)
         if arg == admin_commands.get("deb_reset_stats"):
             await deb_command.deb_reset_stats(ctx)
         if arg is None:
