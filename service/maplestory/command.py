@@ -1467,7 +1467,7 @@ async def maple_cordinate_history(ctx: commands.Context[BumKkiBot], character_na
     if character_date_create_str != '알 수 없음':
         character_date_create: datetime = datetime.strptime(
             character_date_create_str.split("T")[0], "%Y-%m-%d"
-        )
+        ).replace(tzinfo=timezone("Asia/Seoul"))
     else:
         character_date_create: None = None
 

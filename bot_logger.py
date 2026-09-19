@@ -336,11 +336,11 @@ def log_command(func: callable = None, *, alt_func_name: str = None, stats: bool
     return decorator
 
 
-def with_timeout(timeout_seconds: int = config.COMMAND_TIMEOUT):
+def with_timeout(timeout_seconds: int | float = config.COMMAND_TIMEOUT):
     """비동기 함수에 타임아웃을 적용하는 데코레이터
 
     Args:
-        timeout_seconds (int): 타임아웃 시간(초)
+        timeout_seconds (int | float): 타임아웃 시간(초)
 
     Returns:
         callable: 타임아웃이 적용된 비동기 함수

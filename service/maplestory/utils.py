@@ -35,7 +35,7 @@ from common.image import convert_image_url_into_bytes
 from typing import Literal, Optional, Dict, List, Tuple, Any
 
 API_MAX_DATE_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
-
+API_MAX_CORDINATE_HISTORY: datetime = datetime.now(tz=timezone("Asia/Seoul")) - timedelta(days=90) # 코디 컬렉션 최대 조회
 
 class CordinateVars:
     # 이미지 크기 및 설정
@@ -800,12 +800,7 @@ async def get_weekly_xp_history_v2(character_ocid: str, search_end: datetime | N
     """
 
     kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))
-    if kst_now.hour < 6:
-        time_offset: int = 2
-    else:
-        time_offset: int = 1
-    
-    start_date = kst_now.date() - timedelta(days=time_offset)
+    start_date = kst_now.date()
 
     if search_end < API_MAX_DATE_SEARCH_END or search_end is None:
         search_end = API_MAX_DATE_SEARCH_END
@@ -817,9 +812,14 @@ async def get_weekly_xp_history_v2(character_ocid: str, search_end: datetime | N
 
     # 경험치 변동이 있는 최근 7일치 데이터 수집
     while len(return_data) < 7 and search_index_date >= search_end_date:
-        index_date: str = search_index_date.strftime("%Y-%m-%d")
+        index_date_offset: int = 1
+        index_date: Optional[str] = None if search_index_date == start_date else search_index_date.strftime("%Y-%m-%d")
 
-        basic_info_data: dict = await get_basic_info(character_ocid, date_param=index_date)
+        # 리프한 캐릭터는 OCID가 변경되어 더이상 조회 불가
+        basic_info_data: dict = await get_basic_info(ocid=character_ocid, date_param=None or index_date)
+        if not basic_info_data:
+            break
+
         character_level: int = (
             int(basic_info_data.get("character_level", -1))
             if basic_info_data.get("character_level") is not None
@@ -837,6 +837,12 @@ async def get_weekly_xp_history_v2(character_ocid: str, search_end: datetime | N
         )
 
         # 경험치가 변동된 경우에만 데이터 추가
+        if kst_now.hour < 3 and index_date is None:
+            index_date = (search_index_date - timedelta(days=1)).strftime("%Y-%m-%d")
+            index_date_offset: int = 2
+
+        if index_date is None:
+            index_date = search_index_date.strftime("%Y-%m-%d")
         if character_exp != search_flag_exp:
             return_data.append((index_date, character_level, character_exp_rate))
             search_flag_exp = character_exp
@@ -849,8 +855,8 @@ async def get_weekly_xp_history_v2(character_ocid: str, search_end: datetime | N
         if search_index_date == search_end_date:
             break
         
-        # 1일 전으로 이동
-        search_index_date -= timedelta(days=1)
+        # 랭킹집계 시간이면, 2일전으로 이동한다. (4시 이후에는 1일 전으로 이동)
+        search_index_date -= timedelta(days=index_date_offset)
 
     return return_data
 
@@ -1596,19 +1602,13 @@ async def get_cordinate_collections(ocid: str, search_end: datetime | None) -> L
         search_end는 자동으로 캐릭터 생성 날짜 or API 서비스 오픈 날짜로 변경
     """
     kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))
+    start_date = kst_now.date()
 
-    if kst_now.hour < 6:
-        time_offset: int = 2
-    else:
-        time_offset: int = 1
-
-    search_start_date = kst_now.date() - timedelta(days=time_offset)
-
-    if search_end < API_MAX_DATE_SEARCH_END or search_end is None:
-        search_end = API_MAX_DATE_SEARCH_END
+    if search_end < API_MAX_CORDINATE_HISTORY or search_end is None:
+        search_end = API_MAX_CORDINATE_HISTORY
 
     # 1일전 캐릭터 외형 이미지 URL 수집
-    search_index_date = search_start_date
+    search_index_date = start_date
     search_end_date = search_end.date()
 
     cordinate_collections: List[Tuple[str, str]] = []
@@ -1618,7 +1618,13 @@ async def get_cordinate_collections(ocid: str, search_end: datetime | None) -> L
     look_mode_pin: str = current_cash_info.get("character_look_mode", "0")
 
     while len(cordinate_collections) < collections_length and search_index_date >= search_end_date:
-        index_date: str = search_index_date.strftime("%Y-%m-%d")
+        index_date_offset: int = 1
+        index_date: Optional[str] = None if search_index_date == start_date else search_index_date.strftime("%Y-%m-%d")
+
+        # 리프한 캐릭터는 OCID가 변경되어 더이상 조회 불가
+        basic_info_data: dict = await get_basic_info(ocid, date_param=None or index_date)
+        if not basic_info_data:
+            break
 
         # index_date 기준 캐릭터 장착중인 캐시 아이템 정보 조회 -> 외형 모드 확인
         cash_equipment_data: dict = await get_cash_equipment_info(ocid, date_param=index_date)
@@ -1640,6 +1646,13 @@ async def get_cordinate_collections(ocid: str, search_end: datetime | None) -> L
         character_image_url = get_character_image_url(character_image)
 
         # (중복체크) 중복하지 않은 dictionary 데이터만 리스트에 추가
+        if kst_now.hour < 3 and index_date is None:
+            index_date = (search_index_date - timedelta(days=1)).strftime("%Y-%m-%d")
+            index_date_offset: int = 2
+
+        if index_date is None:
+            index_date = search_index_date.strftime("%Y-%m-%d")
+
         if daily_cordinate_info not in daily_cordinate_info_list and character_image_url != "":
             collections = (index_date, character_image_url)
             cordinate_collections.append(collections)
@@ -1652,14 +1665,10 @@ async def get_cordinate_collections(ocid: str, search_end: datetime | None) -> L
         if search_index_date == search_end_date:
             break
 
-        # 1일 전으로 이동
-        search_index_date -= timedelta(days=1)
+        # 랭킹집계 시간이면, 2일전으로 이동한다. (4시 이후에는 1일 전으로 이동)
+        search_index_date -= timedelta(days=index_date_offset)
 
-    # 코디 데이터가 없는 경우, 빈 리스트 반환
-    if not cordinate_collections:
-        return []
-    else:
-        return cordinate_collections
+    return cordinate_collections
 
 
 def _load_font(font_path: Optional[str], size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
