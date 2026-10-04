@@ -186,7 +186,8 @@ cython_debug/
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
 #  and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+.vscode/
+.vscode-server/
 
 # Ruff stuff:
 .ruff_cache/
@@ -223,3 +224,7 @@ user_stock_favorites.json
 .DS_Store
 .vscode/
 docker-compose.test.yml
+
+# AI Agents
+.claude/
+.claudeignore

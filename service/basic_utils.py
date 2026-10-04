@@ -3,7 +3,6 @@ import discord
 import asyncio
 from discord.ui import View, Button
 
-from dotenv import load_dotenv
 from config import BOT_DEVELOPER_ID
 from config import MINECRAFT_RCON_HOST, MINECRAFT_RCON_PORT, MINECRAFT_RCON_PASSWORD
 from mctools import RCONClient
@@ -139,7 +138,6 @@ def check_ban(image_search_keyword: str) -> bool:
     Returns:
         bool: 금지어 포함 여부
     """
-    load_dotenv("env/secret.env")
     ban_cmd_1 = os.getenv("BAN_CMD_1")
     ban_cmd_2 = os.getenv("BAN_CMD_2")
     ban_cmd_3 = os.getenv("BAN_CMD_3")

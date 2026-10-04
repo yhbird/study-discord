@@ -16,13 +16,17 @@ from common_exceptions.base import BotConfigFailed, BotInitializationError
 BOT_HOME: Path = Path(__file__).resolve()
 PROJECT_HOME: Path = BOT_HOME.parent
 
+# 통합 환경변수 파일 loading (Token, DB, API Key, 히든변수 전부 app.env 한 곳에서 관리)
+ENV_FILE: Path = PROJECT_HOME / "env" / "app.env"
+if not (ENV_FILE.is_file() and load_dotenv(ENV_FILE)):
+    print(f"Failed loading environment file: {ENV_FILE}")
+    sys.exit(2)
+
 # Discord Bot Token loading
 try:
-    # Load environment variables from .env file
-    assert load_dotenv(Path(PROJECT_HOME / "env" / "token.env")), BotConfigFailed("token.env file not found")
-    assert os.getenv('bot_token_dev'), BotInitializationError("bot_token not found in env file")
+    assert os.getenv('BOT_TOKEN_DEV'), BotInitializationError("BOT_TOKEN_DEV not found in env file")
     BOT_TOKEN_RUN: str = os.getenv('PYTHON_RUN_ENV', 'prd')
-    BOT_TOKEN = os.getenv(f'bot_token_{BOT_TOKEN_RUN}', None)
+    BOT_TOKEN = os.getenv(f'BOT_TOKEN_{BOT_TOKEN_RUN.upper()}', None)
 # Discord 봇 토큰을 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed Bot loading during Discord Token loading: {e}")
@@ -33,7 +37,6 @@ except BotInitializationError as e:
 
 # Nexon Open API Key loading
 try:
-    assert load_dotenv(Path(PROJECT_HOME / "env" / "nexon.env")), BotConfigFailed("nexon.env file not found")
     assert os.getenv('NEXON_API_TOKEN_LIVE'), BotInitializationError("NEXON_API_TOKEN_LIVE not found in env file")
     if BOT_TOKEN_RUN == 'dev':
         NEXON_API_RUN_ENV = 'TEST'
@@ -54,13 +57,12 @@ except BotInitializationError as e:
 
 # weather API Key loading
 try:
-    assert load_dotenv(Path(PROJECT_HOME / "env" / "weather.env")), BotConfigFailed("weather.env file not found")
-    assert os.getenv('kko_token_api'), BotInitializationError("kko_token_api not found in env file")
-    assert os.getenv('wth_data_api'), BotInitializationError("wth_data_api not found in env file")
-    KKO_LOCAL_API_KEY: str = os.getenv('kko_token_api', None)
-    KKO_API_HOME: str = os.getenv('kko_api_url', None)
-    WTH_DATA_API_KEY: str = os.getenv('wth_data_api', None)
-    WTH_API_HOME: str = os.getenv('wth_data_url', None)
+    assert os.getenv('KKO_TOKEN_API'), BotInitializationError("KKO_TOKEN_API not found in env file")
+    assert os.getenv('WTH_DATA_API'), BotInitializationError("WTH_DATA_API not found in env file")
+    KKO_LOCAL_API_KEY: str = os.getenv('KKO_TOKEN_API', None)
+    KKO_API_HOME: str = os.getenv('KKO_API_URL', None)
+    WTH_DATA_API_KEY: str = os.getenv('WTH_DATA_API', None)
+    WTH_API_HOME: str = os.getenv('WTH_DATA_URL', None)
 # weather API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed loading weather API key!!: {e}")
@@ -71,11 +73,10 @@ except BotInitializationError as e:
 
 # stock API Key loading
 try:
-    assert load_dotenv(Path(PROJECT_HOME / "env" / "stock.env")), BotConfigFailed("stock.env file not found")
-    assert os.getenv('stk_data_api'), BotInitializationError("stk_data_api not found in env file")
-    assert os.getenv('stk_api_url'), BotInitializationError("stk_api_url not found in env file")
-    STK_DATA_API_KEY: str = os.getenv('stk_data_api', None)
-    STK_API_HOME: str = os.getenv('stk_api_url', None)
+    assert os.getenv('STK_DATA_API'), BotInitializationError("STK_DATA_API not found in env file")
+    assert os.getenv('STK_API_URL'), BotInitializationError("STK_API_URL not found in env file")
+    STK_DATA_API_KEY: str = os.getenv('STK_DATA_API', None)
+    STK_API_HOME: str = os.getenv('STK_API_URL', None)
 # stock API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed loading stock API key!!: {e}")
@@ -85,25 +86,22 @@ except BotInitializationError as e:
     sys.exit(2)
 
 # 히든변수 및 히든명령어 loading
-if load_dotenv(Path(PROJECT_HOME / "env" / "secret.env")):
-    BAN_CMD_1 = os.getenv('BAN_CMD_1', '')
-    BAN_CMD_2 = os.getenv('BAN_CMD_2', '')
-    BAN_CMD_3 = os.getenv('BAN_CMD_3', '')
-    SECRET_COMMANDS: List[str] = [BAN_CMD_1, BAN_CMD_2, BAN_CMD_3]
-    BOT_DEVELOPER_ID: int = int(os.getenv('DISCORD_BOT_DEVELOPER', '0'))
-    SECRET_ADMIN_COMMAND: dict = {
-        "deb_memory_usage" : os.getenv('ADMIN_CMD_1'),
-        "deb_bot_info" : os.getenv('ADMIN_CMD_2'),
-        "deb_switch" : os.getenv('ADMIN_CMD_3'),
-        "deb_log" : os.getenv('ADMIN_CMD_4'),
-    }
-    VERSION_NAME: str = os.getenv('DISCORD_BOT_VERSION', 'UnKnownVersion')
-    MINECRAFT_PUBLIC_DOMAIN: str = os.getenv('MINECRAFT_PUBLIC_DOMAIN', 'localhost')
-    MINECRAFT_RCON_HOST: str = os.getenv('MINECRAFT_RCON_HOST', 'localhost')
-    MINECRAFT_RCON_PORT: int = int(os.getenv('MINECRAFT_RCON_PORT', '25575'))
-    MINECRAFT_RCON_PASSWORD: str = os.getenv('MINECRAFT_RCON_PASSWORD', '')
-else:
-    raise BotInitializationError("Failed loading secret.env file!!")
+BAN_CMD_1 = os.getenv('BAN_CMD_1', '')
+BAN_CMD_2 = os.getenv('BAN_CMD_2', '')
+BAN_CMD_3 = os.getenv('BAN_CMD_3', '')
+SECRET_COMMANDS: List[str] = [BAN_CMD_1, BAN_CMD_2, BAN_CMD_3]
+BOT_DEVELOPER_ID: int = int(os.getenv('DISCORD_BOT_DEVELOPER', '0'))
+SECRET_ADMIN_COMMAND: dict = {
+    "deb_memory_usage" : os.getenv('ADMIN_CMD_1'),
+    "deb_bot_info" : os.getenv('ADMIN_CMD_2'),
+    "deb_switch" : os.getenv('ADMIN_CMD_3'),
+    "deb_log" : os.getenv('ADMIN_CMD_4'),
+}
+VERSION_NAME: str = os.getenv('DISCORD_BOT_VERSION', 'UnKnownVersion')
+MINECRAFT_PUBLIC_DOMAIN: str = os.getenv('MINECRAFT_PUBLIC_DOMAIN', 'localhost')
+MINECRAFT_RCON_HOST: str = os.getenv('MINECRAFT_RCON_HOST', 'localhost')
+MINECRAFT_RCON_PORT: int = int(os.getenv('MINECRAFT_RCON_PORT', '25575'))
+MINECRAFT_RCON_PASSWORD: str = os.getenv('MINECRAFT_RCON_PASSWORD', '')
 
 ### Bot configuration variables
 """
@@ -155,7 +153,6 @@ KAFKA_TOPIC_NAME: Literal["discord.command.logs"] = "discord.command.logs"
 DB_USE: bool = True # DB 사용 여부
 if DB_USE:
     try:
-        assert load_dotenv(Path(PROJECT_HOME / "env" / "db.env")), BotConfigFailed("db.env file not found")
         db_user: Optional[str] = os.getenv('DB_USER')
         db_pass: Optional[str] = os.getenv('DB_PASSWORD')
         db_host: Optional[str] = os.getenv('DB_HOST')
