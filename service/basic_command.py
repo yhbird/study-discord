@@ -9,8 +9,8 @@ import discord
 from discord.ext import commands
 from bot import BumKkiBot
 
+import asyncio
 import random
-import time
 from ddgs import DDGS
 
 from service.basic_utils import ImageViewer
@@ -84,6 +84,12 @@ async def msg_handle_image(ctx: commands.Context[BumKkiBot], search_term: str | 
     Note:
         검색 지역 일본(ja-jp)으로 변경 (2025.09.01)
         NSFW 여부에 따라 검색 옵션 변경 (2026.07.15)
+        ddgs 9.2.3 → 9.16.0, primp 0.15.0 → 2.0.1 업그레이드 (2026-10-04, Opus 5.5)
+            - duckduckgo 이미지 API가 봇 요청을 403으로 차단, 구버전은 이를 숨기고 빈 결과를 반환
+            - 9.16.0부터 bing 이미지 엔진으로 자동 대체되며, bing은 safesearch 옵션을 무시함
+            - 결과가 없으면 DDGSException("No results found.") 발생, 403과 구분되지 않음
+            - DDGS 호출을 asyncio.to_thread로 실행하여 이벤트 루프 블로킹 제거
+            - 진단 스크립트: tests/test_image_search.py
     """
 
     if ctx.message.author.bot:
@@ -113,22 +119,25 @@ async def msg_handle_image(ctx: commands.Context[BumKkiBot], search_term: str | 
         safe_search_option = "on"
         search_region = "kr-kr"
 
+    # ddgs 9.16+: duckduckgo 이미지가 봇 차단(403)되어 bing 엔진으로 자동 대체됨 (2026-10-04, Opus 5.5)
+    # 결과가 없으면 빈 리스트 대신 DDGSException("No results found.")을 발생시킴 (2026-10-04, Opus 5.5)
     results: list[dict] | None = None
-    with DDGS() as ddgs:
-        try:
-            time.sleep(2) # API rate limit 
-            results = ddgs.images(
-                query=image_search_keyword,
-                safesearch=safe_search_option,
-                region=search_region,
-                num_results=20,
-            )
-        except DDGSException as e:
+    try:
+        await asyncio.sleep(2) # API rate limit
+        results = await asyncio.to_thread(
+            DDGS().images,
+            query=image_search_keyword,
+            safesearch=safe_search_option,
+            region=search_region,
+            max_results=20,
+        )
+    except DDGSException as e:
+        if str(e) != "No results found.":
             await ctx.reply(f"이미지 검색 사이트에 오류가 발생했어양...")
             raise CommandFailure(f"DDGS API error: {str(e)}")
-        except Exception as e:
-            await ctx.reply(f"검색 중에 오류가 발생했어양...")
-            raise CommandFailure(f"Unknown error: {str(e)}")
+    except Exception as e:
+        await ctx.reply(f"검색 중에 오류가 발생했어양...")
+        raise CommandFailure(f"Unknown error: {str(e)}")
     
     if not results:
         await ctx.reply("이미지를 찾을 수 없어양!!")

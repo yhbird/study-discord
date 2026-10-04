@@ -12,6 +12,7 @@ dev.venv/
 *.json
 *.sh
 temp/
+tests/
 postgres-data/
 __pycache__/
 README.md

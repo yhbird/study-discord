@@ -8,7 +8,7 @@ beautifulsoup4==4.12.2
 cffi==1.17.1
 click==8.2.1
 curl_cffi==0.12.0
-ddgs==9.2.3
+ddgs==9.16.0
 dotenv==0.9.9
 frozendict==2.4.6
 frozenlist==1.7.0
@@ -24,7 +24,7 @@ pandas==2.3.1
 peewee==3.18.2
 pip==25.1
 platformdirs==4.3.8
-primp==0.15.0
+primp==2.0.1
 propcache==0.3.2
 protobuf==6.31.1
 psutil==7.0.0

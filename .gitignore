@@ -209,6 +209,7 @@ __marimo__/
 
 # temp folder
 temp/
+tests/
 dev/
 .vscode/
 
