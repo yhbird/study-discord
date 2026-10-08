@@ -47,6 +47,8 @@ try:
     NEXON_API_HOME: str = os.getenv('NEXON_API_HOME')
     NEOPLE_API_HOME: str = os.getenv('NEOPLE_API_HOME')
     NEXON_CHARACTER_IMAGE_URL: str = os.getenv('NEXON_CHARACTER_IMAGE_URL')
+    # 사용자 Nexon API 토큰 암호화 키 (Fernet), 없으면 `븜 넥슨토큰` 기능만 비활성화 (2026-10-05, Opus 5.5)
+    NEXON_TOKEN_ENC_KEY: str = os.getenv('NEXON_TOKEN_ENC_KEY', '')
 # Nexon Open API 키를 제대로 불러오지 못하면 실행 불가
 except BotConfigFailed as e:
     print(f"Failed Bot loading during Nexon API Key loading: {e}")

@@ -33,6 +33,7 @@ import service.maplestory.command as map_command
 import service.neoplednf.command as dnf_command
 import service.weather.command as wth_command
 import service.finance.command as fin_command
+import service.nexon_token.command as tok_command
 import data.hidden.hidden_command as hid_command
 
 # 디스코드 디버그용 명령어
@@ -177,6 +178,11 @@ async def run_api_maple_party_reward(ctx: commands.Context[BumKkiBot], amount: s
 @bot.command(name="메할일", usage="캐릭터명", help="메이플스토리 캐릭터의 등록된 스케줄을 조회해양 (주의:일일퀘스트는 게임에 한번 접속해야 보여양")
 async def run_api_maple_scheduler(ctx: commands.Context[BumKkiBot], character_name: str):
     await map_command.maple_scheduler(ctx, character_name)
+
+# 넥슨 API 토큰 관리 명령어 등록 from service.nexon_token.command as tok_command (2026-10-05, Opus 5.5)
+@bot.command(name="넥슨토큰", help="개인화 기능에 쓸 넥슨 Open API 토큰을 비공개 쓰레드에서 저장, 삭제해양 (30분 뒤 자동 삭제). 예: `븜 넥슨토큰`")
+async def run_nexon_token_manage(ctx: commands.Context[BumKkiBot]):
+    await tok_command.nexon_token_manage(ctx)
 
 # 던전앤파이터 명령어 등록 from service.neoplednf_command as dnf_command
 @bot.command(name="던파정보", usage="서버명 캐릭터명", help="던전앤파이터 캐릭터의 기본 정보를 조회해양. 예: `븜 던파정보 카인 마법사악`")

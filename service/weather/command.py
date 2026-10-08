@@ -8,6 +8,11 @@ from service.weather.utils import *
 from bot_logger import log_command, with_timeout
 
 from common_exceptions.client_exceptions import *
+# 예외 안내 메시지 맵과 공통 처리 함수 (2026-10-08, Opus 5.5)
+from common_exceptions.error_message import handle_command_error
+from service.weather.exceptions import (
+    KAKAO_LOCAL_ERROR_MESSAGES, WEATHER_API_ERROR_MESSAGES,
+    WEATHER_UNKNOWN_ERROR_MESSAGE)
 
 
 @with_timeout(COMMAND_TIMEOUT)
@@ -45,61 +50,19 @@ async def api_weather(ctx: commands.Context[BumKkiBot], location_name: str) -> N
             local_address_name = f"{local_address_1} {local_address_2} {local_address_3}"
             local_x: str = local_road_address.get('x')
             local_y: str = local_road_address.get('y')
-    except KKO_LOCAL_API_ERROR as e:
-        await ctx.send(f"해당 지역의 정보를 검색하는 중에 오류가 발생했어양!")
-        raise KakaoAPIError(str(e))
-    except KakaoNoLocalInfo as e:
-        await ctx.send(f"해당 지역의 정보를 찾을 수 없어양!")
-        raise KakaoAPIError(str(e))
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except KakaoAPIError as e:
+        await handle_command_error(
+            ctx, e, KAKAO_LOCAL_ERROR_MESSAGES)
     
     try:
         # 날씨 정보 조회
         weather_info = await get_weather_info(local_x, local_y)
-    except WTH_API_INTERNAL_ERROR:
-        await ctx.send(f"날씨 정보를 가져오는 중에 오류가 발생했어양!")
-        raise WeatherAPIError("Internal server error")
-    except WTH_API_DATA_ERROR:
-        await ctx.send(f"날씨 API 데이터에 문제가 발생했어양!")
-        raise WeatherAPIError("Data error")
-    except WTH_API_DATA_NOT_FOUND:
-        await ctx.send(f"해당 지역의 날씨 정보를 찾을 수 없어양!")
-        raise WeatherAPIError("Data not found")
-    except WTH_API_HTTP_ERROR:
-        await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
-        raise WeatherAPIError("HTTP error")
-    except WTH_API_TIMEOUT:
-        await ctx.send(f"날씨 데이터 가져오는데 시간이 초과되었어양!")
-        raise WeatherAPIError("Timeout error")
-    except WTH_API_INVALID_PARAMS:
-        await ctx.send(f"날씨 API 요청 파라미터가 잘못되었어양!")
-        raise WeatherAPIError("Invalid params")
-    except WTH_API_INVALID_REGION:
-        await ctx.send(f"해당 지역은 날씨 API에서 지원하지 않아양!")
-        raise WeatherAPIError("Invalid region")
-    except WTH_API_DEPRECATED:
-        await ctx.send(f"더 이상 지원되지 않는 기능이에양!")
-        raise WeatherAPIError("Deprecated feature")
-    except WTH_API_UNAUTHORIZED:
-        await ctx.send(f"날씨 API 서비스 접근 권한이 없어양!")
-        raise WeatherAPIError("Unauthorized access to API")
-    except WTH_API_KEY_TEMP_ERROR:
-        await ctx.send(f"날씨 API 키가 임시로 제한되었어양!")
-        raise WeatherAPIError("Temporary API key restriction")
-    except WTH_API_KEY_LIMIT_EXCEEDED:
-        await ctx.send(f"날씨 API 키의 요청 한도를 초과했어양!")
-        raise WeatherAPIError("API key request limit exceeded")
-    except WTH_API_KEY_INVALID:
-        await ctx.send(f"날씨 API 키가 유효하지 않아양!")
-        raise WeatherAPIError("Invalid API key")
-    except WTH_API_KEY_EXPIRED:
-        await ctx.send(f"날씨 API 키가 만료되었어양!")
-        raise WeatherAPIError("Expired API key")
-    except WeatherAPIError:
-        await ctx.send(f"날씨 API 요청 중에 오류가 발생했어양!")
-        raise WeatherAPIError("Weather API error")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
     except Exception as e:
-        await ctx.send(f"날씨 정보를 가져오는 중에 알 수 없는 오류가 발생했어양!")
-        raise WeatherAPIError(str(e))
+        await handle_command_error(
+            ctx, e, WEATHER_API_ERROR_MESSAGES,
+            default=WEATHER_UNKNOWN_ERROR_MESSAGE)
 
     # 날씨 데이터 전처리 - 실황 정보
     kst_now: datetime = datetime.now(tz=timezone("Asia/Seoul"))

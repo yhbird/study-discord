@@ -352,48 +352,7 @@ def weather_exception_handler(error_code: str, exception_msg: str) -> None:
     else:
         raise WeatherAPIError(f"Unknown error code: {error_code}, message: {exception_msg}")
     
-class YFinanceAPIError(UtilsBaseException):
-    """YFinance API 사용 중 발생하는 오류"""
-    pass
-
-class STKException(YFinanceAPIError):
-    """주식 관련 예외 클래스"""
-    pass
-
-class YFI_NO_RATE_WARNING(YFinanceAPIError):
-    """환율 정보를 찾을 수 없는 예외
-    
-    경고 메시지로 처리되며, 명령어 실행을 중단하지 않음
-    """
-    pass
-
-class YFI_STOCK_FETCH_RATE(YFinanceAPIError):
-    """환율 정보를 가져오는 데 실패한 예외
-    
-    경고 메시지로 처리되며, 명령어 실행을 중단하지 않음
-    """
-    pass
-
-class YFI_NO_TICKER(YFinanceAPIError):
-    """티커 정보를 찾을 수 없는 예외"""
-    pass
-
-class YFI_CURRENCY_PARSE_ERROR(YFinanceAPIError):
-    """현지 통화 단위를 파싱할 수 없는 예외"""
-    pass
-
-class YFI_CURRENCY_NOT_SUPPORT(YFinanceAPIError):
-    """지원하지 않는 현지통화 파싱시도"""
-    pass
-
-class STK_KRX_SEARCH_ERROR(STKException):
-    """한국 주식 코드 검색 오류 예외"""
-    pass
-
-class STK_KRX_SEARCH_NO_RESULT(STKException):
-    """한국 주식 코드 검색 결과 없음 예외"""
-    pass
-
+# YFinance/STK 예외는 finance/exceptions.py 사용 (2026-10-08, Opus 5.5)
 class DB_CONNECTION_ERROR(UtilsBaseException):
     """데이터베이스 연결 오류 예외"""
     pass

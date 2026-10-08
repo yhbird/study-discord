@@ -6,6 +6,10 @@ from bot import BumKkiBot
 
 from service.neoplednf.utils import *
 from common_exceptions.command_exceptions import CommandFailure
+# 예외 안내 메시지 맵과 공통 처리 함수 (2026-10-08, Opus 5.5)
+from common_exceptions.error_message import handle_command_error
+from service.neoplednf.exceptions import (
+    DNF_UNKNOWN_ERROR_MESSAGE, NEOPLE_API_ERROR_MESSAGES)
 
 from bot_logger import log_command, with_timeout
 from common.time import kst_format_now
@@ -38,42 +42,13 @@ async def api_dnf_characters(ctx: commands.Context[BumKkiBot], server_name: str,
             await get_dnf_character_id(server_name, character_name)
         )
         character_info: dict = await get_dnf_character_info(server_id, character_id)
-    except NeopleAPIInvalidId as e:
-        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        raise CommandFailure("Invalid ID")
-    except NeopleAPILimitExceed as e:
-        await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
-        raise CommandFailure("API limit exceeded")
-    except NeopleAPIInvalidParams as e:
-        await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
-        raise CommandFailure("Invalid parameters")
-    except NeopleDNFInvalidServerID as e:
-        await ctx.send(f"서버명이 잘못 입력 되었어양...")
-        raise CommandFailure("Invalid server name")
-    except NeopleDNFInvalidCharacterInfo as e:
-        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
-        raise CommandFailure(f"Character '{character_name}' not found")
-    except NeopleDNFInvalidRequestParams as e:
-        await ctx.send(f"네오플 API 요청 파라미터에 오류가 발생했어양!!!")
-        raise CommandFailure("Invalid request parameters")
-    except NeopleDNFSystemMaintenance as e:
-        await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
-        raise CommandFailure("System maintenance")
-    except NeopleDNFSystemError as e:
-        await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        raise CommandFailure("System error")
-    except NeopleAPIError as e:
-        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        raise CommandFailure("Neople API error")
-    except DNFCIDNotFound as e:
-        await ctx.send(f"{server_name}서버 '{character_name}'의 고유ID를 찾을 수 없어양...")
-        raise CommandFailure(f"Character ID not found")
-    except DNFCharacterNotFound as e:
-        await ctx.send(f"{server_name}서버 '{character_name}'을(를) 찾을 수 없어양...")
-        raise CommandFailure(f"Character '{character_name}' not found")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
     except Exception as e:
-        await ctx.send(f"던전앤파이터 API 통신 중 알 수 없는 오류가 발생했어양!")
-        raise CommandFailure("Unknown error")
+        await handle_command_error(
+            ctx, e, NEOPLE_API_ERROR_MESSAGES,
+            default=DNF_UNKNOWN_ERROR_MESSAGE,
+            server_name=server_name,
+            character_name=character_name)
 
     # 모험단 이름 추출
     adventure_name: str | Literal["몰라양"] = character_info.get("adventure_name")
@@ -167,42 +142,13 @@ async def api_dnf_equipment(ctx: commands.Context[BumKkiBot], server_name: str, 
         equipment_info = await get_dnf_character_equipment(server_id, character_id)
         character_image = await get_dnf_character_image(server_id, character_id)
     
-    except NeopleAPIInvalidId as e:
-        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        raise CommandFailure("Invalid ID")
-    except NeopleAPILimitExceed as e:
-        await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
-        raise CommandFailure("API limit exceeded")
-    except NeopleAPIInvalidParams as e:
-        await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
-        raise CommandFailure("Invalid parameters")
-    except NeopleDNFInvalidServerID as e:
-        await ctx.send(f"서버명이 잘못 입력 되었어양...")
-        raise CommandFailure("Invalid server name")
-    except NeopleDNFInvalidCharacterInfo as e:
-        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
-        raise CommandFailure(f"Character '{character_name}' not found")
-    except NeopleDNFInvalidRequestParams as e:
-        await ctx.send(f"네오플 API 요청 파라미터에 오류가 발생했어양!!!")
-        raise CommandFailure("Invalid request parameters")
-    except NeopleDNFSystemMaintenance as e:
-        await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
-        raise CommandFailure("System maintenance")
-    except NeopleDNFSystemError as e:
-        await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        raise CommandFailure("System error")
-    except NeopleAPIError as e:
-        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        raise CommandFailure("Neople API error")
-    except DNFCIDNotFound as e:
-        await ctx.send(f"{server_name}서버 '{character_name}'의 고유ID를 찾을 수 없어양...")
-        raise CommandFailure(f"Character ID not found")
-    except DNFCharacterNotFound as e:
-        await ctx.send(f"{server_name}서버 '{character_name}'을(를) 찾을 수 없어양...")
-        raise CommandFailure(f"Character '{character_name}' not found")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
     except Exception as e:
-        await ctx.send(f"던전앤파이터 API 통신 중 알 수 없는 오류가 발생했어양!")
-        raise CommandFailure("Unknown error")
+        await handle_command_error(
+            ctx, e, NEOPLE_API_ERROR_MESSAGES,
+            default=DNF_UNKNOWN_ERROR_MESSAGE,
+            server_name=server_name,
+            character_name=character_name)
     
     if locals().get('equipment_info') is None:
         await ctx.send(f"{server_name}서버 '{character_name}'의 장비 정보를 찾을 수 없어양...")
@@ -402,42 +348,13 @@ async def api_dnf_timeline_weekly(ctx: commands.Context[BumKkiBot], server_name:
         )
         set_item_info: Dict[str, Any] | None = await get_dnf_character_set_equipment_info(server_id, character_id)
         timeline_data: dict = await get_dnf_weekly_timeline(server_id, character_id)
-    except NeopleAPIInvalidId as e:
-        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        raise CommandFailure("Invalid ID")
-    except NeopleAPILimitExceed as e:
-        await ctx.send(f"네오플 API 요청 제한에 걸렸어양...")
-        raise CommandFailure("API limit exceeded")
-    except NeopleAPIInvalidParams as e:
-        await ctx.send(f"네오플 API 요청 파라미터가 잘못되었어양...")
-        raise CommandFailure("Invalid parameters")
-    except NeopleDNFInvalidServerID as e:
-        await ctx.send(f"서버명이 잘못 입력 되었어양...")
-        raise CommandFailure("Invalid server name")
-    except NeopleDNFInvalidCharacterInfo as e:
-        await ctx.send(f"캐릭터 '{character_name}'을(를) 찾을 수 없어양...")
-        raise CommandFailure(f"Character '{character_name}' not found")
-    except NeopleDNFInvalidRequestParams as e:
-        await ctx.send(f"네오플 API 요청 파라미터에 오류가 발생했어양!!!")
-        raise CommandFailure("Invalid request parameters")
-    except NeopleDNFSystemMaintenance as e:
-        await ctx.send(f"현재 던전앤파이터 서비스 점검 중이에양!")
-        raise CommandFailure("System maintenance")
-    except NeopleDNFSystemError as e:
-        await ctx.send(f"던전앤파이터 API에서 오류가 발생했어양!")
-        raise CommandFailure("System error")
-    except NeopleAPIError as e:
-        await ctx.send(f"네오플 API 요청에 오류가 발생했어양!!!")
-        raise CommandFailure("Neople API error")
-    except DNFCIDNotFound as e:
-        await ctx.send(f"{server_name}서버 '{character_name}'의 고유ID를 찾을 수 없어양...")
-        raise CommandFailure(f"Character ID not found")
-    except DNFCharacterNotFound as e:
-        await ctx.send(f"{server_name}서버 '{character_name}'을(를) 찾을 수 없어양...")
-        raise CommandFailure(f"Character '{character_name}' not found")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
     except Exception as e:
-        await ctx.send(f"던전앤파이터 API 통신 중 알 수 없는 오류가 발생했어양!")
-        raise CommandFailure("Unknown error")
+        await handle_command_error(
+            ctx, e, NEOPLE_API_ERROR_MESSAGES,
+            default=DNF_UNKNOWN_ERROR_MESSAGE,
+            server_name=server_name,
+            character_name=character_name)
 
     if locals().get('timeline_data') is None:
         await ctx.send(f"{server_name}서버 '{character_name}'의 주간 타임라인 데이터를 찾을 수 없어양...")

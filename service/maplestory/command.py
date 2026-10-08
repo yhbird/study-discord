@@ -21,7 +21,11 @@ from config import COMMAND_TIMEOUT, BOT_VERSION
 
 from common_exceptions.client_exceptions import *
 from common_exceptions.command_exceptions import *
-from service.maplestory.exceptions import MapleSchedulerNotRegistered
+# 예외 안내 메시지 맵과 공통 처리 함수 (2026-10-08, Opus 5.5)
+from common_exceptions.error_message import handle_command_error
+from service.maplestory.exceptions import (
+    MapleErrorMessage, NEXON_API_ERROR_MESSAGES, SCHEDULER_ERROR_MESSAGES,
+    SUNDAY_NOTICE_ERROR_MESSAGES)
 
 ocid_resolver = AsyncCharacterOCIDResolver(get_ocid, ttl_sec=3600, negative_ttl_sec=60)
 
@@ -53,24 +57,14 @@ async def maple_basic_info(ctx: commands.Context[BumKkiBot], character_name: str
             get_basic_info(character_ocid),
             get_popularity(character_ocid) 
         )
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
         return
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character basic info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
-    except NexonAPIError:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character basic info not found")
 
     # 캐릭터 기본 정보 1 - 캐릭터 이름
     character_name: str | None = basic_info.get('character_name')
@@ -196,21 +190,11 @@ async def maple_pcbang_notice(ctx: commands.Context[BumKkiBot]) -> None:
     """
     try:
         notice_data: dict = await get_notice(target_event="pcbang")
-    except NexonAPIBadRequest:
-        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
-        raise CommandFailure("PC Bang notice not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
-    except NexonAPIError:
-        await ctx.send(f"PC방 이벤트 공지사항을 찾을 수 없어양!")
-        raise CommandFailure("PC Bang notice not found")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.PCBANG_NOTICE_NOT_FOUND)
         
     # 공지사항 데이터 전처리
     if notice_data:
@@ -289,24 +273,13 @@ async def maple_sunday_notice(ctx: commands.Context[BumKkiBot]) -> None:
     """
     try:
         notice_data: dict = await get_notice(target_event="sunday")
-    except NexonAPIBadRequest:
-        await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
-        raise CommandFailure("Sunday event notice not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
-    except NexonAPISundayEventNotFound:
-        await ctx.send("썬데이 이벤트 공지사항이 아직 없어양!!\n매주 금요일 오전 10시에 업데이트 되니 참고해양!!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, SUNDAY_NOTICE_ERROR_MESSAGES,
+            default=MapleErrorMessage.SUNDAY_NOTICE_NOT_FOUND,
+            expected=(NexonAPISundayEventNotFound,))
         return
-    except NexonAPIError:
-        await ctx.send(f"썬데이 이벤트 공지사항을 찾을 수 없어양!")
-        raise CommandFailure("Sunday event notice not found")
 
     # 공지사항 데이터 전처리
     if notice_data:
@@ -409,21 +382,14 @@ async def maple_detail_info(ctx: commands.Context[BumKkiBot], character_name: st
             get_stat_info(character_ocid),
             get_popularity(character_ocid)
         )
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.CHARACTER_INFO_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
         return
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character basic info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
 
     # 캐릭터 기본 정보 0 - 캐릭터 OCID (추가 데이터 조회용)
     character_ocid: str = basic_info.get('character_ocid')
@@ -723,21 +689,14 @@ async def maple_ability_info(ctx: commands.Context[BumKkiBot], character_name: s
             if basic_info.get('character_world') is not None else '모르는'
         )
 
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.ABILITY_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
         return
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 어빌리티 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character ability info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
 
     # 캐릭터의 남은 명성 조회
     ability_fame: int = (
@@ -831,21 +790,12 @@ async def maple_fortune_today(ctx: commands.Context[BumKkiBot], character_name: 
     try:
         character_ocid: str = await ocid_resolver.resolve(character_name)
 
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Service unavailable")
-    except NexonAPIOCIDNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise CommandFailure(f"OCID not found for character: {character_name}")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.CHARACTER_NOT_FOUND,
+            character_name=character_name)
     
     # OCID 데이터값 검증
     if not character_ocid:
@@ -855,18 +805,12 @@ async def maple_fortune_today(ctx: commands.Context[BumKkiBot], character_name: 
     # 캐릭터 월드/생성일 확인
     try:
         basic_info: dict = await get_basic_info(character_ocid)
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' basic info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Service unavailable")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+            character_name=character_name)
     character_world: str = (
         str(basic_info.get('character_world')).strip()
         if basic_info.get('character_world') is not None
@@ -935,24 +879,12 @@ async def maple_xp_history(ctx: commands.Context[BumKkiBot], character_name: str
     try:
         character_ocid: str = await ocid_resolver.resolve(character_name)
         character_basic_info = await get_basic_info(character_ocid)
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-        raise CommandFailure("Character not found")
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Service unavailable")
-    except NexonAPIOCIDNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise CommandFailure(f"OCID not found for character: {character_name}")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+            character_name=character_name)
 
     xp_history_data: List[Tuple[str, int, str]] = []
 
@@ -965,18 +897,12 @@ async def maple_xp_history(ctx: commands.Context[BumKkiBot], character_name: str
 
     try:
         xp_history_data: List[Tuple[str, int, str]] = await get_weekly_xp_history(character_ocid, time_offset)
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' basic info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Service unavailable")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+            character_name=character_name)
 
     # 캐릭터의 이름, 월드, 생성일 추출
     character_world: str = (
@@ -1094,21 +1020,14 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
             get_cash_equipment_info(character_ocid),
             get_beauty_equipment_info(character_ocid)
         )
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.CASH_EQUIPMENT_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
         return
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 코디 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character cash equipment info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
     
     character_name: str = basic_info.get('character_name', character_name)
     character_world: str = (
@@ -1265,24 +1184,12 @@ async def maple_xp_history_v2(ctx: commands.Context[BumKkiBot], character_name: 
     try:
         character_ocid: str = await ocid_resolver.resolve(character_name)
         character_basic_info = await get_basic_info(character_ocid)
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'을 찾을 수 없어양!")
-        raise CommandFailure("Character not found")
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Service unavailable")
-    except NexonAPIOCIDNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-        raise CommandFailure(f"OCID not found for character: {character_name}")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+            character_name=character_name)
 
     xp_history_data: List[Tuple[str, int, str]] = []
 
@@ -1305,18 +1212,12 @@ async def maple_xp_history_v2(ctx: commands.Context[BumKkiBot], character_name: 
             character_ocid=character_ocid, search_end=character_date_create
         )
 
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-        raise CommandFailure(f"Character '{character_name}' basic info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Service unavailable")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+            character_name=character_name)
     
      # 캐릭터의 이름, 월드, 생성일 추출
     character_world: str = (
@@ -1439,21 +1340,14 @@ async def maple_cordinate_history(ctx: commands.Context[BumKkiBot], character_na
             get_basic_info(character_ocid),
             get_cash_equipment_info(character_ocid)
         )
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.CASH_EQUIPMENT_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
         return
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 코디 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character cash equipment info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
     
     character_name: str = basic_info.get('character_name', character_name)
     character_world: str = (
@@ -1528,21 +1422,14 @@ async def maple_equipment_info(ctx: commands.Context[BumKkiBot], character_name:
             get_basic_info(character_ocid),
             get_item_equipment_info(character_ocid)
         )
-    except NexonAPICharacterNotFound:
-        await ctx.send(f"캐릭터 '{character_name}'를 찾을 수 없어양!")
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.ITEM_EQUIPMENT_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
         return
-    except NexonAPIBadRequest:
-        await ctx.send(f"캐릭터 '{character_name}'의 장비 정보를 찾을 수 없어양!")
-        raise CommandFailure("Character item equipment info not found")
-    except NexonAPIForbidden:
-        await ctx.send("Nexon Open API 접근 권한이 없어양!")
-        raise CommandFailure("Forbidden access to API")
-    except NexonAPITooManyRequests:
-        await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-        raise CommandFailure("Too many requests to API")
-    except NexonAPIServiceUnavailable:
-        await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-        raise CommandFailure("Nexon Open API Internal server error")
     
     if basic_info:
         # 캐릭터명
@@ -1700,34 +1587,23 @@ async def maple_scheduler(ctx: commands.Context[BumKkiBot], character_name: str)
         # 캐릭터 OCID 조회
         try:
             character_ocid: str = await ocid_resolver.resolve(character_name)
-        except NexonAPICharacterNotFound:
-            await ctx.send(f"캐릭터 '{character_name}'가 존재하지 않거나 찾을 수 없어양!")
-            raise CommandFailure("Character not found")
-        except NexonAPIBadRequest:
-            await ctx.send(f"캐릭터 '{character_name}'의 기본 정보를 찾을 수 없어양!")
-            raise CommandFailure(f"Character '{character_name}' not found")
-        except NexonAPIForbidden:
-            await ctx.send("Nexon Open API 접근 권한이 없어양!")
-            raise CommandFailure("Forbidden access to API")
-        except NexonAPITooManyRequests:
-            await ctx.send("API 요청이 너무 많아양! 잠시 후 다시 시도해보세양")
-            raise CommandFailure("Too many requests to API")
-        except NexonAPIServiceUnavailable:
-            await ctx.send("Nexon Open API 서버에 오류가 발생했거나 점검중이에양")
-            raise CommandFailure("Nexon Open API Service unavailable")
-        except NexonAPIOCIDNotFound:
-            await ctx.send(f"캐릭터 '{character_name}'의 OCID를 찾을 수 없어양!")
-            raise CommandFailure(f"OCID not found for character: {character_name}")
+        # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+        except NexonAPIError as e:
+            await handle_command_error(
+                ctx, e, NEXON_API_ERROR_MESSAGES,
+                default=MapleErrorMessage.BASIC_INFO_NOT_FOUND,
+                character_name=character_name)
 
         # 캐릭터 Scheduler 조회
         try:
             maple_schedule: Dict[str, Any] = await get_maple_scheduler_info(character_ocid)
-        except MapleSchedulerNotRegistered:
-            await ctx.reply(f"캐릭터 '{character_name}'의 등록된 스케줄이 하나도 없어양!")
-            raise CommandFailure(f"Character '{character_name}' Schedule not registered")
-        except NexonAPIBadRequest:
-            await ctx.reply(f"캐릭터 '{character_name}'의 스케줄 조회에 실패했어양!\n지금 일부 캐릭터가 조회가 안되는 버그가 있어양 ㅠ")
-            raise CommandFailure(f"Character '{character_name}' Schedule not found")
+        # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+        except NexonAPIError as e:
+            await handle_command_error(
+                ctx, e, SCHEDULER_ERROR_MESSAGES,
+                default=MapleErrorMessage.SCHEDULER_NOT_FOUND,
+                reply=True,
+                character_name=character_name)
 
         embed_title: str = (f"{maple_schedule.get('character_world')} 월드 "
                             f"{maple_schedule.get('character_name')} 용사님의 메할일")
