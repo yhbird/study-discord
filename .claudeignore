@@ -1,0 +1,6 @@
+postgres-data/
+.idea/
+__pycache__/
+.vscode/
+.vscode-server/
+.DS_Store

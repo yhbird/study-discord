@@ -225,7 +225,3 @@ user_stock_favorites.json
 .DS_Store
 .vscode/
 docker-compose.test.yml
-
-# AI Agents
-.claude/
-.claudeignore
