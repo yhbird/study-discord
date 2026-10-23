@@ -102,7 +102,8 @@ class CharacterOCIDResolver:
             # 실제 OCID 조회
             try:
                 ocid = self.getter(character_name)
-            except Exception:
+            except NexonAPICharacterNotFound:
+                # 점검, 서버 오류는 부정 캐시에 넣지 않음 (2026-10-22, Opus 5.5)
                 self._set_negative_cache(key)
                 raise
 
@@ -198,7 +199,9 @@ class AsyncCharacterOCIDResolver:
 
             except Exception as e:
                 async with self._lock:
-                    self._set_negative_cache_unlocked(key)
+                    # 점검, 서버 오류는 부정 캐시에 넣지 않음 (2026-10-22, Opus 5.5)
+                    if isinstance(e, NexonAPICharacterNotFound):
+                        self._set_negative_cache_unlocked(key)
                     if not future.done():
                         future.set_exception(e)
                     self._inflight.pop(key, None)
@@ -235,7 +238,9 @@ class AsyncCharacterOCIDResolver:
             ocid = await self.getter(character_name)
         except Exception as e:
             async with self._lock:
-                self._set_negative_cache_unlocked(key)
+                # 점검, 서버 오류는 부정 캐시에 넣지 않음 (2026-10-22, Opus 5.5)
+                if isinstance(e, NexonAPICharacterNotFound):
+                    self._set_negative_cache_unlocked(key)
                 if not future.done():
                     future.set_exception(e)
                 self._inflight.pop(key, None)

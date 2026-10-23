@@ -6,7 +6,8 @@
 from __future__ import annotations
 from common_exceptions.client_exceptions import (
     NexonAPIError, NexonAPIBadRequest, NexonAPICharacterNotFound,
-    NexonAPIForbidden, NexonAPIOCIDNotFound, NexonAPIServiceUnavailable,
+    NexonAPIForbidden, NexonAPIGameMaintenance, NexonAPIOCIDNotFound,
+    NexonAPIServiceMaintenance, NexonAPIServiceUnavailable,
     NexonAPISundayEventNotFound, NexonAPITooManyRequests)
 from common_exceptions.error_message import ErrorMessageMap
 
@@ -33,6 +34,13 @@ NEXON_API_ERROR_MESSAGES: ErrorMessageMap = {
         "API 요청이 너무 많아양! 잠시 후 다시 시도해보세양",
     NexonAPIServiceUnavailable:
         "Nexon Open API 서버에 오류가 발생했거나 점검중이에양",
+    # 점검 안내 메시지 추가 (2026-10-22, Opus 5.5)
+    NexonAPIGameMaintenance: (
+        "지금 메이플스토리 점검 중이라 조회할 수 없어양!\n"
+        "점검이 끝나면 다시 시도해주세양"),
+    NexonAPIServiceMaintenance: (
+        "지금 Nexon Open API 점검 중이라 조회할 수 없어양!\n"
+        "점검이 끝나면 다시 시도해주세양"),
 }
 
 SUNDAY_NOTICE_ERROR_MESSAGES: ErrorMessageMap = {

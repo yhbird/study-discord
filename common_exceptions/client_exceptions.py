@@ -31,6 +31,18 @@ class NexonAPITooManyRequests(NexonAPIError):
 class NexonAPIServiceUnavailable(NexonAPIError):
     """Nexon API Service Unavailable 오류"""
 
+class NexonAPIMaintenance(NexonAPIError):
+    """Nexon API 점검 오류 (2026-10-22, Opus 5.5)
+
+    NexonAPIBadRequest를 상속하지 않아서 '캐릭터 없음'으로 바뀌지 않음
+    """
+
+class NexonAPIGameMaintenance(NexonAPIMaintenance):
+    """Nexon 게임 점검 중 (OPENAPI00010, 400) (2026-10-22, Opus 5.5)"""
+
+class NexonAPIServiceMaintenance(NexonAPIMaintenance):
+    """Nexon Open API 점검 중 (OPENAPI00011, 503) (2026-10-22, Opus 5.5)"""
+
 class NexonAPIOCIDNotFound(NexonAPIError):
     """Nexon API OCID Not Found 오류"""
 
@@ -41,17 +53,30 @@ class NexonAPISundayEventNotFound(NexonAPIError):
     """Nexon API 썬데이 이벤트 공지사항 없음 오류"""
 
 def nexon_api_error_handler(response: httpx.Response):
+    """Nexon Open API 오류 응답을 예외로 바꾸는 함수
+
+    점검 오류는 HTTP 상태보다 error.name을 먼저 확인한다 (2026-10-22, Opus 5.5)
+
+    Reference:
+        https://openapi.nexon.com/ko/guide/request-api/
+    """
     status = response.status_code
     msg = None
+    error_name = None
     try:
         payload = response.json()
         error = payload.get("error") if isinstance(payload, dict) else None
         msg = (error or {}).get("message")
+        error_name = (error or {}).get("name")
     except Exception:
         msg = response.text.strip()
 
     prefix = f"{status} : "
-    if status == 400:
+    if error_name == "OPENAPI00010":
+        raise NexonAPIGameMaintenance(f"{prefix}{msg or 'Game Maintenance'}")
+    elif error_name == "OPENAPI00011" or status == 503:
+        raise NexonAPIServiceMaintenance(f"{prefix}{msg or 'API Maintenance'}")
+    elif status == 400:
         raise NexonAPIBadRequest(f"{prefix}{msg or 'Bad Request'}")
     elif status == 403:
         raise NexonAPIForbidden(f"{prefix}{msg or 'Forbidden'}")

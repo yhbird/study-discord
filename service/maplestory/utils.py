@@ -223,6 +223,7 @@ async def get_ocid(character_name: str) -> str:
     service_url = MaplestoryUrls.OCID
     url_encode_name: str = quote(character_name)
     request_url = f"{NEXON_API_HOME}{service_url}?character_name={url_encode_name}"
+    # 점검 오류는 NexonAPIMaintenance로 따로 올라감 (2026-10-22, Opus 5.5)
     try:
         response_data: dict = await general_request_handler_nexon(request_url)
     except NexonAPIBadRequest as e:
