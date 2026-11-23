@@ -30,6 +30,20 @@ class MapleStoryVars:
         "bossMonthly": "[월간]",
 
     }
+    # 외형에 영향을 주는 장착 부위 (코디 표시 순서) (2026-11-23, Opus 5.5)
+    LOOK_SLOT_ORDER = (
+        "모자", "얼굴장식", "눈장식", "귀고리", "상의", "하의",
+        "신발", "장갑", "망토", "보조무기", "무기",
+    )
+    # 장비 외형이 보이는 보조무기 종류 (방패만 캐릭터 외형에 표시됨) (2026-11-23, Opus 5.5)
+    LOOK_VISIBLE_SUB_WEAPON_PARTS = ("방패",)
+    # 장착 장비 외형을 보여주는 캐시 아이템 키워드 (예: 반투명 모자) (2026-11-23, Opus 5.5)
+    SEMI_TRANSPARENT_KEYWORD = "반투명"
+    # 외형 모드가 2개인 직업: {직업: (look_mode "0" 이름, look_mode "1" 이름)} (2026-11-23, Opus 5.5)
+    DUAL_LOOK_CLASSES = {
+        "제로": ("알파", "베타"),
+        "엔젤릭버스터": ("일반 모드", "드레스업 모드"),
+    }
 
 class MaplestoryUrls:
     OCID = "/maplestory/v1/id"

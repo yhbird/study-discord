@@ -1474,7 +1474,20 @@ async def get_cash_equipment_info(
     return_data["equipment_look_list"] = (
         response_data.get(f"{target_key_name}_{preset}", [])
     )
-    
+    # 외형 모드별 캐시 아이템 목록 (제로 알파/베타, 엔버 일반/드레스업 동시 표시용) (2026-11-23, Opus 5.5)
+    # - "0": cash_item_equipment_base + cash_item_equipment_preset_N
+    # - "1": additional_cash_item_equipment_base + additional_cash_item_equipment_preset_N
+    return_data["look_lists_by_mode"] = {
+        "0": {
+            "base": response_data.get("cash_item_equipment_base") or [],
+            "preset": response_data.get(f"cash_item_equipment_preset_{preset}") or [],
+        },
+        "1": {
+            "base": response_data.get("additional_cash_item_equipment_base") or [],
+            "preset": response_data.get(f"additional_cash_item_equipment_preset_{preset}") or [],
+        },
+    }
+
     return return_data
 
 
@@ -1522,49 +1535,159 @@ def get_current_cash_equipment_info(
     Returns:
         Dict[str, Dict[str, str]]: 부위별 장착 캐시 아이템 정보
     """
+    # 중복 파싱 코드를 _parse_cash_item_slot 함수로 통합 (2026-11-23, Opus 5.5)
     return_info: Dict[str, Dict[str, str]] = {}
     base_equipment_map: List[Dict[str, Any]] = current_cash_equipment_data.get("equipment_base_list")
     for base in base_equipment_map:
-        part_name: str = base.get("cash_item_equipment_part", "알수없음") # 장착 장비 종류
-        slot_name: str = base.get("cash_item_equipment_slot", "알수없음") # 장착 부위
-        item_name: str = base.get("cash_item_name", "알수없음") # 캐시 아이템 이름
-        item_icon: str = base.get("cash_item_icon", "") # 캐시 아이템 아이콘 URL
-        item_label: str = base.get("cash_item_label") or "없음"
-        item_coloring_prism: str = base.get("cash_item_coloring_prism") or "없음"
-        item_gender: str = base.get("item_gender") or "공용"
-        freestyle_flag: str = base.get("freestyle_flag") or "0" # 프리스타일 쿠폰 사용 여부
-
-        return_info[slot_name] = {
-            "part_name": part_name,
-            "item_name": item_name,
-            "item_icon": item_icon,
-            "item_label": item_label,
-            "item_coloring_prism": item_coloring_prism,
-            "item_gender": item_gender,
-            "freestyle_flag": freestyle_flag
-        }
+        slot_name, slot_info = _parse_cash_item_slot(base)
+        return_info[slot_name] = slot_info
 
     look_equipment_map: List[Dict[str, Any]] = current_cash_equipment_data.get("equipment_look_list")
     for look in look_equipment_map:
-        part_name: str = look.get("cash_item_equipment_part", "알수없음") # 장착 장비 종류
-        slot_name: str = look.get("cash_item_equipment_slot", "알수없음") # 장착 부위
-        item_name: str = look.get("cash_item_name", "알수없음") # 캐시 아이템 이름
-        item_icon: str = look.get("cash_item_icon", "") # 캐시 아이템 아이콘 URL
-        item_label: str = look.get("cash_item_label") or "없음"
-        item_coloring_prism: str = look.get("cash_item_coloring_prism") or "없음"
-        item_gender: str = look.get("item_gender") or "공용"
-        freestyle_flag: str = look.get("freestyle_flag") or "0" # 프리스타일 쿠폰 사용 여부
-
         # 덮어쓰기 처리
-        return_info[slot_name] = {
-            "part_name": part_name,
-            "item_name": item_name,
-            "item_icon": item_icon,
-            "item_label": item_label,
-            "item_coloring_prism": item_coloring_prism,
-            "item_gender": item_gender,
-            "freestyle_flag": freestyle_flag
-        }
+        slot_name, slot_info = _parse_cash_item_slot(look)
+        return_info[slot_name] = slot_info
+
+    return return_info
+
+
+def _parse_cash_item_slot(cash_item: Dict[str, Any]) -> Tuple[str, Dict[str, str]]:
+    """캐시 아이템 1개를 (장착 부위, 표시용 정보) 형태로 가공하는 함수 (2026-11-23, Opus 5.5)
+
+    Args:
+        cash_item (Dict[str, Any]): Nexon API 캐시 아이템 데이터 1개
+
+    Returns:
+        Tuple[str, Dict[str, str]]: (장착 부위 이름, 표시용 캐시 아이템 정보)
+    """
+    slot_name: str = cash_item.get("cash_item_equipment_slot", "알수없음") # 장착 부위
+    slot_info: Dict[str, str] = {
+        "part_name": cash_item.get("cash_item_equipment_part", "알수없음"), # 장착 장비 종류
+        "item_name": cash_item.get("cash_item_name", "알수없음"), # 캐시 아이템 이름
+        "item_icon": cash_item.get("cash_item_icon", ""), # 캐시 아이템 아이콘 URL
+        "item_label": cash_item.get("cash_item_label") or "없음",
+        "item_coloring_prism": cash_item.get("cash_item_coloring_prism") or "없음",
+        "item_gender": cash_item.get("item_gender") or "공용",
+        "freestyle_flag": cash_item.get("freestyle_flag") or "0", # 프리스타일 쿠폰 사용 여부
+    }
+    return slot_name, slot_info
+
+
+def get_look_mode_names(character_class: str | None) -> Tuple[str, str] | None:
+    """외형 모드가 2개인 직업이면 (모드 0 이름, 모드 1 이름)을 반환 (2026-11-23, Opus 5.5)
+
+    Args:
+        character_class (str | None): 캐릭터 직업 이름
+
+    Returns:
+        Tuple[str, str] | None: 제로 ("알파", "베타"), 엔젤릭버스터 ("일반 모드", "드레스업 모드"), 그 외 None
+    """
+    if character_class is None:
+        return None
+    return MapleStoryVars.DUAL_LOOK_CLASSES.get(str(character_class).strip())
+
+
+def get_cash_look_info_with_equipment(
+        cash_equipment_data: Dict[str, Optional[Any]],
+        item_equipment_data: Dict[str, Optional[Dict[str, Any]]],
+        look_mode: str = "0",
+    ) -> Dict[str, Dict[str, Any]]:
+    """캐시 코디 아이템과 장착 장비 외형을 합쳐서 부위별 외형 정보를 만드는 함수 (2026-11-23, Opus 5.5)
+
+    처리 규칙
+    - 캐시 아이템: 외형 모드의 base 목록 위에 현재 프리셋 목록을 덮어쓰기
+    - 반투명 아이템(예: 반투명 모자): 캐시 아이템 대신 장착 장비의 외형을 함께 표시
+    - 캐시 아이템이 없는 외형 부위: 장착 장비의 외형(신비의 모루) 이름, 없으면 장비 이름 표시
+    - 캐시 한벌옷 착용 시 하의는 장비 외형을 표시하지 않음
+    - 제로 베타(look_mode "1")의 무기 외형은 장비의 보조무기(대검) 사용
+    - 엔젤릭버스터 드레스업(look_mode "1")은 코디가 없는 부위에 장비 외형을 표시하지 않음
+
+    Args:
+        cash_equipment_data (Dict[str, Optional[Any]]): get_cash_equipment_info 반환값
+        item_equipment_data (Dict[str, Optional[Dict[str, Any]]]): get_item_equipment_info 반환값
+        look_mode (str, optional): 외형 모드 (0: 기본/알파, 1: 드레스업/베타). Defaults to "0".
+
+    Returns:
+        Dict[str, Dict[str, Any]]: 부위별 외형 정보 (LOOK_SLOT_ORDER 순서 → 나머지 캐시 부위 순서)
+        - source: "cash" (캐시 아이템) | "equipment" (장착 장비 외형)
+        - equip_name / equip_shape_name: 장착 장비 이름 / 외형 이름 (없으면 None)
+        - semi_transparent: 반투명 캐시 아이템 여부
+    """
+    look_lists: Dict[str, List[Dict[str, Any]]] = (
+        cash_equipment_data.get("look_lists_by_mode", {}).get(look_mode) or {}
+    )
+    base_list: List[Dict[str, Any]] = look_lists.get("base") or []
+    preset_list: List[Dict[str, Any]] = look_lists.get("preset") or []
+    semi_keyword: str = MapleStoryVars.SEMI_TRANSPARENT_KEYWORD
+
+    # 1) 캐시 아이템: base -> 프리셋 덮어쓰기
+    cash_slots: Dict[str, Dict[str, str]] = {}
+    for cash_item in [*base_list, *preset_list]:
+        slot_name, slot_info = _parse_cash_item_slot(cash_item)
+        cash_slots[slot_name] = slot_info
+
+    # 반투명 아이템은 치장창(base)이나 프리셋 중 한 곳에만 있어도 장비 외형이 보임 (아이템 설명 기준)
+    semi_slots: Dict[str, Dict[str, str]] = {}
+    for cash_item in [*base_list, *preset_list]:
+        if semi_keyword in str(cash_item.get("cash_item_name") or ""):
+            slot_name, slot_info = _parse_cash_item_slot(cash_item)
+            semi_slots[slot_name] = slot_info
+
+    character_class: str = str(cash_equipment_data.get("character_class") or "").strip()
+    is_zero: bool = character_class == "제로"
+    # 엔버 드레스업 모드는 코디가 없는 부위에 장비 외형이 보이지 않음 (캐릭터 이미지로 확인, 반투명만 표시)
+    show_equipment_on_empty: bool = not (character_class == "엔젤릭버스터" and look_mode == "1")
+
+    def _equipment_for_slot(slot_name: str) -> Optional[Dict[str, Any]]:
+        """외형 부위에 해당하는 장착 장비 데이터 반환"""
+        if is_zero:
+            if slot_name == "보조무기":
+                return None  # 제로의 보조무기(대검)는 베타의 무기로 표시
+            if slot_name == "무기" and look_mode == "1":
+                return item_equipment_data.get("보조무기")
+        equipment: Optional[Dict[str, Any]] = item_equipment_data.get(slot_name)
+        if equipment and slot_name == "보조무기":
+            part: str = str(equipment.get("item_equipment_part") or "").strip()
+            if part not in MapleStoryVars.LOOK_VISIBLE_SUB_WEAPON_PARTS:
+                return None
+        return equipment
+
+    top_cash: Optional[Dict[str, str]] = cash_slots.get("상의")
+    covers_bottom: bool = (
+        top_cash is not None
+        and top_cash.get("part_name") == "한벌옷"
+        and "상의" not in semi_slots
+    )
+
+    # 2) 표시 순서: 외형 부위 -> 나머지 캐시 부위 (반지 등)
+    ordered_slots: List[str] = list(MapleStoryVars.LOOK_SLOT_ORDER)
+    ordered_slots += [slot for slot in cash_slots if slot not in ordered_slots]
+
+    return_info: Dict[str, Dict[str, Any]] = {}
+    for slot_name in ordered_slots:
+        cash_info: Optional[Dict[str, str]] = semi_slots.get(slot_name) or cash_slots.get(slot_name)
+        is_semi: bool = slot_name in semi_slots
+        equipment: Optional[Dict[str, Any]] = None
+        if slot_name in MapleStoryVars.LOOK_SLOT_ORDER and (
+                is_semi or (cash_info is None and show_equipment_on_empty)):
+            if not (slot_name == "하의" and covers_bottom):
+                equipment = _equipment_for_slot(slot_name)
+
+        if cash_info is None and equipment is None:
+            continue
+
+        if cash_info is not None:
+            slot_info: Dict[str, Any] = {**cash_info, "source": "cash"}
+        else:
+            slot_info = {
+                "part_name": str(equipment.get("item_equipment_part") or "알수없음").strip(),
+                "item_name": None,
+                "source": "equipment",
+            }
+        slot_info["semi_transparent"] = is_semi
+        slot_info["equip_name"] = equipment.get("item_name") if equipment else None
+        slot_info["equip_shape_name"] = equipment.get("item_shape_name") if equipment else None
+        return_info[slot_name] = slot_info
 
     return return_info
 

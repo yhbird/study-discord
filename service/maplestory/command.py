@@ -1000,65 +1000,23 @@ async def maple_xp_history(ctx: commands.Context[BumKkiBot], character_name: str
         buffer.close()
 
 
-@with_timeout(COMMAND_TIMEOUT)
-@log_command(alt_func_name="븜 코디")
-async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
-    """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 조회
+def _format_beauty_description(current_beauty_info: Dict[str, Dict[str, str] | None]) -> str:
+    """뷰티(헤어/얼굴/스킨) 정보를 Embed 문자열로 변환 (2026-11-23, Opus 5.5)
+
+    기존 maple_cash_equipment_info 내부 코드를 외형 모드별로 재사용하기 위해 분리
 
     Args:
-        ctx (commands.Context): Discord 명령어 컨텍스트
-        character_name (str): 캐릭터 이름
+        current_beauty_info (Dict[str, Dict[str, str] | None]): get_current_beauty_equipment_info 반환값
+
+    Returns:
+        str: 뷰티 정보 Embed 문자열
     """
-    if ctx.message.author.bot:
-        return
-    
-    # 캐릭터 basic 정보 조회 (OCID 포함)
-    try:
-        character_ocid: str = await ocid_resolver.resolve(character_name)
-        basic_info, cash_equipment_info, beauty_equipment_info = await asyncio.gather(
-            get_basic_info(character_ocid),
-            get_cash_equipment_info(character_ocid),
-            get_beauty_equipment_info(character_ocid)
-        )
-    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
-    except NexonAPIError as e:
-        await handle_command_error(
-            ctx, e, NEXON_API_ERROR_MESSAGES,
-            default=MapleErrorMessage.CASH_EQUIPMENT_NOT_FOUND,
-            expected=(NexonAPICharacterNotFound,),
-            character_name=character_name)
-        return
-    
-    character_name: str = basic_info.get('character_name', character_name)
-    character_world: str = (
-        str(basic_info.get('character_world')).strip()
-        if basic_info.get('character_world') is not None else '알수없음'
-    )
-    character_gender: str | Literal["제로"] = basic_info.get('character_gender')
-
-    character_image: str | Literal[""] = basic_info.get('character_image')
-    if character_image != '알 수 없음':
-        character_image_url: str | None = get_character_image_url(character_image)
-    else:
-        character_image_url: str | None = None
-
-    look_mode: str = cash_equipment_info.get('character_look_mode')
-
-    current_cordinate_info: Dict[str, Dict[str, str]] = get_current_cash_equipment_info(
-        current_cash_equipment_data=cash_equipment_info,
-    )
-
-    current_beauty_info :Dict[str, Dict[str, str]] = get_current_beauty_equipment_info(
-        current_beauty_equipment_data=beauty_equipment_info,
-        look_mode=look_mode,
-    )
-
-    current_hair = current_beauty_info.get("hair")
-    current_face = current_beauty_info.get("face")
-    current_skin = current_beauty_info.get("skin")
+    current_hair = current_beauty_info.get("hair") or {}
+    current_face = current_beauty_info.get("face") or {}
+    current_skin = current_beauty_info.get("skin") or {}
 
     # 헤어 정보 조회
-    current_hair_name: str = current_hair.get("hair_name")
+    current_hair_name: str = current_hair.get("hair_name") or "알수없음"
     current_hair_base_color: str = current_hair.get("base_color")
     current_hair_mix_color: str = current_hair.get("mix_color")
     current_hair_mix_rate: str = current_hair.get("mix_rate")
@@ -1075,12 +1033,15 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
         current_hair_name_str: str = f"믹스 {hair_name} {color_mix_str}"
 
     # 얼굴 정보 조회
-    current_face_name: str = current_face.get("face_name")
+    current_face_name: str = current_face.get("face_name") or "알수없음"
     current_face_base_color: str = current_face.get("base_color")
     current_face_mix_color: str = current_face.get("mix_color")
     current_face_mix_rate: str = current_face.get("mix_rate")
     if current_face_mix_color is None:
-        current_face_name_str: str = f"{current_face_base_color} {current_face_name}"
+        current_face_name_str: str = (
+            f"{current_face_base_color} {current_face_name}"
+            if current_face_base_color else current_face_name
+        )
     else:
         current_face_base_rate: int = 100 - int(current_face_mix_rate)
         color_mix_str: str = (
@@ -1090,7 +1051,7 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
         current_face_name_str: str = f"믹스 {current_face_name} {color_mix_str}"
 
     # 스킨 정보 조회
-    current_skin_name: str = current_skin.get("skin_name")
+    current_skin_name: str = current_skin.get("skin_name") or "알수없음"
     current_skin_color_style: str = current_skin.get("color_style")
     if current_skin_color_style is None:
         current_skin_name_str: str = current_skin_name
@@ -1102,21 +1063,54 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
             f"{current_skin_name}\n({current_skin_color_style})"
             f" 색조: {current_skin_hue} | 채도: {current_skin_saturation} | 명도: {current_skin_brightness}"
         )
-    
-    # 뷰티 정보 Embed 문자열 생성
-    embed_description_beauty: str = (
+
+    return (
         f"- 헤어: {current_hair_name_str}\n"
         f"- 얼굴: {current_face_name_str}\n"
         f"- 스킨: {current_skin_name_str}"
     )
 
+
+def _format_equipment_look(item_info: Dict[str, Any]) -> str:
+    """장착 장비의 외형 문자열 생성 (2026-11-23, Opus 5.5)
+
+    - 신비의 모루로 외형이 바뀐 경우: "[장비 외형] 데빌스 혼 (하이네스 던위치햇)"
+    - 외형이 바뀌지 않은 경우: "[장비] 아케인셰이드 메이지슈즈"
+    - 장착 장비가 없는 경우: "(장착 장비 없음)"
+    """
+    equip_name: str | None = item_info.get("equip_name")
+    equip_shape_name: str | None = item_info.get("equip_shape_name")
+    if not equip_name:
+        return "(장착 장비 없음)"
+    if equip_shape_name and equip_shape_name != equip_name:
+        return f"[장비 외형] {equip_shape_name} ({equip_name})"
+    return f"[장비] {equip_name}"
+
+
+def _format_cordinate_description(look_info: Dict[str, Dict[str, Any]]) -> str:
+    """부위별 코디/장비 외형 정보를 Embed 문자열로 변환 (2026-11-23, Opus 5.5)
+
+    Args:
+        look_info (Dict[str, Dict[str, Any]]): get_cash_look_info_with_equipment 반환값
+
+    Returns:
+        str: 코디 정보 Embed 문자열
+    """
     current_cordinate_descriptions: List[str] = []
-    for item_slot, item_info in current_cordinate_info.items():
+    for item_slot, item_info in look_info.items():
         part_name: str = item_info.get("part_name")
+
+        # 캐시 아이템이 없는 부위: 장착 장비 외형 표시
+        if item_info.get("source") == "equipment":
+            current_cordinate_descriptions.append(
+                f"- {item_slot}({part_name}): {_format_equipment_look(item_info)}"
+            )
+            continue
+
         item_name: str = item_info.get("item_name")
         item_label: str = item_info.get("item_label")
         item_gender: str = item_info.get("item_gender")
-        item_coloring: Dict[str, str] | None = item_info.get("item_coloring_prism")
+        item_coloring: Dict[str, str] | str = item_info.get("item_coloring_prism")
         freestyle_flag: str = item_info.get("freestyle_flag")
         if item_coloring != "없음":
             color_range: str = item_coloring.get("color_range")
@@ -1140,29 +1134,122 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
             freestyle_str: str = ""
         else:
             freestyle_str: str = " (프리스타일 쿠폰 적용중)"
+        # 반투명 아이템: 실제로 보이는 장착 장비 외형을 함께 표시
+        if item_info.get("semi_transparent"):
+            semi_str: str = f" → {_format_equipment_look(item_info)}"
+        else:
+            semi_str: str = ""
         item_name_str: str = (
             f"- {item_slot}({part_name}): {item_label_str}{item_gender_str}"
-            f"{item_name}{freestyle_str}{item_coloring_str}"
+            f"{item_name}{freestyle_str}{semi_str}{item_coloring_str}"
         )
         current_cordinate_descriptions.append(item_name_str)
 
-    embed_description_cordinate: str = "\n".join(current_cordinate_descriptions)
-    embed_title: str = f"{character_world}월드 '{character_name}' 용사님의 현재 코디 정보에양!!"
-    embed: discord.Embed = discord.Embed(
-        title=embed_title,
-        description=(
-            f"<뷰티 정보>\n{embed_description_beauty}\n\n"
-            f"<코디 정보>\n{embed_description_cordinate}"
-        ),
-    )
+    return "\n".join(current_cordinate_descriptions)
+
+
+def _get_look_embed_colour(character_gender: str, character_class: str, look_mode: str) -> discord.Colour:
+    """Embed 색상 결정 (제로는 알파=남색 계열, 베타=분홍 계열) (2026-11-23, Opus 5.5)"""
+    if character_class == "제로":
+        character_gender = "남" if look_mode == "0" else "여"
     if character_gender in ["남성", "남"]:
-        embed.colour = discord.Colour.from_rgb(0, 128, 255)
-    elif character_gender in ["여성", "여"]:
-        embed.colour = discord.Colour.from_rgb(239, 111, 148)
+        return discord.Colour.from_rgb(0, 128, 255)
+    if character_gender in ["여성", "여"]:
+        return discord.Colour.from_rgb(239, 111, 148)
+    return discord.Colour.from_rgb(128, 128, 128)
+
+
+@with_timeout(COMMAND_TIMEOUT)
+@log_command(alt_func_name="븜 코디")
+async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_name: str) -> None:
+    """캐릭터의 장착중인 장착효과 및 외형 캐시 아이템 조회
+
+    - 반투명 코디 아이템, 코디 미착용 부위는 장착 장비의 외형 이름을 함께 표시 (2026-11-23, Opus 5.5)
+    - 제로(알파/베타), 엔젤릭버스터(일반/드레스업)는 두 외형을 Embed 2개로 표시 (2026-11-23, Opus 5.5)
+
+    Args:
+        ctx (commands.Context): Discord 명령어 컨텍스트
+        character_name (str): 캐릭터 이름
+    """
+    if ctx.message.author.bot:
+        return
+
+    # 캐릭터 basic 정보 조회 (OCID 포함)
+    # 장비 외형 표시를 위해 장착 장비 정보 조회 추가 (2026-11-23, Opus 5.5)
+    try:
+        character_ocid: str = await ocid_resolver.resolve(character_name)
+        basic_info, cash_equipment_info, beauty_equipment_info, item_equipment_info = await asyncio.gather(
+            get_basic_info(character_ocid),
+            get_cash_equipment_info(character_ocid),
+            get_beauty_equipment_info(character_ocid),
+            get_item_equipment_info(character_ocid),
+        )
+    # 안내 메시지는 exceptions.py 맵 사용 (2026-10-08, Opus 5.5)
+    except NexonAPIError as e:
+        await handle_command_error(
+            ctx, e, NEXON_API_ERROR_MESSAGES,
+            default=MapleErrorMessage.CASH_EQUIPMENT_NOT_FOUND,
+            expected=(NexonAPICharacterNotFound,),
+            character_name=character_name)
+        return
+
+    character_name: str = basic_info.get('character_name', character_name)
+    character_world: str = (
+        str(basic_info.get('character_world')).strip()
+        if basic_info.get('character_world') is not None else '알수없음'
+    )
+    character_gender: str | Literal["제로"] = basic_info.get('character_gender')
+    character_class: str = cash_equipment_info.get('character_class')
+
+    character_image: str | Literal[""] = basic_info.get('character_image')
+    if character_image != '알 수 없음':
+        character_image_url: str | None = get_character_image_url(character_image)
     else:
-        embed.colour = discord.Colour.from_rgb(128, 128, 128)
-    embed.set_image(url=character_image_url)
-    await ctx.send(embed=embed)
+        character_image_url: str | None = None
+
+    current_look_mode: str = cash_equipment_info.get('character_look_mode') or "0"
+
+    # 외형 모드가 2개인 직업(제로, 엔젤릭버스터)은 두 모드 모두 표시 (2026-11-23, Opus 5.5)
+    look_mode_names: Tuple[str, str] | None = get_look_mode_names(character_class)
+    if look_mode_names is None:
+        target_look_modes: List[str] = [current_look_mode]
+    else:
+        target_look_modes: List[str] = ["0", "1"]
+
+    embeds: List[discord.Embed] = []
+    for look_mode in target_look_modes:
+        current_beauty_info: Dict[str, Dict[str, str]] = get_current_beauty_equipment_info(
+            current_beauty_equipment_data=beauty_equipment_info,
+            look_mode=look_mode,
+        )
+        look_info: Dict[str, Dict[str, Any]] = get_cash_look_info_with_equipment(
+            cash_equipment_data=cash_equipment_info,
+            item_equipment_data=item_equipment_info,
+            look_mode=look_mode,
+        )
+        embed_description_beauty: str = _format_beauty_description(current_beauty_info)
+        embed_description_cordinate: str = _format_cordinate_description(look_info) or "- 착용중인 코디가 없어양"
+
+        embed_title: str = f"{character_world}월드 '{character_name}' 용사님의 현재 코디 정보에양!!"
+        if look_mode_names is not None:
+            mode_name: str = look_mode_names[int(look_mode)]
+            current_mark: str = " · 현재 외형" if look_mode == current_look_mode else ""
+            embed_title = f"{embed_title} [{mode_name}{current_mark}]"
+
+        embed: discord.Embed = discord.Embed(
+            title=embed_title,
+            description=(
+                f"<뷰티 정보>\n{embed_description_beauty}\n\n"
+                f"<코디 정보>\n{embed_description_cordinate}"
+            ),
+            colour=_get_look_embed_colour(character_gender, character_class, look_mode),
+        )
+        # 캐릭터 이미지는 현재 외형 모드만 제공되므로 현재 모드 Embed에만 표시
+        if look_mode == current_look_mode and character_image_url:
+            embed.set_image(url=character_image_url)
+        embeds.append(embed)
+
+    await ctx.send(embeds=embeds)
 
 
 @with_timeout(COMMAND_TIMEOUT)
