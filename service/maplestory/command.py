@@ -1166,6 +1166,8 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
 
     - 반투명 코디 아이템, 코디 미착용 부위는 장착 장비의 외형 이름을 함께 표시 (2026-11-23, Opus 5.5)
     - 제로(알파/베타), 엔젤릭버스터(일반/드레스업)는 두 외형을 Embed 2개로 표시 (2026-11-23, Opus 5.5)
+    - Embed 2개 대신 버튼으로 외형을 전환하는 10분 뷰어로 변경 (2026-11-24, Opus 5.5)
+      다른 외형 이미지는 넥슨 API가 제공하지 않아 최근 7일 기록에서 조회
 
     Args:
         ctx (commands.Context): Discord 명령어 컨텍스트
@@ -1216,7 +1218,7 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
     else:
         target_look_modes: List[str] = ["0", "1"]
 
-    embeds: List[discord.Embed] = []
+    embeds: Dict[str, discord.Embed] = {}
     for look_mode in target_look_modes:
         current_beauty_info: Dict[str, Dict[str, str]] = get_current_beauty_equipment_info(
             current_beauty_equipment_data=beauty_equipment_info,
@@ -1247,9 +1249,28 @@ async def maple_cash_equipment_info(ctx: commands.Context[BumKkiBot], character_
         # 캐릭터 이미지는 현재 외형 모드만 제공되므로 현재 모드 Embed에만 표시
         if look_mode == current_look_mode and character_image_url:
             embed.set_image(url=character_image_url)
-        embeds.append(embed)
+        embeds[look_mode] = embed
 
-    await ctx.send(embeds=embeds)
+    if look_mode_names is None:
+        await ctx.send(embed=embeds[current_look_mode])
+        return
+
+    # 제로/엔버: 현재 외형을 먼저 보여주고 버튼으로 다른 외형 전환 (10분 유지) (2026-11-24, Opus 5.5)
+    current_embed: discord.Embed = embeds[current_look_mode]
+    current_embed.set_footer(text="아래 버튼으로 다른 외형을 볼 수 있어양! (10분 동안 사용 가능)")
+
+    async def _load_look_mode_image(look_mode: str) -> Tuple[Optional[str], Optional[str]]:
+        return await find_look_mode_image(character_ocid, look_mode)
+
+    view = LookModeViewer(
+        embeds=embeds,
+        mode_names={"0": look_mode_names[0], "1": look_mode_names[1]},
+        current_look_mode=current_look_mode,
+        requester=ctx.author,
+        image_loader=_load_look_mode_image,
+        timeout=600,
+    )
+    view.message = await ctx.send(embed=current_embed, view=view)
 
 
 @with_timeout(COMMAND_TIMEOUT)

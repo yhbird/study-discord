@@ -44,6 +44,8 @@ class MapleStoryVars:
         "제로": ("알파", "베타"),
         "엔젤릭버스터": ("일반 모드", "드레스업 모드"),
     }
+    # 다른 외형 모드 이미지를 찾을 과거 기록 일수 (하루 API 1~2회 호출) (2026-11-24, Opus 5.5)
+    LOOK_MODE_IMAGE_SEARCH_DAYS = 7
 
 class MaplestoryUrls:
     OCID = "/maplestory/v1/id"

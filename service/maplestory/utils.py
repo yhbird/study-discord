@@ -12,6 +12,7 @@ import re
 from urllib.parse import quote
 from collections import deque
 from datetime import datetime, timedelta
+import discord
 from discord import Interaction, ButtonStyle
 from discord.ui import View, Button
 from pytz import timezone
@@ -22,6 +23,7 @@ from service.maplestory.consts import (
     MapleStoryVars, MaplestoryUrls)
 
 from config import NEXON_API_KEY, NEXON_API_HOME # Nexon Open API
+from config import BOT_DEVELOPER_ID # 코디 뷰어 삭제 권한 확인 (2026-11-24, Opus 5.5)
 
 from data.json.fortune_message_table import fortune_message_table_raw
 
@@ -32,7 +34,7 @@ from common.image import ImageTools, ImageBaseConfig
 from common.time import parse_iso_string
 from common.image import convert_image_url_into_bytes
 
-from typing import Literal, Optional, Dict, List, Tuple, Any
+from typing import Literal, Optional, Dict, List, Tuple, Any, Callable, Awaitable
 
 API_MAX_DATE_SEARCH_END: datetime = datetime(year=2023, month=12, day=21) # Nexon API 제공 시작일
 API_MAX_CORDINATE_HISTORY: datetime = datetime.now(tz=timezone("Asia/Seoul")) - timedelta(days=90) # 코디 컬렉션 최대 조회
@@ -1690,6 +1692,180 @@ def get_cash_look_info_with_equipment(
         return_info[slot_name] = slot_info
 
     return return_info
+
+
+async def find_look_mode_image(
+        ocid: str,
+        target_look_mode: str,
+        max_days: int = MapleStoryVars.LOOK_MODE_IMAGE_SEARCH_DAYS,
+    ) -> Tuple[Optional[str], Optional[str]]:
+    """과거 기록에서 target_look_mode 외형의 캐릭터 이미지를 찾는 함수 (2026-11-24, Opus 5.5)
+
+    Nexon API 캐릭터 이미지는 현재 외형 모드만 제공되어서,
+    어제부터 max_days 일 전까지 하루씩 외형 모드를 확인하고 일치하는 날의 이미지를 사용
+
+    Args:
+        ocid (str): 캐릭터 OCID
+        target_look_mode (str): 찾을 외형 모드 (0: 기본/알파, 1: 드레스업/베타)
+        max_days (int, optional): 최대 검색 일수. Defaults to LOOK_MODE_IMAGE_SEARCH_DAYS.
+
+    Returns:
+        Tuple[Optional[str], Optional[str]]: (캐릭터 이미지 URL, 기준 날짜 YYYY-MM-DD), 못 찾으면 (None, None)
+
+    Notes:
+        - 하루에 API 1회(외형 모드 확인), 찾으면 1회(기본 정보) 추가 호출
+        - 데이터가 아직 갱신되지 않은 날(400 응답 등)은 건너뜀
+    """
+    today = datetime.now(tz=timezone("Asia/Seoul")).date()
+    for days_ago in range(1, max_days + 1):
+        index_date: str = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        try:
+            cash_data: Dict[str, Any] = await get_cash_equipment_info(ocid, date_param=index_date)
+            if str(cash_data.get("character_look_mode") or "0") != target_look_mode:
+                continue
+            basic_data = await get_basic_info(ocid, date_param=index_date)
+        except NexonAPIError:
+            continue
+        if not basic_data:
+            continue
+        character_image: str = basic_data.get("character_image") or ""
+        if character_image in ("", "알 수 없음"):
+            continue
+        return get_character_image_url(character_image), index_date
+    return None, None
+
+
+class LookModeViewer(View):
+    """제로/엔젤릭버스터 외형 모드 전환 뷰어 (2026-11-24, Opus 5.5)
+
+    - 현재 외형 모드 Embed 를 먼저 보여주고, 버튼으로 다른 외형 모드 Embed 로 전환
+    - 다른 외형 모드 이미지는 버튼을 처음 누를 때 image_loader 로 과거 기록에서 조회
+    - 외형 전환은 명령어 요청자만, 삭제는 요청자 또는 관리자만 가능 (ImageViewer 와 동일)
+    - timeout(기본 10분) 후 모든 버튼 비활성화
+    """
+
+    def __init__(
+            self,
+            embeds: Dict[str, discord.Embed],
+            mode_names: Dict[str, str],
+            current_look_mode: str,
+            requester: discord.abc.User,
+            image_loader: Callable[[str], Awaitable[Tuple[Optional[str], Optional[str]]]],
+            timeout: int = 600,
+        ) -> None:
+        """
+        Args:
+            embeds (Dict[str, discord.Embed]): 외형 모드별 Embed {"0": ..., "1": ...}
+            mode_names (Dict[str, str]): 외형 모드별 버튼 이름 {"0": "알파", "1": "베타"}
+            current_look_mode (str): 현재 외형 모드
+            requester (discord.abc.User): 명령어 요청자
+            image_loader (Callable): 외형 모드를 받아 (이미지 URL, 날짜) 를 반환하는 비동기 함수
+            timeout (int, optional): 뷰어 유지 시간(초). Defaults to 600.
+        """
+        super().__init__(timeout=timeout)
+        self.embeds: Dict[str, discord.Embed] = embeds
+        self.current_look_mode: str = current_look_mode
+        self.shown_look_mode: str = current_look_mode
+        self.view_owner: discord.abc.User = requester
+        self.image_loader = image_loader
+        self.loaded_modes: set = {current_look_mode}
+        self.load_lock: asyncio.Lock = asyncio.Lock()
+        self.message: Optional[discord.Message] = None
+
+        self.mode_buttons: Dict[str, Button] = {}
+        for look_mode, mode_name in mode_names.items():
+            label: str = f"{mode_name} (현재)" if look_mode == current_look_mode else mode_name
+            button = Button(label=label, custom_id=f"look_mode_{look_mode}")
+            button.callback = self._make_mode_callback(look_mode)
+            self.mode_buttons[look_mode] = button
+            self.add_item(button)
+
+        delete_button = Button(label="❌", style=ButtonStyle.secondary, custom_id="look_delete")
+        delete_button.callback = self._delete_callback
+        self.add_item(delete_button)
+        self._refresh_button_style()
+
+    def _refresh_button_style(self) -> None:
+        """보고 있는 외형 모드 버튼은 강조 + 비활성화"""
+        for look_mode, button in self.mode_buttons.items():
+            is_shown: bool = look_mode == self.shown_look_mode
+            button.style = ButtonStyle.primary if is_shown else ButtonStyle.secondary
+            button.disabled = is_shown
+
+    def _is_owner(self, interaction: Interaction) -> bool:
+        return interaction.user.id == self.view_owner.id
+
+    def _is_admin(self, interaction: Interaction) -> bool:
+        if not isinstance(interaction.user, discord.Member):
+            return False
+        perms = interaction.user.guild_permissions
+        return perms.administrator or interaction.user.id == BOT_DEVELOPER_ID
+
+    async def interaction_check(self, interaction: Interaction) -> bool:
+        custom_id: str = interaction.data.get("custom_id", "")
+        if custom_id == "look_delete":
+            allowed: bool = self._is_owner(interaction) or self._is_admin(interaction)
+            deny_msg: str = "이 기능은 검색한 사람이나 관리자만 사용할 수 있어양!"
+        else:
+            allowed = self._is_owner(interaction)
+            deny_msg = "이 기능은 검색한 사람만 사용할 수 있어양!"
+        if not allowed:
+            await interaction.response.send_message(deny_msg, ephemeral=True)
+        return allowed
+
+    def _make_mode_callback(self, look_mode: str) -> Callable[[Interaction], Awaitable[None]]:
+        async def callback(interaction: Interaction) -> None:
+            self.shown_look_mode = look_mode
+            self._refresh_button_style()
+            embed: discord.Embed = self.embeds[look_mode]
+
+            if look_mode in self.loaded_modes:
+                await interaction.response.edit_message(embed=embed, view=self)
+                return
+
+            # 처음 보는 외형 모드: 조회중 안내를 먼저 보여주고 과거 기록에서 이미지 조회
+            embed.set_footer(text="다른 외형 이미지를 최근 기록에서 찾는 중이에양...")
+            await interaction.response.edit_message(embed=embed, view=self)
+            async with self.load_lock:
+                if look_mode not in self.loaded_modes:
+                    image_url, image_date = await self.image_loader(look_mode)
+                    if image_url:
+                        embed.set_image(url=image_url)
+                        embed.set_footer(text=(
+                            f"넥슨 API는 현재 외형 이미지만 제공해서 {image_date} 기록 이미지를 보여줘양! "
+                            f"(지금 코디와 다를 수 있어양)"
+                        ))
+                    else:
+                        embed.set_footer(text=(
+                            f"최근 {MapleStoryVars.LOOK_MODE_IMAGE_SEARCH_DAYS}일 기록에서 "
+                            f"이 외형의 이미지를 찾지 못했어양..."
+                        ))
+                    self.loaded_modes.add(look_mode)
+            # 조회하는 동안 다른 모드로 바꿨으면 화면은 건드리지 않음
+            if self.message and self.shown_look_mode == look_mode:
+                try:
+                    await self.message.edit(embed=embed, view=self)
+                except discord.NotFound:
+                    pass
+        return callback
+
+    async def _delete_callback(self, interaction: Interaction) -> None:
+        await interaction.response.defer()
+        if self.message:
+            try:
+                await self.message.delete()
+            except discord.NotFound:
+                pass
+        self.stop()
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.NotFound:
+                pass
 
 
 async def get_beauty_equipment_info(
